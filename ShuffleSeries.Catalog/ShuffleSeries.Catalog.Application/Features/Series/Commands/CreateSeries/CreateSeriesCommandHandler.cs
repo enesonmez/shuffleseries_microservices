@@ -1,6 +1,6 @@
 using MediatR;
 using ShuffleSeries.Catalog.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Repositories;
+using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 

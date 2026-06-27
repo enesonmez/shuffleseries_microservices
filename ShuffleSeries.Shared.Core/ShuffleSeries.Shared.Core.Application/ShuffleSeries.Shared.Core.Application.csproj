@@ -8,13 +8,12 @@
 
     <ItemGroup>
       <PackageReference Include="FluentValidation" Version="12.1.1" />
-      <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
       <PackageReference Include="MediatR" Version="14.1.0" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Application\ShuffleSeries.Shared.Core.Application.csproj" />
-      <ProjectReference Include="..\ShuffleSeries.Catalog.Domain\ShuffleSeries.Catalog.Domain.csproj" />
+      <ProjectReference Include="..\ShuffleSeries.Shared.Core.Domain\ShuffleSeries.Shared.Core.Domain.csproj" />
+      <ProjectReference Include="..\ShuffleSeries.Shared.Core.Exceptions\ShuffleSeries.Shared.Core.Exceptions.csproj" />
     </ItemGroup>
 
 </Project>

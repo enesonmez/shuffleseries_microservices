@@ -6,8 +6,4 @@
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Domain\ShuffleSeries.Shared.Core.Domain.csproj" />
-    </ItemGroup>
-
 </Project>

@@ -1,4 +1,4 @@
-namespace ShuffleSeries.Shared.Core.Primitives;
+namespace ShuffleSeries.Shared.Core.Domain.Primitives;
 
 public abstract class Entity : IEquatable<Entity>
 {

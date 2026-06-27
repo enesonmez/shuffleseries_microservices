@@ -1,4 +1,4 @@
-namespace ShuffleSeries.Shared.Core.Repositories;
+namespace ShuffleSeries.Shared.Core.Domain.Repositories;
 
 public interface IUnitOfWork
 {

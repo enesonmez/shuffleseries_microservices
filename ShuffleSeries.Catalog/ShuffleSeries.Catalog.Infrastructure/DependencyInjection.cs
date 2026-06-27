@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
-using ShuffleSeries.Shared.Core.Repositories;
+using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Infrastructure;
 

@@ -18,14 +18,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Web\ShuffleSeries.Shared.Core.Web.csproj" />
       <ProjectReference Include="..\ShuffleSeries.Catalog.Application\ShuffleSeries.Catalog.Application.csproj" />
       <ProjectReference Include="..\ShuffleSeries.Catalog.Infrastructure\ShuffleSeries.Catalog.Infrastructure.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Content Include="..\..\.dockerignore">
-        <Link>.dockerignore</Link>
-      </Content>
     </ItemGroup>
 
 </Project>

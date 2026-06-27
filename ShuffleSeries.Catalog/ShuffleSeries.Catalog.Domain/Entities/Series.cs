@@ -1,4 +1,4 @@
-using ShuffleSeries.Shared.Core.Primitives;
+using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Catalog.Domain.Entities;
 

@@ -1,5 +1,5 @@
 using ShuffleSeries.Catalog.Domain.Entities;
-using ShuffleSeries.Shared.Core.Repositories;
+using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Domain.Repositories;
 

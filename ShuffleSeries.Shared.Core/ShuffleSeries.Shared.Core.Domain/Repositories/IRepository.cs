@@ -1,6 +1,6 @@
-using ShuffleSeries.Shared.Core.Primitives;
+using ShuffleSeries.Shared.Core.Domain.Primitives;
 
-namespace ShuffleSeries.Shared.Core.Repositories;
+namespace ShuffleSeries.Shared.Core.Domain.Repositories;
 
 public interface IRepository<TEntity> where TEntity : AggregateRoot
 {

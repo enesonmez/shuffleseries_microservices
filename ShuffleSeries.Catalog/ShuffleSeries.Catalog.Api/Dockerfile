@@ -9,9 +9,12 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api/ShuffleSeries.Catalog.Api.csproj", "ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api/"]
 COPY ["ShuffleSeries.Catalog/ShuffleSeries.Catalog.Application/ShuffleSeries.Catalog.Application.csproj", "ShuffleSeries.Catalog/ShuffleSeries.Catalog.Application/"]
+COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Application/ShuffleSeries.Shared.Core.Application.csproj", "ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Application/"]
+COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Exceptions/ShuffleSeries.Shared.Core.Exceptions.csproj", "ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Exceptions/"]
+COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Domain/ShuffleSeries.Shared.Core.Domain.csproj", "ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Domain/"]
 COPY ["ShuffleSeries.Catalog/ShuffleSeries.Catalog.Domain/ShuffleSeries.Catalog.Domain.csproj", "ShuffleSeries.Catalog/ShuffleSeries.Catalog.Domain/"]
-COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.csproj", "ShuffleSeries.Shared.Core/"]
 COPY ["ShuffleSeries.Catalog/ShuffleSeries.Catalog.Infrastructure/ShuffleSeries.Catalog.Infrastructure.csproj", "ShuffleSeries.Catalog/ShuffleSeries.Catalog.Infrastructure/"]
+COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Web/ShuffleSeries.Shared.Core.Web.csproj", "ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Web/"]
 RUN dotnet restore "ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api/ShuffleSeries.Catalog.Api.csproj"
 COPY . .
 WORKDIR "/src/ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api"

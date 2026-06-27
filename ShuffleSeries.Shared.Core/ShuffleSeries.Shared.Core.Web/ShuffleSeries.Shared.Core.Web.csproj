@@ -7,12 +7,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
-      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ShuffleSeries.Catalog.Domain\ShuffleSeries.Catalog.Domain.csproj" />
+      <ProjectReference Include="..\ShuffleSeries.Shared.Core.Exceptions\ShuffleSeries.Shared.Core.Exceptions.csproj" />
     </ItemGroup>
 
 </Project>
