@@ -1,0 +1,17 @@
+﻿services:
+  shuffleseries.microservices.apigateway:
+    image: shuffleseries.microservices.apigateway:latest
+    build:
+      context: .
+      dockerfile: ShuffleSeries.Microservices.ApiGateway/Dockerfile
+    container_name: shuffleseries.apigateway
+    ports:
+      - "5000:8080" # Dışarıdan 5000 portu ile içerideki 8080'e yönlendiriyoruz
+    networks:
+      - shuffle_network
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+networks:
+  shuffle_network:
+    driver: bridge

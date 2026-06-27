@@ -1,0 +1,6 @@
+@ShuffleSeries.Microservices.ApiGateway_HostAddress = http://localhost:5001
+
+GET {{ShuffleSeries.Microservices.ApiGateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
