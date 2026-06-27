@@ -1,16 +1,53 @@
 ﻿services:
-  shuffleseries.microservices.apigateway:
-    image: shuffleseries.microservices.apigateway:latest
+  # 1. API Gateway (Tüm dış trafiğin tek giriş kapısı - YARP)
+  apigateway:
+    image: shuffleseries_apigateway:latest
     build:
       context: .
-      dockerfile: ShuffleSeries.Microservices.ApiGateway/Dockerfile
-    container_name: shuffleseries.apigateway
+      dockerfile: ShuffleSeries.ApiGateway/Dockerfile
+    container_name: shuffleseries_apigateway
     ports:
-      - "5000:8080" # Dışarıdan 5000 portu ile içerideki 8080'e yönlendiriyoruz
+      - "6000:8080" # Dışarıdan 5000 portu ile içerideki 8080'e yönlendiriyoruz
     networks:
       - shuffle_network
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - catalog.api
+  
+  # 2. Catalog Service (Yazdığımız dikey dilim mimarili servis)
+  catalog.api:
+    image: shuffleseries_catalog:latest
+    build:
+      context: .
+      dockerfile: ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api/Dockerfile
+    container_name: shuffleseries_catalog
+    networks:
+      - shuffle_network
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      # Container içi iletişimde host olarak lokal yerine 'postgres' servis adını yazıyoruz
+      - ConnectionStrings__Database=Host=postgres;Port=5432;Database=${POSTGRES_DB_NAME};Username=${POSTGRES_DB_USER};Password=${POSTGRES_DB_PASSWORD};Maximum Pool Size=50;
+    depends_on:
+      - postgres
+    
+  # 3. İlişkisel Veritabanı (Catalog Servisi verilerini tutar)
+  postgres:
+    image: postgres:15-alpine
+    container_name: shuffleseries_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_DB_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
+    ports:
+      - "5432:5432" # Dışarıdan veritabanına bağlanıp incelemek istersek diye açık bıraktık
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - shuffle_network
+
+volumes:
+  postgres_data:
 
 networks:
   shuffle_network:

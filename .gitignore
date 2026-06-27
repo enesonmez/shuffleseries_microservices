@@ -11,6 +11,8 @@ CHECKLIST.md
 *.sln.docstates
 .vscode/
 
+.env
+Migrations/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
