@@ -20,7 +20,6 @@ public sealed class ValidationBehavior<TRequest, TResponse>
         RequestHandlerDelegate<TResponse> next, 
         CancellationToken cancellationToken)
     {
-        // Eğer istek için tanımlanmış bir validator yoksa bir sonraki adıma geç
         if (!_validators.Any())
         {
             return await next(cancellationToken);
@@ -28,11 +27,9 @@ public sealed class ValidationBehavior<TRequest, TResponse>
 
         var context = new ValidationContext<TRequest>(request);
 
-        // Tüm validator kurallarını asenkron olarak çalıştır
         var validationFailures = await Task.WhenAll(
             _validators.Select(validator => validator.ValidateAsync(context, cancellationToken)));
 
-        // Hataları mülk adına (Property Name) göre grupla ve benzersizleştir
         var errors = validationFailures
             .SelectMany(result => result.Errors)
             .Where(failure => failure is not null)
@@ -46,7 +43,6 @@ public sealed class ValidationBehavior<TRequest, TResponse>
                 })
             .ToDictionary(x => x.Key, x => x.Values);
 
-        // Eğer herhangi bir validasyon hatası varsa özel istisnamızı fırlat
         if (errors.Count != 0)
         {
             throw new ValidationException(errors);
