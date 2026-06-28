@@ -8,6 +8,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Domain\ShuffleSeries.Shared.Core.Domain.csproj" />
+      <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Exceptions\ShuffleSeries.Shared.Core.Exceptions.csproj" />
     </ItemGroup>
 
 </Project>

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Catalog.Domain.Repositories;
+using ShuffleSeries.Catalog.Domain.Services;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
@@ -20,5 +21,7 @@ public static class DependencyInjection
         // Interface - Somut Sınıf eşleşmeleri
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<CatalogDbContext>());
         services.AddScoped<ISeriesRepository, SeriesRepository>();
+
+        services.AddScoped<SeriesDomainService>();
     }
 }

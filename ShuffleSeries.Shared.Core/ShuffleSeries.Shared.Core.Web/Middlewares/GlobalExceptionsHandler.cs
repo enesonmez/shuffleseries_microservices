@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using ShuffleSeries.Shared.Core.Exceptions;
 using ValidationException = ShuffleSeries.Shared.Core.Exceptions.ValidationException;
 
 namespace ShuffleSeries.Shared.Core.Web.Middlewares;
@@ -36,7 +37,16 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 problemDetails.Detail = "One or more validation failures have occurred.";
                 problemDetails.Extensions["errors"] = validationException.Errors;
                 break;
-
+            
+            case BusinessException businessException:
+                problemDetails.Status = StatusCodes.Status422UnprocessableEntity;
+                problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1";
+                problemDetails.Title = "Business Rule Violation";
+                problemDetails.Detail = exception.Message;
+                if (!string.IsNullOrWhiteSpace(businessException.Code))
+                    problemDetails.Extensions["code"] = businessException.Code;
+                break;
+            
             default:
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
