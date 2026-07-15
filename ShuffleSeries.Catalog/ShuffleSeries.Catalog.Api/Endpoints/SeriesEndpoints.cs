@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
+using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesByList;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -87,6 +88,26 @@ public static class SeriesEndpoints
         {
             operation.Summary = "Delete series endpoint";
             operation.Description = "Delete an existing series by its ID";
+            return Task.CompletedTask;
+        });
+        
+        // 5. GET: Get paginated series list endpoint (Query)
+        group.MapGet("/", async (
+            int? page,
+            int? pageSize,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            var query = new GetSeriesListQuery(page ?? 1, pageSize ?? 10);
+            var response = await sender.Send(query, cancellationToken);
+        
+            return Results.Ok(response);
+        })
+        .WithName("GetSeriesList")
+        .AddOpenApiOperationTransformer((operation, context, ct) =>
+        {
+            operation.Summary = "Get paginated series list endpoint";
+            operation.Description = "Get a list of series with pagination support";
             return Task.CompletedTask;
         });
     }

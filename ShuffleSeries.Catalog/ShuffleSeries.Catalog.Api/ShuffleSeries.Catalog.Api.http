@@ -61,3 +61,8 @@ DELETE {{HostAddress}}/{{SeriesId}}
 ### 🔴 Senaryo 7: Silindikten Sonra Getirme (Not Found Testi)
 # Beklenen Sonuç: 404 Not Found (Global Exception Handler'dan gelmeli)
 GET {{HostAddress}}/{{SeriesId}}
+
+### 🟣 Senaryo 8: Sayfalı Dizi Listesini Getirme (GET Collection)
+# Beklenen Sonuç: 200 OK ve içinde Items (Dizi Listesi), PageNumber, TotalPages vs. olan JSON
+GET {{HostAddress}}?page=1&pageSize=5
+Accept: application/json

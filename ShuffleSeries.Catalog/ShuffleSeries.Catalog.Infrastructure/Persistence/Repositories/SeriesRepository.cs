@@ -27,4 +27,19 @@ internal sealed class SeriesRepository : ISeriesRepository
         return await _context.Series
             .AnyAsync(x => x.Title.ToLower() == title.ToLower(), cancellationToken);
     }
+
+    public async Task<(IReadOnlyList<Series> Items, int TotalCount)> GetPagedListAsync(int page, int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var totalCount = await _context.Series.CountAsync(cancellationToken);
+        
+        var items = await _context.Series
+            .AsNoTracking()
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+        
+        return (items, totalCount);
+    }
 }
