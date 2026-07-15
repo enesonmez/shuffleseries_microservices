@@ -34,4 +34,18 @@ public class Series : AggregateRoot
         
         return series;
     }
+    
+    public void Update(string title, string description, bool isIndependentEpisodes)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("Title cannot be empty");
+        
+        if (string.IsNullOrWhiteSpace(description))
+            throw new ArgumentException("Description cannot be empty");
+        
+        Title = title;
+        Description = description;
+        IsIndependentEpisodes = isIndependentEpisodes;
+        ModifiedAtUtc = DateTime.UtcNow;
+    }
 }

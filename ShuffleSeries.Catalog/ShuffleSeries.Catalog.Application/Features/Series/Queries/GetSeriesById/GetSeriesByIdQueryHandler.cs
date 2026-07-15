@@ -1,5 +1,6 @@
 using MediatR;
 using ShuffleSeries.Catalog.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 
@@ -18,7 +19,7 @@ internal sealed class GetSeriesByIdQueryHandler : IRequestHandler<GetSeriesByIdQ
 
         if (series is null)
         {
-            return null;
+            throw new NotFoundException($"Series with ID {request.Id} was not found.");
         }
 
         return new SeriesResponse(

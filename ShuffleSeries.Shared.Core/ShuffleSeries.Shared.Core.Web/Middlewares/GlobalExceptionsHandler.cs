@@ -47,6 +47,13 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                     problemDetails.Extensions["code"] = businessException.Code;
                 break;
             
+            case NotFoundException:
+                problemDetails.Status = StatusCodes.Status404NotFound;
+                problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4";
+                problemDetails.Title = "Not Found";
+                problemDetails.Detail = exception.Message;
+                break;
+            
             default:
                 problemDetails.Status = StatusCodes.Status500InternalServerError;
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";

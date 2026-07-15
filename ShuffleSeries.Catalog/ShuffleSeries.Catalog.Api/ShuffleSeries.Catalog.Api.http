@@ -1,6 +1,54 @@
-@ShuffleSeries.Catalog.Api_HostAddress = http://localhost:5276
+@ShuffleSeries.Catalog.Api_HostAddress = http://localhost:6000
+@HostAddress = http://localhost:6000/api/catalog/series
+@SeriesId = 65785cd3-a10f-4433-9396-652731874987
 
-GET {{ShuffleSeries.Catalog.Api_HostAddress}}/weatherforecast/
+### 🟢 Senaryo 1: Yeni Dizi Ekleme (POST) 
+# NOT: Buradan dönen ID'yi kopyalayıp yukarıdaki SeriesId değişkenine yapıştırın!
+POST {{HostAddress}}
+Content-Type: application/json
+
+{
+  "title": "Breaking Bad",
+  "description": "Short",
+  "isIndependentEpisodes": false
+}
+
+### 🔵 Senaryo 2: Id'ye Göre Getirme (GET)
+GET {{HostAddress}}/{{SeriesId}}
 Accept: application/json
 
-###
+### 🟡 Senaryo 3: Başarılı Güncelleme (PUT - Happy Path)
+# Beklenen Sonuç: 204 No Content
+PUT {{HostAddress}}/{{SeriesId}}
+Content-Type: application/json
+
+{
+  "id": "{{SeriesId}}",
+  "title": "Test Dizisi (Güncellendi)",
+  "description": "Bu dizi başarıyla güncellendi.",
+  "isIndependentEpisodes": true
+}
+
+### 🔴 Senaryo 4: Güvenlik Kontrolü Testi (URL ve Body ID Uyuşmazlığı)
+# Beklenen Sonuç: 400 Bad Request ("Route ID and Command ID must match.")
+PUT {{HostAddress}}/11111111-1111-1111-1111-111111111111
+Content-Type: application/json
+
+{
+  "id": "22222222-2222-2222-2222-222222222222",
+  "title": "Farklı ID Testi",
+  "description": "Bu istek URL ve Body ID'leri farklı olduğu için reddedilmeli.",
+  "isIndependentEpisodes": false
+}
+
+### 🔴 Senaryo 5: Validasyon Boru Hattı Testi (Geçersiz Veri - Boş Başlık)
+# Beklenen Sonuç: 400 Bad Request (RFC 7807 Problem Details formatında validasyon hataları)
+PUT {{HostAddress}}/{{SeriesId}}
+Content-Type: application/json
+
+{
+  "id": "{{SeriesId}}",
+  "title": "",
+  "description": "Başlık boş bırakıldığı için validasyon pipeline'ına takılmalı.",
+  "isIndependentEpisodes": false
+}

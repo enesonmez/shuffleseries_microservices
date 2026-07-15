@@ -1,6 +1,7 @@
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
@@ -11,7 +12,7 @@ public static class SeriesEndpoints
     {
         var group = app.MapGroup("api/catalog/series");
         
-        // 1. POST: Dizi Ekleme (Command)
+        // 1. POST: Create a series endpoint (Command)
         group.MapPost("/", async (
                 [FromBody] CreateSeriesCommand command,
                 ISender sender,
@@ -29,7 +30,7 @@ public static class SeriesEndpoints
                 return Task.CompletedTask;
             });
         
-        // 2. GET: Id'ye Göre Dizi Detayı Getirme (Query)
+        // 2. GET: Get series by ID endpoint (Query)
         group.MapGet("/{id:guid}", async (
             Guid id,
             ISender sender,
@@ -38,15 +39,34 @@ public static class SeriesEndpoints
             var query = new GetSeriesByIdQuery(id);
             var response = await sender.Send(query, cancellationToken);
             
-            return response is null 
-                ? Results.NotFound(new { Message = $"Series with ID {id} was not found." }) 
-                : Results.Ok(response);
+            return Results.Ok(response);
         })
         .WithName("GetSeriesById")
         .AddOpenApiOperationTransformer((operation, context, ct) =>
         {
             operation.Summary = "Get series by ID endpoint";
             operation.Description = "Get a series by ID";
+            return Task.CompletedTask;
+        });
+        
+        // 3. PUT: Update series endpoint (Command)
+        group.MapPut("/{id:guid}", async (
+            Guid id,
+            [FromBody] UpdateSeriesCommand command,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            if (id != command.Id)
+                return Results.BadRequest(new { Message = "Route ID and Command ID must match." });
+            
+            await sender.Send(command, cancellationToken);
+            return Results.NoContent();
+        })
+        .WithName("UpdateSeries")
+        .AddOpenApiOperationTransformer((operation, context, ct) =>
+        {
+            operation.Summary = "Update series endpoint";
+            operation.Description = "Update an existing series by its ID";
             return Task.CompletedTask;
         });
     }

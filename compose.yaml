@@ -33,7 +33,7 @@
     
   # 3. İlişkisel Veritabanı (Catalog Servisi verilerini tutar)
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: shuffleseries_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_DB_USER:-admin}
