@@ -34,6 +34,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShuffleSeries.Shared.Core.E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShuffleSeries.Shared.Core.Web", "ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Web\ShuffleSeries.Shared.Core.Web.csproj", "{FD9F9404-2F03-4EA5-B6DE-83144F637642}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShuffleSeries.Catalog.Tests", "ShuffleSeries.Catalog\ShuffleSeries.Catalog.Tests\ShuffleSeries.Catalog.Tests.csproj", "{63A4E8C8-4414-4DC1-AEB0-188D65C06DC2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,6 +78,10 @@ Global
 		{FD9F9404-2F03-4EA5-B6DE-83144F637642}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FD9F9404-2F03-4EA5-B6DE-83144F637642}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FD9F9404-2F03-4EA5-B6DE-83144F637642}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63A4E8C8-4414-4DC1-AEB0-188D65C06DC2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63A4E8C8-4414-4DC1-AEB0-188D65C06DC2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63A4E8C8-4414-4DC1-AEB0-188D65C06DC2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63A4E8C8-4414-4DC1-AEB0-188D65C06DC2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{1118F831-818A-4F3F-BF35-D415D7095A39} = {BB3A0AD2-D6CE-40CA-8938-5FE0B4536382}
@@ -86,5 +92,6 @@ Global
 		{86FA11A5-4EAA-4AA9-A1EE-E80978B18A34} = {6B1DF65D-2750-42D1-B31C-B4B11C2A3B0E}
 		{CDAE277C-64DA-4DA7-8854-DD2886BD7977} = {6B1DF65D-2750-42D1-B31C-B4B11C2A3B0E}
 		{FD9F9404-2F03-4EA5-B6DE-83144F637642} = {6B1DF65D-2750-42D1-B31C-B4B11C2A3B0E}
+		{63A4E8C8-4414-4DC1-AEB0-188D65C06DC2} = {BB3A0AD2-D6CE-40CA-8938-5FE0B4536382}
 	EndGlobalSection
 EndGlobal

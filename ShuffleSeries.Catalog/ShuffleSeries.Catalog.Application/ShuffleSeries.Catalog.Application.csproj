@@ -17,4 +17,9 @@
       <ProjectReference Include="..\ShuffleSeries.Catalog.Domain\ShuffleSeries.Catalog.Domain.csproj" />
     </ItemGroup>
 
+    <!-- Test projesinin bu katmandaki internal sınıflara (Handler vb.) erişebilmesini sağlayan ayar -->
+    <ItemGroup>
+        <InternalsVisibleTo Include="ShuffleSeries.Catalog.Tests" />
+    </ItemGroup>
+    
 </Project>

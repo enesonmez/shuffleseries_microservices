@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
-using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesByList;
+using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesList;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
