@@ -6,7 +6,7 @@ using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 
-internal class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesCommand>
+internal sealed class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesCommand>
 {
     private readonly ISeriesRepository _seriesRepository;
     private readonly SeriesDomainService _seriesDomainService;

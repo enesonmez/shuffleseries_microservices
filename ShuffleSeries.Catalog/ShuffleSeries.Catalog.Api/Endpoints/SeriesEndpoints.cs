@@ -1,6 +1,7 @@
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 
@@ -67,6 +68,25 @@ public static class SeriesEndpoints
         {
             operation.Summary = "Update series endpoint";
             operation.Description = "Update an existing series by its ID";
+            return Task.CompletedTask;
+        });
+        
+        // 4. DELETE: Delete series endpoint (Command)
+        group.MapDelete("/{id:guid}", async (
+            Guid id,
+            ISender sender,
+            CancellationToken cancellationToken) =>
+        {
+            var command = new DeleteSeriesCommand(id);
+            await sender.Send(command, cancellationToken);
+        
+            return Results.NoContent();
+        })
+        .WithName("DeleteSeries")
+        .AddOpenApiOperationTransformer((operation, context, ct) =>
+        {
+            operation.Summary = "Delete series endpoint";
+            operation.Description = "Delete an existing series by its ID";
             return Task.CompletedTask;
         });
     }

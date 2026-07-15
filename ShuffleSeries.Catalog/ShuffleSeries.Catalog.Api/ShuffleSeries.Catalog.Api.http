@@ -52,3 +52,12 @@ Content-Type: application/json
   "description": "Başlık boş bırakıldığı için validasyon pipeline'ına takılmalı.",
   "isIndependentEpisodes": false
 }
+
+### 🟠 Senaryo 6: Başarılı Silme İşlemi (DELETE - Happy Path)
+# Beklenen Sonuç: 204 No Content
+DELETE {{HostAddress}}/{{SeriesId}}
+
+
+### 🔴 Senaryo 7: Silindikten Sonra Getirme (Not Found Testi)
+# Beklenen Sonuç: 404 Not Found (Global Exception Handler'dan gelmeli)
+GET {{HostAddress}}/{{SeriesId}}
