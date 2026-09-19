@@ -1,3 +1,4 @@
+using ShuffleSeries.Catalog.Domain.Events;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Catalog.Domain.Entities;
@@ -32,6 +33,8 @@ public class Series : AggregateRoot
             isIndependentEpisodes
         );
         
+        series.RaiseDomainEvent(new SeriesCreatedDomainEvent(series.Id));
+        
         return series;
     }
     
@@ -47,5 +50,12 @@ public class Series : AggregateRoot
         Description = description;
         IsIndependentEpisodes = isIndependentEpisodes;
         ModifiedAtUtc = DateTime.UtcNow;
+        
+        RaiseDomainEvent(new  SeriesUpdatedDomainEvent(Id));
+    }
+    
+    public void Delete()
+    {
+        RaiseDomainEvent(new SeriesDeletedDomainEvent(Id));
     }
 }

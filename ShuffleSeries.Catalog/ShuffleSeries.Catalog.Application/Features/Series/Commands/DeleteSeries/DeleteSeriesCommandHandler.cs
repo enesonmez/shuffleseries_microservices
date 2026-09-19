@@ -23,6 +23,7 @@ internal sealed class DeleteSeriesCommandHandler : IRequestHandler<DeleteSeriesC
         if(series is null)
             throw new NotFoundException($"Series with ID {request.Id} was not found.");
         
+        series.Delete();
         _seriesRepository.Delete(series);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }

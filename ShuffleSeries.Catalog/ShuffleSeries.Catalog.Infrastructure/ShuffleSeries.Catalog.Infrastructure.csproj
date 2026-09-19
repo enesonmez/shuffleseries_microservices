@@ -7,11 +7,17 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+      <PackageReference Include="MassTransit" Version="9.2.0" />
+      <PackageReference Include="MassTransit.RabbitMQ" Version="9.2.0" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+      <PackageReference Include="Quartz" Version="3.19.1" />
+      <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.19.1" />
+      <PackageReference Include="Quartz.Extensions.Hosting" Version="3.19.1" />
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Infrastructure\ShuffleSeries.Shared.Core.Infrastructure.csproj" />
       <ProjectReference Include="..\ShuffleSeries.Catalog.Domain\ShuffleSeries.Catalog.Domain.csproj" />
     </ItemGroup>
 

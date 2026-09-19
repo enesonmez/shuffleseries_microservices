@@ -10,5 +10,5 @@ public abstract class AggregateRoot : Entity
     protected AggregateRoot() {}
     
     protected void RaiseDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
-    protected void ClearDomainEvents() => _domainEvents.Clear();
+    public void ClearDomainEvents() => _domainEvents.Clear();
 }
