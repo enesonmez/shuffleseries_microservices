@@ -14,6 +14,7 @@ CHECKLIST.md
 .env
 Migrations/
 .sonarqube/
+.dotnet_home/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
