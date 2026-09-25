@@ -99,8 +99,7 @@ Elasticsearch kullanarak hızlı ve Event-Driven metin arama sisteminin kurulmas
   * GET /api/search?q={text}&type={all|series|movies|episodes}&platformId={platformId}&moodId={moodId}&page=&pageSize=: Canlı arama ve filtreleme sonuçları (Debounce desteği, 16:9 yatay kart formatı, kullanıcının platformunda bulunma durumunu bildiren isAvailableOnUserPlatforms alanı ve Akıllı Köprü yönlendirme desteği).
   * GET /api/search/suggest?q={text}: Otomatik tamamlama (Edge N-Gram tokenizers kullanımı).
   * GET /api/search/trending-roulettes: Günün Popüler Ruletleri (Boş arama ekranında diğer kullanıcıların o gün en çok listesine eklediği 3-4 trend yapım mini kartları).
-  * GET /api/search/recent: Kullanıcının son arama geçmişi (Arama ekranı boş durumundaki silinebilir çipler).
-  * POST /api/search/recent: Yapılan arama teriminin kullanıcının arama geçmişine kaydedilmesi.
+  * GET /api/search/recent: Kullanıcının son arama geçmişi (Arama ekranı boş durumundaki silinebilir çipler; yapılan aramalar otomatik olarak bu listeye işlenir).
   * DELETE /api/search/recent/{term}: Belirli bir arama teriminin geçmişten silinmesi.
   * DELETE /api/search/recent: Kullanıcının tüm arama geçmişini temizlemesi.
 * [ ] Task 5.2: Eventual Consistency ve InBox Pattern
@@ -110,19 +109,15 @@ Elasticsearch kullanarak hızlı ve Event-Driven metin arama sisteminin kurulmas
     * MediaAddedToWatchlistEvent dinlenerek "Günün Popüler Ruletleri" (Trending) sayaçlarının ve arama popülerlik skorlarının güncellenmesi.
 
 # Milestone 6: Profile & Preferences Service
-Kullanıcının uygulamadaki "kişiliğini" (platformları, his profili, engellemeleri ve bildirim ayarları) yönetecek esnek yapının kurulması.
+Kullanıcının uygulamadaki "kişiliğini" (platformları, his profili ve bildirim ayarları) yönetecek esnek yapının kurulması.
 * [ ] Task 6.1: Dinamik Veri Yönetimi
   * JSONB destekli PostgreSQL veritabanının kurgulanması.
-* [ ] Task 6.2: Kullanıcı Tercihleri ve Dashboard Endpoint'leri
+* [ ] Task 6.2: Kullanıcı Tercihleri Endpoint'leri
   * GET /api/profile/me: Profil detayları (Avatar, ünvan, genel ayarlar).
   * PUT /api/profile/me: Profil bilgilerini güncelleme.
   * GET / PUT /api/profile/preferences/platforms: Kullanıcının abone olduğu yayın platformlarının yönetimi ("Platformlarım" ekranı).
   * GET / PUT /api/profile/preferences/moods: Kullanıcının favori ruh hali profili ("Tür Profilim" ekranı).
   * GET / PUT /api/profile/preferences/notifications: Bildirim tercihleri (Favori tür bildirimleri, Seri hatırlatıcı 🔥, Hafta sonu sürprizi açma/kapatma).
-  * POST /api/profile/preferences/genres: Sevilen/İstenmeyen klasik türleri ekleme.
-  * DELETE /api/profile/preferences/genres/{genreId}: Tür tercihini çıkarma.
-  * POST /api/profile/preferences/actors: Aktör engelleme veya favoriye alma.
-  * GET /api/profile/dashboard: Kullanıcı özet istatistikleri (Keşif sayısı, bilet durumu, aylık izleme alışkanlıkları ve favori tür dağılımı).
 * [ ] Task 6.3: Shuffle Engine İletişimi (gRPC / Redis) ve Event Choreography
   * Shuffle Engine'in tercihleri milisaniyeler içinde okuyabilmesi için gRPC entegrasyonu veya ortak Redis kümesi üzerinden (Asenkron) tercih senkronizasyonunun yapılması.
   * Outbox Pattern: Profil ve tercihler değiştiğinde RabbitMQ'ya ProfileUpdatedEvent atılarak Shuffle Engine'deki pre-computed önbelleğin temizlenmesi (Cache Invalidation).
@@ -155,9 +150,8 @@ Kullanıcıların "İzleyeceklerim" ve "İzlediklerim" arşivlerini, alt kategor
 Kullanıcı tutundurma (retention), bilet ekonomisi (Boiling Frog), oyunlaştırma (Streak, XP, Rozetler) ve mağaza içi satın alma (IAP) yönetimi.
 * [ ] Task 8.1: Bilet Ekonomisi (Boiling Frog Stratejisi)
   * GET /api/tickets/balance: Bilet bakiyesi, sınırsızlık durumu (♾️), günlük kalan bilet ve UTC gece yarısı sıfırlanma sayacı.
-  * POST /api/tickets/consume: Bilet düşüm endpoint'i (Shuffle/Skip sırasında 1 bilet eksiltir).
   * POST /api/tickets/claim-ad-reward: Ödüllü reklam izleme tamamlandığında bilet tanımlama (+1 Bilet Kıtlık Kancası).
-  * InBox Consumer'ları:
+  * InBox Consumer'ları (Otomatik Bilet Düşümü ve Ödüllendirme):
     * UserRegisteredEvent: Yeni kullanıcıya 14 günlük balayı sınırsız bilet hakkı tanımlanması.
     * ShuffleSwipedEvent: Sola kaydırma (Pas) eyleminde bilet bakiyesinden 1 adet düşülmesi.
     * MediaRatedEvent: Her 3 içerik puanlandığında kullanıcıya otomatik "+3 Bilet Ödülü" tanımlanması.
@@ -185,8 +179,6 @@ Kullanıcı tutundurma (retention), bilet ekonomisi (Boiling Frog), oyunlaştır
 # Milestone 9: History, Analytics & Notification Servisleri
 Kullanıcı telemetrisi ve mobil cihazlarla etkileşim/tutundurma bildirimleri.
 * [ ] Task 9.1: History & Analytics Service (MongoDB)
-  * POST /api/history/watch-action: İzleme kaydı (202 Accepted dönüp Task.Run/Message Queue ile asenkron DB yazımı).
-  * POST /api/history/shuffle-action: Tekil swipe/skip kaydının tutulması (Dwell time, ruh hali ve etkileşim telemetrisi).
   * POST /api/analytics/events/batch: Mobil istemciden pil ve ağ tasarrufu amacıyla swipe, kartta kalma süresi (dwell time) ve oturum verilerini toplu (batch ingestion) olarak kabul eden yüksek throughput'lu asenkron endpoint (202 Accepted).
   * POST /api/analytics/click-out: Kullanıcı kart üzerindeki "Hemen İzle / Platformda Aç" butonuna basıp dijital yayın platformuna (Netflix, Prime Video vb.) yönlendirildiğinde bu dönüşümün (outbound conversion) kaydedilmesi.
   * GET /api/history/users/me: Kullanıcının kronolojik izleme ve etkileşim geçmişi sorgulama.
