@@ -42,4 +42,31 @@ public class GetSeriesListQueryHandlerTests
         result.Items.Should().HaveCount(2);
         result.Items.First().Title.Should().Be("Series 1");
     }
+
+    [Theory]
+    [InlineData(0, 0, 1, 10)]
+    [InlineData(-5, -20, 1, 10)]
+    [InlineData(2, 500, 2, 100)]
+    [InlineData(5, 50, 5, 50)]
+    public void Query_Should_Normalize_Page_And_PageSize_Bounds(
+        int inputPage, int inputPageSize, int expectedPage, int expectedPageSize)
+    {
+        // Act
+        var query = new GetSeriesListQuery(inputPage, inputPageSize);
+
+        // Assert
+        query.Page.Should().Be(expectedPage);
+        query.PageSize.Should().Be(expectedPageSize);
+    }
+
+    [Fact]
+    public void Query_Default_Constructor_Should_Set_Default_Bounds()
+    {
+        // Act
+        var query = new GetSeriesListQuery();
+
+        // Assert
+        query.Page.Should().Be(1);
+        query.PageSize.Should().Be(10);
+    }
 }

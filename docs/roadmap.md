@@ -12,8 +12,11 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
 * [x] Task 1.4: Secret Management (Vault) Entegrasyonu
   * HashiCorp Vault altyapısının docker-compose ortamına servis olarak eklenmesi ve ayağa kaldırılması.
   * Shared.Core içerisine, mikroservisler ayağa kalkarken (Bootstrap aşamasında) konfigürasyonları doğrudan Vault üzerinden güvenli bir şekilde okuyacak .NET Configuration Provider entegrasyonunun yazılması.
-  * Veritabanı connection string'leri, JWT Secret Key, RabbitMQ ve Redis şifreleri gibi tüm hassas verilerin kaynak koddan ve konfigürasyon dosyalarından arındırılarak tamamen Vault içerisine taşınması.
-* [ ] Task 1.5: Swagger altyapısı kurulumu
+* [x] Task 1.5: Swagger altyapısı kurulumu
+  * Microsoft.AspNetCore.OpenApi (.NET 10 yerel motoru) ile OpenAPI v3 dokümantasyon altyapısının Shared.Core.Web içerisine kurulması.
+  * Klasik Swagger UI (/swagger) ve modern Scalar API Reference (/scalar/v1) arayüzlerinin tek merkezden entegrasyonu.
+  * IOpenApiDocumentTransformer ile otomatik JWT Bearer (Authorize) yetkilendirme şemasının OpenAPI dokümanına enjekte edilmesi.
+  * Catalog.Api Minimal API endpoint'lerinin zengin OpenAPI metadata'ları (özet, açıklama, tag, typed status codes) ile dokümante edilmesi.
 * [ ] Task 1.6: CI/CD Pipeline (GitHub Actions)
   * Proje iskeleti için temel Build ve Test pipeline'ının oluşturulması.
   * SonarQube entegrasyonu ile kod kalite analizinin pipeline'a eklenmesi.
