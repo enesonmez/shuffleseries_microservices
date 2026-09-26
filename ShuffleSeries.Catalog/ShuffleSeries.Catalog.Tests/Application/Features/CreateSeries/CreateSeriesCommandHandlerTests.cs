@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using Moq;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 using ShuffleSeries.Catalog.Domain.Entities;

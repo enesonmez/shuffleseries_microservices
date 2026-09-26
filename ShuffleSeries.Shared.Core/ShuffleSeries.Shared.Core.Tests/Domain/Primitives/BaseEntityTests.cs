@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Shared.Core.Tests.Domain.Primitives;

@@ -1,5 +1,5 @@
 using System.Text.Json;
-using FluentAssertions;
+using AwesomeAssertions;
 using ShuffleSeries.Shared.Core.Application.Requests;
 using ShuffleSeries.Shared.Core.Application.Responses;
 

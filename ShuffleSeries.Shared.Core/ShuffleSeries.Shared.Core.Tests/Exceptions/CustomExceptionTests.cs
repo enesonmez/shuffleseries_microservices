@@ -1,5 +1,5 @@
 using System.Net;
-using FluentAssertions;
+using AwesomeAssertions;
 using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.Shared.Core.Tests.Exceptions;

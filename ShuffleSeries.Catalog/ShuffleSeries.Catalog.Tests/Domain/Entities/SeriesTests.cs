@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using ShuffleSeries.Catalog.Domain.Entities;
 
 namespace ShuffleSeries.Catalog.Tests.Domain.Entities;

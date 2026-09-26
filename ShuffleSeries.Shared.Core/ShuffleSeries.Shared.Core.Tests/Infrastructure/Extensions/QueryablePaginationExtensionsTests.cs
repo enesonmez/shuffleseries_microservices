@@ -1,4 +1,4 @@
-using FluentAssertions;
+using AwesomeAssertions;
 using ShuffleSeries.Shared.Core.Application.Requests;
 using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 
