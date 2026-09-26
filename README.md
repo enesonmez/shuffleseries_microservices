@@ -214,22 +214,56 @@ flowchart TD
 
 ### Prerequisites
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- Docker & Docker Compose (for infrastructure containers)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Docker Compose v2+)
 
-### Build Solution
+### 🐳 Local Infrastructure Setup (Docker Compose)
+All backing infrastructure services (PostgreSQL, MongoDB, Redis, Elasticsearch, RabbitMQ) are orchestrated via a single, production-grade `docker-compose.yml`. Microservice development runs directly via IDE (Rider / Visual Studio / VS Code) against these backing services.
+
+1. **Configure Environment Variables:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Start All Infrastructure Services:**
+   ```bash
+   docker compose up -d
+   ```
+
+3. **Verify Service Health:**
+   ```bash
+   docker compose ps
+   ```
+
+| Service | Container Name | Host Port | Management UI / API | Default Credentials | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **🐘 PostgreSQL** | `shuffleseries_postgres` | `5432` | `localhost:5432` | `admin` / `SuperSecretSecurePassword2026!!` | Relational store (Catalog, Identity, Outbox) |
+| **🍃 MongoDB** | `shuffleseries_mongodb` | `27017` | `localhost:27017` | `admin` / `SuperSecretMongoPassword2026!!` | NoSQL document store (History & Analytics) |
+| **⚡ Redis** | `shuffleseries_redis` | `6379` | `localhost:6379` | Auth: `SuperSecretRedisPassword2026!!` | In-memory cache, Shuffle store & Blacklist |
+| **🔎 Elasticsearch** | `shuffleseries_elasticsearch` | `9200`, `9300` | `http://localhost:9200` | Single-node (Security disabled locally) | Search engine, autocomplete & indexing |
+| **📨 RabbitMQ** | `shuffleseries_rabbitmq` | `5672`, `15672` | `http://localhost:15672` | `guest_123` / `guest_123` | Message broker & Web Management console |
+
+4. **Stop Services:**
+   ```bash
+   docker compose down
+   # To also wipe persistent data volumes:
+   docker compose down -v
+   ```
+
+### 🔨 Build Solution
 ```bash
 dotnet build
 ```
 
-### Run All Unit & Integration Tests
+### 🧪 Run All Unit & Integration Tests
 ```bash
 dotnet test
 ```
 
-### Run Shared Core Tests Only
+### 🏃 Run Catalog Service Locally
 ```bash
-dotnet test --filter "FullyQualifiedName~ShuffleSeries.Shared.Core.Tests"
+dotnet run --project ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api
 ```
+*(Automatically applies EF Core migrations to PostgreSQL and starts MassTransit against RabbitMQ)*
 
 ---
 

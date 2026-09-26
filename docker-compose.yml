@@ -1,0 +1,129 @@
+services:
+  # 1. İlişkisel Veritabanı (PostgreSQL) - Catalog, Identity, Outbox
+  postgres:
+    image: postgres:16-alpine
+    container_name: shuffleseries_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_DB_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!}
+      POSTGRES_DB: ${POSTGRES_DB_NAME:-shuffleseries_db}
+      POSTGRES_MULTIPLE_DATABASES: ${POSTGRES_MULTIPLE_DATABASES:-shuffleseries_identity}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    networks:
+      - shuffle_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER:-admin} -d ${POSTGRES_DB_NAME:-shuffleseries_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # 2. Doküman Veritabanı (MongoDB) - History & Analytics (Append-Only Telemetri & İzleme Geçmişi)
+  mongodb:
+    image: mongo:7.0
+    container_name: shuffleseries_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-SuperSecretMongoPassword2026!!}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-shuffleseries_history}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - shuffle_network
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --username ${MONGO_INITDB_ROOT_USERNAME:-admin} --password ${MONGO_INITDB_ROOT_PASSWORD:-SuperSecretMongoPassword2026!!} --authenticationDatabase admin --eval \"db.adminCommand('ping')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # 3. Bellek İçi Veritabanı (Redis) - Caching, Shuffle Engine In-Memory Store, Token Blacklist
+  redis:
+    image: redis:7.4-alpine
+    container_name: shuffleseries_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!} --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - shuffle_network
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!} ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # 4. Arama Motoru (Elasticsearch) - Search Service (Metin Arama, Filtreleme, Autocomplete)
+  elasticsearch:
+    image: elasticsearch:8.15.0
+    container_name: shuffleseries_elasticsearch
+    restart: unless-stopped
+    environment:
+      - node.name=shuffleseries-es01
+      - cluster.name=shuffleseries-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - shuffle_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"\\(green\\|yellow\\)\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # 5. Mesaj Kuyruğu (RabbitMQ) - Event-Driven Architecture, Asenkron Choreography
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: shuffleseries_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest_123}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest_123}
+    ports:
+      - "5672:5672"     # AMQP Protokol Portu
+      - "15672:15672"   # RabbitMQ Management Web UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - shuffle_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+volumes:
+  postgres_data:
+    name: shuffleseries_postgres_data
+  mongodb_data:
+    name: shuffleseries_mongodb_data
+  redis_data:
+    name: shuffleseries_redis_data
+  elasticsearch_data:
+    name: shuffleseries_elasticsearch_data
+  rabbitmq_data:
+    name: shuffleseries_rabbitmq_data
+
+networks:
+  shuffle_network:
+    name: shuffleseries_network
+    driver: bridge
