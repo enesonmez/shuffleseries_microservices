@@ -9,13 +9,21 @@ public class SeriesConfiguration : IEntityTypeConfiguration<Series>
     public void Configure(EntityTypeBuilder<Series> builder)
     {
         builder.ToTable("Series");
-        
+
         builder.HasKey(x => x.Id);
-        
+
         builder.Property(x => x.Title).IsRequired().HasMaxLength(150);
-        
-        builder.HasIndex(x => x.Title).IsUnique();
-        
+
+        builder.HasIndex(x => x.Title)
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
+
         builder.Property(x => x.Description).IsRequired().HasMaxLength(1000);
+
+        builder.Property(x => x.IsDeleted)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.HasIndex(x => x.IsDeleted);
     }
 }

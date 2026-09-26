@@ -117,4 +117,52 @@ public class BaseEntityTests
         entity.DeletedAtUtc.Should().Be(now.AddMinutes(5));
         entity.DeletedBy.Should().Be("system");
     }
+
+    [Fact]
+    public void IsDeleted_ShouldBeFalse_ByDefault()
+    {
+        var entity = new TestEntity(Guid.NewGuid());
+
+        entity.IsDeleted.Should().BeFalse();
+        entity.DeletedAtUtc.Should().BeNull();
+        entity.DeletedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public void SoftDelete_ShouldSetIsDeletedTrue_AndPopulateAuditFields()
+    {
+        var entity = new TestEntity(Guid.NewGuid());
+        const string deletedBy = "admin-user";
+
+        entity.SoftDelete(deletedBy);
+
+        entity.IsDeleted.Should().BeTrue();
+        entity.DeletedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        entity.DeletedBy.Should().Be(deletedBy);
+    }
+
+    [Fact]
+    public void UndoSoftDelete_ShouldResetIsDeleted_AndClearAuditFields()
+    {
+        var entity = new TestEntity(Guid.NewGuid());
+        entity.SoftDelete("admin-user");
+
+        entity.UndoSoftDelete();
+
+        entity.IsDeleted.Should().BeFalse();
+        entity.DeletedAtUtc.Should().BeNull();
+        entity.DeletedBy.Should().BeNull();
+        entity.IsHardDeleteRequested.Should().BeFalse();
+    }
+
+    [Fact]
+    public void HardDelete_ShouldSetIsHardDeleteRequestedTrue()
+    {
+        var entity = new TestEntity(Guid.NewGuid());
+        entity.IsHardDeleteRequested.Should().BeFalse();
+
+        entity.HardDelete();
+
+        entity.IsHardDeleteRequested.Should().BeTrue();
+    }
 }

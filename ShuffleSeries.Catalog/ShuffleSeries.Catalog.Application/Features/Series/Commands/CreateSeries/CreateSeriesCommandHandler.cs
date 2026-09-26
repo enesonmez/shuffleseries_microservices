@@ -22,10 +22,10 @@ internal sealed class CreateSeriesCommandHandler : IRequestHandler<CreateSeriesC
     public async Task<Guid> Handle(CreateSeriesCommand request, CancellationToken cancellationToken)
     {
         await _seriesDomainService.EnsureTitleIsUniqueAsync(request.Title, cancellationToken);
-        
+
         var series = Domain.Entities.Series.Create(
-            request.Title, 
-            request.Description, 
+            request.Title,
+            request.Description,
             request.IsIndependentEpisodes
         );
 

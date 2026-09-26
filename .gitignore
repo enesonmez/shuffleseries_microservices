@@ -12,9 +12,10 @@ CHECKLIST.md
 .vscode/
 
 .env
-Migrations/
 .sonarqube/
 .dotnet_home/
+.local/
+Library/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

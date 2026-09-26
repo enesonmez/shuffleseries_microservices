@@ -6,7 +6,7 @@ public sealed class DeleteSeriesCommandValidator : AbstractValidator<DeleteSerie
 {
     public DeleteSeriesCommandValidator()
     {
-        RuleFor(x=>x.Id)
+        RuleFor(x => x.Id)
             .NotEmpty().WithMessage("Series Id is required.");
     }
 }

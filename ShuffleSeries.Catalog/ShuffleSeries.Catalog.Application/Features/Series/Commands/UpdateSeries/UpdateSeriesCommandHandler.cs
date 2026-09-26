@@ -13,7 +13,7 @@ internal sealed class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesC
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateSeriesCommandHandler(
-        ISeriesRepository seriesRepository, 
+        ISeriesRepository seriesRepository,
         SeriesDomainService seriesDomainService,
         IUnitOfWork unitOfWork)
     {
@@ -30,7 +30,7 @@ internal sealed class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesC
         {
             throw new NotFoundException($"Series with ID {request.Id} was not found.");
         }
-        
+
         if (!series.Title.Equals(request.Title, StringComparison.OrdinalIgnoreCase))
         {
             await _seriesDomainService.EnsureTitleIsUniqueAsync(request.Title, cancellationToken);
@@ -41,7 +41,7 @@ internal sealed class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesC
             request.Description,
             request.IsIndependentEpisodes
         );
-        
+
         _seriesRepository.Update(series);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }

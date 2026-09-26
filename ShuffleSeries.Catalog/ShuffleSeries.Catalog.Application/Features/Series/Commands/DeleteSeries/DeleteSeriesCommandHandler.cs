@@ -15,14 +15,14 @@ internal sealed class DeleteSeriesCommandHandler : IRequestHandler<DeleteSeriesC
         _seriesRepository = seriesRepository;
         _unitOfWork = unitOfWork;
     }
-    
+
     public async Task Handle(DeleteSeriesCommand request, CancellationToken cancellationToken)
     {
         var series = await _seriesRepository.GetByIdAsync(request.Id, cancellationToken);
-        
-        if(series is null)
+
+        if (series is null)
             throw new NotFoundException($"Series with ID {request.Id} was not found.");
-        
+
         series.Delete();
         _seriesRepository.Delete(series);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

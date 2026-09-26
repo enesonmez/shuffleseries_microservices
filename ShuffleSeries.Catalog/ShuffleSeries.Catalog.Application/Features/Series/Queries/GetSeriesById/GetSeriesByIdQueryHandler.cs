@@ -7,12 +7,12 @@ namespace ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesByI
 internal sealed class GetSeriesByIdQueryHandler : IRequestHandler<GetSeriesByIdQuery, SeriesResponse?>
 {
     private readonly ISeriesRepository _seriesRepository;
-    
+
     public GetSeriesByIdQueryHandler(ISeriesRepository seriesRepository)
     {
         _seriesRepository = seriesRepository;
     }
-    
+
     public async Task<SeriesResponse?> Handle(GetSeriesByIdQuery request, CancellationToken cancellationToken)
     {
         var series = await _seriesRepository.GetByIdAsync(request.Id, cancellationToken);

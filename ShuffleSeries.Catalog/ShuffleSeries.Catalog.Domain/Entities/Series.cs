@@ -8,8 +8,8 @@ public class Series : AggregateRoot
     public string Title { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
     public bool IsIndependentEpisodes { get; private set; }
-    
-    private Series() {}
+
+    private Series() { }
 
     private Series(Guid id, string title, string description, bool isIndependentEpisodes) : base(id)
     {
@@ -22,40 +22,41 @@ public class Series : AggregateRoot
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Title cannot be empty");
-        
+
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Description cannot be empty");
 
         var series = new Series(
             Guid.NewGuid(),
-            title, 
-            description, 
+            title,
+            description,
             isIndependentEpisodes
         );
-        
+
         series.RaiseDomainEvent(new SeriesCreatedDomainEvent(series.Id));
-        
+
         return series;
     }
-    
+
     public void Update(string title, string description, bool isIndependentEpisodes)
     {
         if (string.IsNullOrWhiteSpace(title))
             throw new ArgumentException("Title cannot be empty");
-        
+
         if (string.IsNullOrWhiteSpace(description))
             throw new ArgumentException("Description cannot be empty");
-        
+
         Title = title;
         Description = description;
         IsIndependentEpisodes = isIndependentEpisodes;
         ModifiedAtUtc = DateTime.UtcNow;
-        
-        RaiseDomainEvent(new  SeriesUpdatedDomainEvent(Id));
+
+        RaiseDomainEvent(new SeriesUpdatedDomainEvent(Id));
     }
-    
-    public void Delete()
+
+    public void Delete(string? deletedBy = null)
     {
+        SoftDelete(deletedBy);
         RaiseDomainEvent(new SeriesDeletedDomainEvent(Id));
     }
 }

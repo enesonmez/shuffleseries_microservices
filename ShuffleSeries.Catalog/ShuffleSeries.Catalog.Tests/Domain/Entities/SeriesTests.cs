@@ -39,7 +39,7 @@ public class SeriesTests
         action.Should().Throw<ArgumentException>()
             .WithMessage("Title cannot be empty");
     }
-    
+
     [Theory]
     [InlineData("Valid Title", "")]
     [InlineData("Valid Title", " ")]
@@ -53,7 +53,7 @@ public class SeriesTests
         action.Should().Throw<ArgumentException>()
             .WithMessage("Description cannot be empty");
     }
-    
+
     [Fact]
     public void Update_Should_UpdateProperties_When_ValidParameters()
     {
@@ -72,7 +72,7 @@ public class SeriesTests
         series.IsIndependentEpisodes.Should().BeTrue();
         series.ModifiedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
-    
+
     [Theory]
     [InlineData("", "Valid Description")]
     [InlineData(" ", "Valid Description")]
@@ -89,7 +89,7 @@ public class SeriesTests
         action.Should().Throw<ArgumentException>()
             .WithMessage("Title cannot be empty");
     }
-    
+
     [Theory]
     [InlineData("Valid Title", "")]
     [InlineData("Valid Title", " ")]
@@ -105,5 +105,25 @@ public class SeriesTests
         // Assert
         action.Should().Throw<ArgumentException>()
             .WithMessage("Description cannot be empty");
+    }
+
+    [Fact]
+    public void Delete_Should_MarkAsSoftDeleted_AndRaiseDomainEvent()
+    {
+        // Arrange
+        var series = Series.Create("Title", "Description", false);
+        const string deletedBy = "content-manager";
+
+        // Act
+        series.Delete(deletedBy);
+
+        // Assert
+        series.IsDeleted.Should().BeTrue();
+        series.DeletedAtUtc.Should().NotBeNull();
+        series.DeletedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        series.DeletedBy.Should().Be(deletedBy);
+
+        var domainEvents = series.GetDomainEvents();
+        domainEvents.Should().Contain(x => x is ShuffleSeries.Catalog.Domain.Events.SeriesDeletedDomainEvent);
     }
 }

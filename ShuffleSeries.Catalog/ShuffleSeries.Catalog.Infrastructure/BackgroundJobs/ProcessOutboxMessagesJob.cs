@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 
-[DisallowConcurrentExecution] 
+[DisallowConcurrentExecution]
 public class ProcessOutboxMessagesJob : IJob
 {
     private readonly CatalogDbContext _dbContext;
@@ -37,7 +37,7 @@ public class ProcessOutboxMessagesJob : IJob
             try
             {
                 var eventType = Type.GetType($"ShuffleSeries.Catalog.Domain.Events.{outboxMessage.Type}, ShuffleSeries.Catalog.Domain");
-                
+
                 if (eventType is null)
                 {
                     outboxMessage.Error = $"Not found event type: {outboxMessage.Type}";

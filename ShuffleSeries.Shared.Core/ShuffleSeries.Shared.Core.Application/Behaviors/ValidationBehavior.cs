@@ -4,7 +4,7 @@ using ValidationException = ShuffleSeries.Shared.Core.Exceptions.ValidationExcep
 
 namespace ShuffleSeries.Shared.Core.Application.Behaviors;
 
-public sealed class ValidationBehavior<TRequest, TResponse> 
+public sealed class ValidationBehavior<TRequest, TResponse>
     : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IBaseRequest
 {
@@ -16,8 +16,8 @@ public sealed class ValidationBehavior<TRequest, TResponse>
     }
 
     public async Task<TResponse> Handle(
-        TRequest request, 
-        RequestHandlerDelegate<TResponse> next, 
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
         if (!_validators.Any())

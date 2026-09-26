@@ -32,14 +32,14 @@ internal sealed class SeriesRepository : ISeriesRepository
         CancellationToken cancellationToken = default)
     {
         var totalCount = await _context.Series.CountAsync(cancellationToken);
-        
+
         var items = await _context.Series
             .AsNoTracking()
             .OrderByDescending(x => x.CreatedAtUtc)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
-        
+
         return (items, totalCount);
     }
 }
