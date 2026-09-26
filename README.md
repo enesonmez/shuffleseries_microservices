@@ -175,6 +175,7 @@ flowchart TD
 | **Resilience** | Polly (Retry, Circuit Breaker, Fallback) |
 | **Observability** | OpenTelemetry, Serilog, Prometheus, Jaeger |
 | **Testing** | xUnit, FluentAssertions, Moq, Coverlet |
+| **CI/CD & Quality** | GitHub Actions, SonarQube / SonarCloud, Docker Buildx |
 
 ---
 
@@ -262,6 +263,21 @@ All backing infrastructure services (PostgreSQL, MongoDB, Redis, Elasticsearch, 
 | **📨 RabbitMQ** | `shuffleseries_rabbitmq` | `5672`, `15672` | `http://localhost:15672` | `guest_123` / `guest_123` | Message broker & Web Management console |
 | **🔐 HashiCorp Vault** | `shuffleseries_vault` | `8200` | `http://localhost:8200` | Token: `root` | Centralized secrets engine & configuration store |
 
+### 🚢 Running Full Application Stack in Docker (`docker-compose.apps.yml`)
+To run both the backing infrastructure and application microservices (`Catalog.Api` and `ApiGateway`) fully containerized (e.g. for E2E testing or staging):
+```bash
+docker compose -f docker-compose.yml -f docker-compose.apps.yml up -d --build
+```
+This boots:
+- `shuffleseries_catalog_api` on port `5000` (`http://localhost:5000/swagger`)
+- `shuffleseries_api_gateway` on port `5001` (`http://localhost:5001/swagger`)
+- All backing services connected via `shuffleseries_network`
+
+To stop the application containers:
+```bash
+docker compose -f docker-compose.apps.yml down
+```
+
 4. **Stop Services:**
    ```bash
    docker compose down
@@ -290,6 +306,36 @@ dotnet run --project ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api
 - **Catalog Scalar API Reference (Modern UI):** [http://localhost:5000/scalar/v1](http://localhost:5000/scalar/v1)
 - **Catalog Swagger UI (Standalone):** [http://localhost:5000/swagger](http://localhost:5000/swagger)
 - **Catalog OpenAPI v3 Specification:** [http://localhost:5000/openapi/v1.json](http://localhost:5000/openapi/v1.json)
+
+---
+
+## 🚀 Continuous Integration & Quality Gates (CI/CD)
+
+The platform is fortified with an automated, multi-stage GitHub Actions pipeline (`.github/workflows/ci.yml`):
+
+```mermaid
+flowchart LR
+    A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
+    B --> C["🧪 Automated Tests\n(105 Tests + Coverage)"]
+    C --> D["🛡️ SonarQube Analysis\n(Security & Code Smells)"]
+    D --> E["🐳 Docker Integrity Gate\n(Container Builds)"]
+```
+
+- **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) and analyzes vulnerabilities via SonarScanner with Java 21 LTS runtime.
+- **Container Verification:** Validates Docker builds for both `ShuffleSeries.Catalog.Api` and `ShuffleSeries.ApiGateway` on every push and pull request.
+
+### 🛡️ Running SonarQube & Coverage Locally (Shift-Left Quality)
+You can run the exact same SonarQube analysis and code coverage locally before pushing:
+```bash
+# Start SonarQube and run full test coverage analysis
+./scripts/run-sonar.sh
+```
+Explore the local analysis dashboard at [http://localhost:9000/dashboard?id=ShuffleSeries.Microservices](http://localhost:9000/dashboard?id=ShuffleSeries.Microservices).
+To stop SonarQube after analysis:
+```bash
+docker compose -f docker-compose.sonarqube.yml down
+```
 
 ---
 
