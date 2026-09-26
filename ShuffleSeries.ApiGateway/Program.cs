@@ -1,21 +1,16 @@
+using ShuffleSeries.Shared.Core.Web.Cors;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+// Add Centralized CORS Policy
+builder.Services.AddSharedCors(builder.Configuration);
 
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
 
-app.UseCors();
+app.UseSharedCors();
 
 app.UseSwaggerUI(options =>
 {

@@ -34,6 +34,11 @@ internal sealed class SeriesRepository : ISeriesRepository
     {
         var totalCount = await _context.Series.CountAsync(cancellationToken);
 
+        if (totalCount == 0)
+        {
+            return ([], 0);
+        }
+
         var items = await _context.Series
             .AsNoTracking()
             .OrderByDescending(x => x.CreatedAtUtc)

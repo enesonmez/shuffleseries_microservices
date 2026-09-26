@@ -135,6 +135,26 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
+    public async Task TryHandleAsync_BadRequestException_ShouldReturn400WithCode()
+    {
+        var (context, stream) = CreateHttpContext();
+        var ex = new BadRequestException("Route ID and Command ID must match.", "ID_MISMATCH");
+
+        var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
+
+        result.Should().BeTrue();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+
+        var problemDetails = await ReadProblemDetailsAsync(stream);
+        problemDetails.Should().NotBeNull();
+        problemDetails!.Status.Should().Be(StatusCodes.Status400BadRequest);
+        problemDetails.Title.Should().Be("Bad Request");
+        problemDetails.Detail.Should().Be("Route ID and Command ID must match.");
+        problemDetails.Extensions.Should().ContainKey("code");
+        problemDetails.Extensions["code"]?.ToString().Should().Be("ID_MISMATCH");
+    }
+
+    [Fact]
     public async Task TryHandleAsync_UnhandledException_ShouldReturn500WithGenericMessage()
     {
         var (context, stream) = CreateHttpContext();
@@ -151,5 +171,19 @@ public class GlobalExceptionHandlerTests
         problemDetails.Title.Should().Be("Internal Server Error");
         problemDetails.Detail.Should().Be("An unexpected error occurred on the server.");
         problemDetails.Detail.Should().NotContain("Sensitive");
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_WhenResponseHasStarted_ShouldReturnFalse()
+    {
+        var httpResponseMock = new Mock<HttpResponse>();
+        httpResponseMock.Setup(r => r.HasStarted).Returns(true);
+
+        var httpContextMock = new Mock<HttpContext>();
+        httpContextMock.Setup(c => c.Response).Returns(httpResponseMock.Object);
+
+        var result = await _handler.TryHandleAsync(httpContextMock.Object, new Exception("Test"), CancellationToken.None);
+
+        result.Should().BeFalse();
     }
 }

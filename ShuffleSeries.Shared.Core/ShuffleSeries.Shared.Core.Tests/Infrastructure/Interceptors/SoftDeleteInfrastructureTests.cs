@@ -205,4 +205,25 @@ public class SoftDeleteInfrastructureTests
         var rawHard = await context.SoftDeletables.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == hardEntity.Id);
         rawHard.Should().BeNull();
     }
+
+    [Fact]
+    public void HardDeleteScope_NestedScopes_ShouldPreserveOuterState()
+    {
+        HardDeleteScope.IsActive.Should().BeFalse();
+
+        using (HardDeleteScope.Begin())
+        {
+            HardDeleteScope.IsActive.Should().BeTrue();
+
+            using (HardDeleteScope.Begin())
+            {
+                HardDeleteScope.IsActive.Should().BeTrue();
+            }
+
+            // Outer scope must still be active after inner scope disposes
+            HardDeleteScope.IsActive.Should().BeTrue();
+        }
+
+        HardDeleteScope.IsActive.Should().BeFalse();
+    }
 }

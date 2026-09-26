@@ -7,6 +7,7 @@ using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesList;
 using ShuffleSeries.Shared.Core.Application.Responses;
+using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -60,7 +61,7 @@ public static class SeriesEndpoints
             {
                 if (id != command.Id)
                 {
-                    return Results.BadRequest(new { Message = "Route ID and Command ID must match." });
+                    throw new BadRequestException("Route ID and Command ID must match.", "ID_MISMATCH");
                 }
 
                 await sender.Send(command, cancellationToken);

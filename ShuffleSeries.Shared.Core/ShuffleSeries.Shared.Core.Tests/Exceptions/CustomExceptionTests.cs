@@ -98,4 +98,15 @@ public class CustomExceptionTests
         ex.Title.Should().Be("Internal Server Error");
         ex.InnerException.Should().Be(inner);
     }
+
+    [Fact]
+    public void BadRequestException_ShouldHaveBadRequestStatus()
+    {
+        var ex = new BadRequestException("Invalid parameter value.", "INVALID_PARAM");
+
+        ex.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        ex.Code.Should().Be("INVALID_PARAM");
+        ex.Title.Should().Be("Bad Request");
+        ex.Message.Should().Be("Invalid parameter value.");
+    }
 }

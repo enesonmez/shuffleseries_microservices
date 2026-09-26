@@ -4,6 +4,7 @@ using ShuffleSeries.Catalog.Application;
 using ShuffleSeries.Catalog.Infrastructure;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
 using ShuffleSeries.Shared.Core.Web;
+using ShuffleSeries.Shared.Core.Web.Cors;
 using ShuffleSeries.Shared.Core.Web.Swagger;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,16 +24,8 @@ builder.Services.AddSharedSwagger(options =>
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Enable Cross-Origin Resource Sharing (CORS) for API consumers and Swagger UI
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
+// Add Centralized CORS Policy
+builder.Services.AddSharedCors(builder.Configuration);
 
 builder.Services.AddSharedExceptionHandling();
 
@@ -40,7 +33,7 @@ var app = builder.Build();
 
 app.UseSharedExceptionHandling();
 
-app.UseCors();
+app.UseSharedCors();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

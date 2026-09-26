@@ -165,4 +165,28 @@ public class BaseEntityTests
 
         entity.IsHardDeleteRequested.Should().BeTrue();
     }
+
+    private record DummyDomainEvent(string Name) : IDomainEvent;
+
+    private sealed class GenericAggregateRoot : AggregateRoot<string>
+    {
+        public GenericAggregateRoot(string id) : base(id) { }
+
+        public void DoSomething() => RaiseDomainEvent(new DummyDomainEvent("EventTriggered"));
+    }
+
+    [Fact]
+    public void GenericAggregateRoot_ShouldSupportDomainEventsAndCustomId()
+    {
+        var agg = new GenericAggregateRoot("mongo-agg-123");
+        agg.Id.Should().Be("mongo-agg-123");
+        agg.GetDomainEvents().Should().BeEmpty();
+
+        agg.DoSomething();
+        agg.GetDomainEvents().Should().HaveCount(1);
+        agg.GetDomainEvents().First().Should().BeOfType<DummyDomainEvent>();
+
+        agg.ClearDomainEvents();
+        agg.GetDomainEvents().Should().BeEmpty();
+    }
 }
