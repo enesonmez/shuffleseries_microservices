@@ -9,7 +9,7 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
   * Entity'lere IsDeleted flag'i eklenerek EF Core seviyesinde Global Query Filter (Interceptor veya Base DbContext) ile Soft Delete mantığının entegre edilmesi.
 * [x] Task 1.3: Local Development Altyapısı (Docker Compose)
   * Geliştirme ortamında kullanılacak PostgreSQL, MongoDB, Redis, Elasticsearch ve RabbitMQ'nun yapılandırılarak tek bir docker-compose.yml dosyası ile ayağa kaldırılması. (Not: Mikroservis Dockerfile'ları burada değil, her servis geliştirildikçe kendi task'i içinde yazılacaktır).
-* [ ] Task 1.4: Secret Management (Vault) Entegrasyonu
+* [x] Task 1.4: Secret Management (Vault) Entegrasyonu
   * HashiCorp Vault altyapısının docker-compose ortamına servis olarak eklenmesi ve ayağa kaldırılması.
   * Shared.Core içerisine, mikroservisler ayağa kalkarken (Bootstrap aşamasında) konfigürasyonları doğrudan Vault üzerinden güvenli bir şekilde okuyacak .NET Configuration Provider entegrasyonunun yazılması.
   * Veritabanı connection string'leri, JWT Secret Key, RabbitMQ ve Redis şifreleri gibi tüm hassas verilerin kaynak koddan ve konfigürasyon dosyalarından arındırılarak tamamen Vault içerisine taşınması.
