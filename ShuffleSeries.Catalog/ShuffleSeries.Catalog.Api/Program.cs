@@ -23,19 +23,30 @@ builder.Services.AddSharedSwagger(options =>
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+// Enable Cross-Origin Resource Sharing (CORS) for API consumers and Swagger UI
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddSharedExceptionHandling();
 
 var app = builder.Build();
 
 app.UseSharedExceptionHandling();
 
+app.UseCors();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSharedSwagger();
 }
-
-app.UseHttpsRedirection();
 
 app.MapSeriesEndpoints();
 
