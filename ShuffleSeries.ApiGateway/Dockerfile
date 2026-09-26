@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 USER app
 WORKDIR /app
 EXPOSE 8080
@@ -9,6 +9,8 @@ ARG BUILD_CONFIGURATION=Release
 
 WORKDIR /src
 COPY ["ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.csproj", "ShuffleSeries.ApiGateway/"]
+COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Web/ShuffleSeries.Shared.Core.Web.csproj", "ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Web/"]
+COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Exceptions/ShuffleSeries.Shared.Core.Exceptions.csproj", "ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Exceptions/"]
 RUN dotnet restore "ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.csproj"
 
 COPY . .

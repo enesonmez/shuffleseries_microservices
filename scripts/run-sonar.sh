@@ -125,6 +125,8 @@ echo "🏁 8. SonarScanner analizi tamamlanıyor ve rapor sunucuya gönderiliyor
 END_AUTH_ARGS=()
 if [ -n "$SONAR_TOKEN" ]; then
     END_AUTH_ARGS+=("/d:sonar.token=$SONAR_TOKEN")
+else
+    END_AUTH_ARGS+=("/d:sonar.login=admin" "/d:sonar.password=admin")
 fi
 
 dotnet-sonarscanner end "${END_AUTH_ARGS[@]}"

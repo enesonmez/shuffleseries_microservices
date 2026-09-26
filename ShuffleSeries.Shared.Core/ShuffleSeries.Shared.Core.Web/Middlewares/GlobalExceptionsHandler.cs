@@ -21,6 +21,12 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
+        if (httpContext.Response.HasStarted)
+        {
+            _logger.LogWarning("The response has already started, the global exception handler cannot handle this exception.");
+            return false;
+        }
+
         var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
 
         _logger.LogError(exception, "An unhandled exception occurred: {Message}. TraceId: {TraceId}",
