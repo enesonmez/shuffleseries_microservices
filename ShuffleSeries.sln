@@ -4,14 +4,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShuffleSeries.ApiGateway", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C6C49865-F671-4732-8A4C-08F627FBDF80}"
 	ProjectSection(SolutionItems) = preProject
-		compose.yaml = compose.yaml
 		LICENSE = LICENSE
 		README.md = README.md
-		.dockerignore = .dockerignore
 		.env = .env
 		.gitignore = .gitignore
-		example.env = example.env
 		docker-compose.sonarqube.yml = docker-compose.sonarqube.yml
+		docker-compose.yml = docker-compose.yml
+		.env.example = .env.example
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShuffleSeries.Catalog", "ShuffleSeries.Catalog", "{BB3A0AD2-D6CE-40CA-8938-5FE0B4536382}"

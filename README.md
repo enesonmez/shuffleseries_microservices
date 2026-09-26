@@ -43,8 +43,9 @@ flowchart TD
     Search -->|"Search Index"| Elastic[("🔎 Elasticsearch")]
     History -->|"Sharded Collections"| Mongo[("🍃 MongoDB (Telemetry & History)")]
     Notification -->|"APNs & FCM"| PushGateway["📲 Mobile Push Services"]
+    Vault[("🔐 HashiCorp Vault\n(Secret Management & KV v2)")]
 
-    SharedCore["🧱 ShuffleSeries.Shared.Core\n(Domain Primitives, Soft Delete Interceptor, Global Query Filters, ProblemDetails)"] -.-> Catalog
+    SharedCore["🧱 ShuffleSeries.Shared.Core\n(Domain Primitives, Vault Configuration Provider, Soft Delete, ProblemDetails)"] -.-> Catalog
     SharedCore -.-> Shuffle
     SharedCore -.-> Search
     SharedCore -.-> Profile
@@ -52,6 +53,10 @@ flowchart TD
     SharedCore -.-> Gamification
     SharedCore -.-> History
     SharedCore -.-> Notification
+
+    Vault -.->|"Inject Secrets at Bootstrap"| Catalog
+    Vault -.->|"Inject Secrets at Bootstrap"| Identity
+    Vault -.->|"Inject Secrets at Bootstrap"| Shuffle
 ```
 
 ---
@@ -165,6 +170,7 @@ flowchart TD
 | **API & Networking** | Minimal APIs, YARP API Gateway, gRPC |
 | **Event Streaming** | RabbitMQ (Outbox & InBox patterns for guaranteed delivery) |
 | **Databases & Stores** | PostgreSQL, MongoDB, Redis, Elasticsearch |
+| **Secret Management** | HashiCorp Vault (KV-v2 engine, automated seeding) |
 | **Resilience** | Polly (Retry, Circuit Breaker, Fallback) |
 | **Observability** | OpenTelemetry, Serilog, Prometheus, Jaeger |
 | **Testing** | xUnit, FluentAssertions, Moq, Coverlet |
@@ -208,6 +214,12 @@ flowchart TD
 - **`ModelBuilderExtensions`**: Dynamically registers Global Query Filters (`e => !e.IsDeleted`) across all `ISoftDeletable` entities via Expression Trees (supporting `.IgnoreQueryFilters()`).
 - **`InsertOutboxMessagesInterceptor`**: Collects and serializes uncommitted aggregate domain events into the transactional `OutboxMessages` table atomically.
 
+### 6. Secret Management & Vault Configuration Provider (`ShuffleSeries.Shared.Core.Infrastructure`)
+- **`VaultConfigurationProvider`**: Native, `HttpClient`-based .NET `ConfigurationProvider` that securely pulls secrets from HashiCorp Vault KV-v2 (`/v1/{mount}/data/{path}`) during bootstrap.
+- **Hierarchical Path Support**: Transparently reads and merges shared infrastructure secrets (`shuffleseries/shared`) with microservice-specific secrets (`shuffleseries/{serviceName}`).
+- **Key Normalization & Nested JSON**: Automatically normalizes double underscores (`__`) and nested JSON structures into standard .NET `Section:Key` configuration paths.
+- **Secret-Free `appsettings.json`**: Removes all plaintext passwords and connection strings from source control in strict adherence to OWASP API8.
+
 ---
 
 ## 🚀 Getting Started & Testing
@@ -241,6 +253,7 @@ All backing infrastructure services (PostgreSQL, MongoDB, Redis, Elasticsearch, 
 | **⚡ Redis** | `shuffleseries_redis` | `6379` | `localhost:6379` | Auth: `SuperSecretRedisPassword2026!!` | In-memory cache, Shuffle store & Blacklist |
 | **🔎 Elasticsearch** | `shuffleseries_elasticsearch` | `9200`, `9300` | `http://localhost:9200` | Single-node (Security disabled locally) | Search engine, autocomplete & indexing |
 | **📨 RabbitMQ** | `shuffleseries_rabbitmq` | `5672`, `15672` | `http://localhost:15672` | `guest_123` / `guest_123` | Message broker & Web Management console |
+| **🔐 HashiCorp Vault** | `shuffleseries_vault` | `8200` | `http://localhost:8200` | Token: `root` | Centralized secrets engine & configuration store |
 
 4. **Stop Services:**
    ```bash
