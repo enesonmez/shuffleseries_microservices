@@ -5,7 +5,7 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
 * [x] Task 1.1: Shared.Core Geliştirmeleri
   * Tüm servislerde kullanılacak BaseEntity, CustomException ve ortak DTO'ların oluşturulması.
   * Global Exception Handling Middleware ve standart ProblemDetails yanıt yapısının kurulması.
-* [ ] Task 1.2: Soft Delete Altyapısı
+* [x] Task 1.2: Soft Delete Altyapısı
   * Entity'lere IsDeleted flag'i eklenerek EF Core seviyesinde Global Query Filter (Interceptor veya Base DbContext) ile Soft Delete mantığının entegre edilmesi.
 * [ ] Task 1.3: Local Development Altyapısı (Docker Compose)
   * Geliştirme ortamında kullanılacak PostgreSQL, MongoDB, Redis, Elasticsearch ve RabbitMQ'nun yapılandırılarak tek bir docker-compose.yml dosyası ile ayağa kaldırılması. (Not: Mikroservis Dockerfile'ları burada değil, her servis geliştirildikçe kendi task'i içinde yazılacaktır).

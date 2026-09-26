@@ -44,13 +44,13 @@ public class CreateSeriesCommandHandlerTests
 
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
-    
+
     [Fact]
     public async Task Handle_Should_ThrowSeriesTitleAlreadyExistsException_When_TitleIsNotUnique()
     {
         // Arrange
         var command = new CreateSeriesCommand("Dexter", "Serial killer analyst", false);
-        
+
         _seriesRepositoryMock.Setup(x => x.ExistsByTitleAsync(command.Title, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
@@ -59,7 +59,7 @@ public class CreateSeriesCommandHandlerTests
 
         // Assert
         await action.Should().ThrowAsync<SeriesTitleAlreadyExistsException>();
-        
+
         _seriesRepositoryMock.Verify(x => x.Add(It.IsAny<Series>()), Times.Never);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }

@@ -13,7 +13,7 @@ public static class SeriesEndpoints
     public static void MapSeriesEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("api/catalog/series");
-        
+
         // 1. POST: Create a series endpoint (Command)
         group.MapPost("/", async (
                 [FromBody] CreateSeriesCommand command,
@@ -31,7 +31,7 @@ public static class SeriesEndpoints
                 operation.Description = "Create a new series";
                 return Task.CompletedTask;
             });
-        
+
         // 2. GET: Get series by ID endpoint (Query)
         group.MapGet("/{id:guid}", async (
             Guid id,
@@ -40,7 +40,7 @@ public static class SeriesEndpoints
         {
             var query = new GetSeriesByIdQuery(id);
             var response = await sender.Send(query, cancellationToken);
-            
+
             return Results.Ok(response);
         })
         .WithName("GetSeriesById")
@@ -50,7 +50,7 @@ public static class SeriesEndpoints
             operation.Description = "Get a series by ID";
             return Task.CompletedTask;
         });
-        
+
         // 3. PUT: Update series endpoint (Command)
         group.MapPut("/{id:guid}", async (
             Guid id,
@@ -60,7 +60,7 @@ public static class SeriesEndpoints
         {
             if (id != command.Id)
                 return Results.BadRequest(new { Message = "Route ID and Command ID must match." });
-            
+
             await sender.Send(command, cancellationToken);
             return Results.NoContent();
         })
@@ -71,7 +71,7 @@ public static class SeriesEndpoints
             operation.Description = "Update an existing series by its ID";
             return Task.CompletedTask;
         });
-        
+
         // 4. DELETE: Delete series endpoint (Command)
         group.MapDelete("/{id:guid}", async (
             Guid id,
@@ -80,7 +80,7 @@ public static class SeriesEndpoints
         {
             var command = new DeleteSeriesCommand(id);
             await sender.Send(command, cancellationToken);
-        
+
             return Results.NoContent();
         })
         .WithName("DeleteSeries")
@@ -90,7 +90,7 @@ public static class SeriesEndpoints
             operation.Description = "Delete an existing series by its ID";
             return Task.CompletedTask;
         });
-        
+
         // 5. GET: Get paginated series list endpoint (Query)
         group.MapGet("/", async (
             int? page,
@@ -100,7 +100,7 @@ public static class SeriesEndpoints
         {
             var query = new GetSeriesListQuery(page ?? 1, pageSize ?? 10);
             var response = await sender.Send(query, cancellationToken);
-        
+
             return Results.Ok(response);
         })
         .WithName("GetSeriesList")

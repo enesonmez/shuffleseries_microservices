@@ -44,7 +44,7 @@ flowchart TD
     History -->|"Sharded Collections"| Mongo[("🍃 MongoDB (Telemetry & History)")]
     Notification -->|"APNs & FCM"| PushGateway["📲 Mobile Push Services"]
 
-    SharedCore["🧱 ShuffleSeries.Shared.Core\n(Domain Primitives, Custom Exceptions, ProblemDetails, Common DTOs)"] -.-> Catalog
+    SharedCore["🧱 ShuffleSeries.Shared.Core\n(Domain Primitives, Soft Delete Interceptor, Global Query Filters, ProblemDetails)"] -.-> Catalog
     SharedCore -.-> Shuffle
     SharedCore -.-> Search
     SharedCore -.-> Profile
@@ -176,7 +176,9 @@ flowchart TD
 `ShuffleSeries.Shared.Core` provides enterprise-grade abstractions across every microservice:
 
 ### 1. Domain Primitives (`ShuffleSeries.Shared.Core.Domain`)
-- **`BaseEntity<TId>` & `BaseEntity`**: Identity-based equality, operator overloads (`==`, `!=`), and audit fields (`CreatedAtUtc`, `CreatedBy`, `ModifiedAtUtc`, `ModifiedBy`, `DeletedAtUtc`, `DeletedBy`).
+- **`BaseEntity<TId>` & `BaseEntity`**: Identity-based equality, operator overloads (`==`, `!=`), audit fields, and built-in `ISoftDeletable` and `IHardDeletable` implementations.
+- **`ISoftDeletable`**: Domain contract defining `IsDeleted`, `DeletedAtUtc`, `DeletedBy`, and domain-driven soft delete operations.
+- **`IHardDeletable`**: Dedicated interface for explicit physical hard-delete intent (`IsHardDeleteRequested`, `HardDelete()`).
 - **`AggregateRoot`**: Encapsulates domain event publishing (`RaiseDomainEvent`, `ClearDomainEvents`).
 - **`IDomainEvent`**: Core event contract for cross-boundary event propagation.
 
@@ -198,6 +200,13 @@ flowchart TD
 - **`PaginatedList<T>`**: Immutable, paginated result set with seamless `System.Text.Json` deserialization (`[JsonConstructor]`).
 - **`PaginationRequest`**: Normalized query parameter object with safe boundary clamping.
 - **`ApiResponse<T>` & `ApiResponse`**: Standardized response envelope model.
+
+### 5. Infrastructure, Soft Delete & Hard Delete (`ShuffleSeries.Shared.Core.Infrastructure`)
+- **`SoftDeleteInterceptor`**: EF Core `SaveChangesInterceptor` that intercepts entity deletions (`EntityState.Deleted`) and transforms them into soft-deleted state updates (`EntityState.Modified`) with UTC timestamps.
+- **`HardDeleteScope`**: Ambient `AsyncLocal<bool>` scope (`using (HardDeleteScope.Begin())`) allowing explicit physical deletions (e.g. GDPR, Apple Account Deletion, Retention Purges) by bypassing the soft-delete interceptor cleanly.
+- **Domain `HardDelete()`**: Entity-level intent marker (`entity.HardDelete()`) that instructs the interceptor to permit physical deletion of that specific entity instance.
+- **`ModelBuilderExtensions`**: Dynamically registers Global Query Filters (`e => !e.IsDeleted`) across all `ISoftDeletable` entities via Expression Trees (supporting `.IgnoreQueryFilters()`).
+- **`InsertOutboxMessagesInterceptor`**: Collects and serializes uncommitted aggregate domain events into the transactional `OutboxMessages` table atomically.
 
 ---
 

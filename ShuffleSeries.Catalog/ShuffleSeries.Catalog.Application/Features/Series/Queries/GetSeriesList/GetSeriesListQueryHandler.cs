@@ -4,7 +4,7 @@ using ShuffleSeries.Shared.Core.Application.Responses;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesList;
 
-internal sealed class GetSeriesListQueryHandler : 
+internal sealed class GetSeriesListQueryHandler :
     IRequestHandler<GetSeriesListQuery, PaginatedList<SeriesListItemResponse>>
 {
     private readonly ISeriesRepository _seriesRepository;

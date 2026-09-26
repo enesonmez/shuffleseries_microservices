@@ -9,6 +9,7 @@ using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Infrastructure;
 using ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
 
 namespace ShuffleSeries.Catalog.Infrastructure;
@@ -20,15 +21,16 @@ public static class DependencyInjection
         // ==========================================
         // POSTGRESQL KONFİGÜRASYONU
         // ==========================================
-        services.AddSingleton<InsertOutboxMessagesInterceptor>();
+        services.AddSharedInfrastructure();
         services.AddDbContext<CatalogDbContext>((sp, options) =>
         {
-            var interceptor = sp.GetRequiredService<InsertOutboxMessagesInterceptor>();
-            
+            var outboxInterceptor = sp.GetRequiredService<InsertOutboxMessagesInterceptor>();
+            var softDeleteInterceptor = sp.GetRequiredService<SoftDeleteInterceptor>();
+
             options.UseNpgsql(configuration.GetConnectionString("Database"))
-                .AddInterceptors(interceptor);
+                .AddInterceptors(softDeleteInterceptor, outboxInterceptor);
         });
-        
+
         // ==========================================
         // MASSTRANSIT & RABBITMQ KONFİGÜRASYONU
         // ==========================================
@@ -43,7 +45,7 @@ public static class DependencyInjection
                     host.Username(configuration["MessageBroker:Username"] ?? "guest");
                     host.Password(configuration["MessageBroker:Password"] ?? "guest");
                 });
-                
+
                 configurator.ConfigureEndpoints(context);
             });
         });
