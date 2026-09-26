@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
 
@@ -36,8 +37,7 @@ internal sealed class SeriesRepository : ISeriesRepository
         var items = await _context.Series
             .AsNoTracking()
             .OrderByDescending(x => x.CreatedAtUtc)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .ApplyPagination(page, pageSize)
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);

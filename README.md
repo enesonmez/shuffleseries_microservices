@@ -168,6 +168,7 @@ flowchart TD
 | **Framework & Language** | .NET 10, C# 14 |
 | **Architecture** | Onion Architecture, Domain-Driven Design (DDD), CQRS |
 | **API & Networking** | Minimal APIs, YARP API Gateway, gRPC |
+| **API Documentation** | OpenAPI v3 (Microsoft.AspNetCore.OpenApi), Swagger UI, Scalar API Reference |
 | **Event Streaming** | RabbitMQ (Outbox & InBox patterns for guaranteed delivery) |
 | **Databases & Stores** | PostgreSQL, MongoDB, Redis, Elasticsearch |
 | **Secret Management** | HashiCorp Vault (KV-v2 engine, automated seeding) |
@@ -204,10 +205,11 @@ flowchart TD
 
 ### 4. Common DTOs (`ShuffleSeries.Shared.Core.Application`)
 - **`PaginatedList<T>`**: Immutable, paginated result set with seamless `System.Text.Json` deserialization (`[JsonConstructor]`).
-- **`PaginationRequest`**: Normalized query parameter object with safe boundary clamping.
+- **`PaginationRequest`**: Centralized single source of truth for pagination; clamps bounds (1 to 100) and calculates SQL `Skip` (OFFSET) and `Take` (LIMIT) automatically.
 - **`ApiResponse<T>` & `ApiResponse`**: Standardized response envelope model.
 
-### 5. Infrastructure, Soft Delete & Hard Delete (`ShuffleSeries.Shared.Core.Infrastructure`)
+### 5. Infrastructure, Soft Delete, Hard Delete & Pagination (`ShuffleSeries.Shared.Core.Infrastructure`)
+- **`QueryablePaginationExtensions`**: EF Core extensions (`ApplyPagination`, `ToPaginatedListAsync`) that apply safe pagination directly to `IQueryable` without manual offset math.
 - **`SoftDeleteInterceptor`**: EF Core `SaveChangesInterceptor` that intercepts entity deletions (`EntityState.Deleted`) and transforms them into soft-deleted state updates (`EntityState.Modified`) with UTC timestamps.
 - **`HardDeleteScope`**: Ambient `AsyncLocal<bool>` scope (`using (HardDeleteScope.Begin())`) allowing explicit physical deletions (e.g. GDPR, Apple Account Deletion, Retention Purges) by bypassing the soft-delete interceptor cleanly.
 - **Domain `HardDelete()`**: Entity-level intent marker (`entity.HardDelete()`) that instructs the interceptor to permit physical deletion of that specific entity instance.
@@ -219,6 +221,11 @@ flowchart TD
 - **Hierarchical Path Support**: Transparently reads and merges shared infrastructure secrets (`shuffleseries/shared`) with microservice-specific secrets (`shuffleseries/{serviceName}`).
 - **Key Normalization & Nested JSON**: Automatically normalizes double underscores (`__`) and nested JSON structures into standard .NET `Section:Key` configuration paths.
 - **Secret-Free `appsettings.json`**: Removes all plaintext passwords and connection strings from source control in strict adherence to OWASP API8.
+
+### 7. OpenAPI, Swagger & Scalar Documentation (`ShuffleSeries.Shared.Core.Web`)
+- **`AddSharedSwagger` & `UseSharedSwagger`**: Single-line extension methods configuring native .NET 10 OpenAPI document generation, classic Swagger UI, and modern Scalar documentation.
+- **`OpenApiSecurityDocumentTransformer`**: Automatically instruments OpenAPI documents with JWT Bearer security schemes (`Bearer {token}`) for seamless interactive authentication.
+- **Dual UI Support**: Simultaneously exposes `/swagger` (classic Swagger UI) and `/scalar/v1` (modern high-performance Scalar API Reference) backed by the same `/openapi/v1.json` specification.
 
 ---
 
@@ -276,7 +283,13 @@ dotnet test
 ```bash
 dotnet run --project ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api
 ```
-*(Automatically applies EF Core migrations to PostgreSQL and starts MassTransit against RabbitMQ)*
+*(Automatically applies EF Core migrations to PostgreSQL, injects secrets from Vault, and starts MassTransit against RabbitMQ)*
+
+#### 📖 Interactive API Documentation Endpoints
+- **API Gateway Aggregated Swagger UI (All Services):** [http://localhost:5001/swagger](http://localhost:5001/swagger)
+- **Catalog Scalar API Reference (Modern UI):** [http://localhost:5000/scalar/v1](http://localhost:5000/scalar/v1)
+- **Catalog Swagger UI (Standalone):** [http://localhost:5000/swagger](http://localhost:5000/swagger)
+- **Catalog OpenAPI v3 Specification:** [http://localhost:5000/openapi/v1.json](http://localhost:5000/openapi/v1.json)
 
 ---
 
