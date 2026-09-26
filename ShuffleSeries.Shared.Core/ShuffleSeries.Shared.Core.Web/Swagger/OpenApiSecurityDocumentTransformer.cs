@@ -24,6 +24,7 @@ public sealed class OpenApiSecurityDocumentTransformer : IOpenApiDocumentTransfo
         document.Info.Title = _options.Title;
         document.Info.Version = _options.Version;
         document.Info.Description = _options.Description;
+        document.Servers = [new OpenApiServer { Url = "/" }];
 
         if (_options.IncludeJwtSecurity)
         {

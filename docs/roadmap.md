@@ -17,9 +17,11 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
   * Klasik Swagger UI (/swagger) ve modern Scalar API Reference (/scalar/v1) arayüzlerinin tek merkezden entegrasyonu.
   * IOpenApiDocumentTransformer ile otomatik JWT Bearer (Authorize) yetkilendirme şemasının OpenAPI dokümanına enjekte edilmesi.
   * Catalog.Api Minimal API endpoint'lerinin zengin OpenAPI metadata'ları (özet, açıklama, tag, typed status codes) ile dokümante edilmesi.
-* [ ] Task 1.6: CI/CD Pipeline (GitHub Actions)
-  * Proje iskeleti için temel Build ve Test pipeline'ının oluşturulması.
-  * SonarQube entegrasyonu ile kod kalite analizinin pipeline'a eklenmesi.
+* [x] Task 1.6: CI/CD Pipeline (GitHub Actions)
+  * GitHub Actions üzerinde .NET 10 ve Java 21 runtime'ları ile çok aşamalı CI/CD pipeline'ının oluşturulması (.github/workflows/ci.yml).
+  * dotnet format --verify-no-changes ile otomatik Clean Code ve stil kapısı (Style Gate).
+  * SonarQube / SonarCloud entegrasyonu, XPlat Code Coverage (Cobertura/OpenCover) raporlaması ve otomatik artifact yükleme.
+  * Catalog.Api ve ApiGateway için Docker container build doğrulama (Container Integrity Gate).
 
 # Milestone 2: API Gateway ve Identity (Auth) Service
 Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin yönetilmesi.

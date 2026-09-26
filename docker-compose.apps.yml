@@ -1,0 +1,58 @@
+services:
+  # 1. Catalog Mikroservisi (Content Catalog - Movies, Series, Episodes)
+  catalog-api:
+    build:
+      context: .
+      dockerfile: ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api/Dockerfile
+    container_name: shuffleseries_catalog_api
+    restart: unless-stopped
+    ports:
+      - "5010:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Vault__Address=${VAULT_ADDR:-http://vault:8200}
+      - Vault__Token=${VAULT_ROOT_TOKEN:-root}
+      - Vault__MountPoint=secret
+      - Vault__Optional=true
+      - ConnectionStrings__Database=Host=postgres;Port=5432;Database=${POSTGRES_DB_NAME:-shuffleseries_db};Username=${POSTGRES_DB_USER:-admin};Password=${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!};
+      - MessageBroker__Host=rabbitmq
+      - MessageBroker__Username=${RABBITMQ_USER:-guest_123}
+      - MessageBroker__Password=${RABBITMQ_PASSWORD:-guest_123}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    networks:
+      shuffle_network:
+        aliases:
+          - catalog.api
+          - catalog-api
+
+  # 2. YARP API Gateway (Reverse Proxy, Route Management, Swagger Aggregation)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ShuffleSeries.ApiGateway/Dockerfile
+    container_name: shuffleseries_api_gateway
+    restart: unless-stopped
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ReverseProxy__Clusters__catalog-cluster__Destinations__destination1__Address=http://catalog.api:8080
+    depends_on:
+      - catalog-api
+    networks:
+      shuffle_network:
+        aliases:
+          - api-gateway
+          - apigateway
+
+networks:
+  shuffle_network:
+    name: shuffleseries_network
