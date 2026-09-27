@@ -45,6 +45,11 @@ public class ObservabilityAndHealthIntegrationTests : CatalogIntegrationTestBase
 
         root.GetProperty("status").GetString().Should().Be("Healthy");
         root.GetProperty("type").GetString().Should().Be("Readiness");
+
+        var checks = root.GetProperty("checks").EnumerateArray().ToList();
+        var postgresCheck = checks.FirstOrDefault(c => c.GetProperty("name").GetString() == "PostgreSQL");
+        postgresCheck.ValueKind.Should().NotBe(JsonValueKind.Undefined);
+        postgresCheck.GetProperty("status").GetString().Should().Be("Healthy");
     }
 
     [Fact]

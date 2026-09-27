@@ -10,6 +10,7 @@ using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure;
+using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
 
 namespace ShuffleSeries.Catalog.Infrastructure;
@@ -30,6 +31,9 @@ public static class DependencyInjection
             options.UseNpgsql(configuration.GetConnectionString("Database"))
                 .AddInterceptors(softDeleteInterceptor, outboxInterceptor);
         });
+
+        // PostgreSQL veritabanı hazır bulunuşluk sağlık kontrolü
+        services.AddSharedDatabaseHealthCheck<CatalogDbContext>();
 
         // ==========================================
         // MASSTRANSIT & RABBITMQ KONFİGÜRASYONU
