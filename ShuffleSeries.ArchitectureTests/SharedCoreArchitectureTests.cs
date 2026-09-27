@@ -71,4 +71,18 @@ public class SharedCoreArchitectureTests
         testResult.IsSuccessful.Should().BeTrue(
             $"Shared.Core.Exceptions katmanı bağımsız bir çekirdek olmalıdır. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
     }
+
+    [Fact]
+    public void Behaviors_In_SharedCoreApplication_ShouldBeSealed()
+    {
+        var testResult = Types.InAssembly(_sharedApplicationAssembly)
+            .That()
+            .ImplementInterface(typeof(MediatR.IPipelineBehavior<,>))
+            .Should()
+            .BeSealed()
+            .GetResult();
+
+        testResult.IsSuccessful.Should().BeTrue(
+            $"Shared.Core.Application içindeki IPipelineBehavior uygulayan sınıflar 'sealed' olmalıdır. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
+    }
 }

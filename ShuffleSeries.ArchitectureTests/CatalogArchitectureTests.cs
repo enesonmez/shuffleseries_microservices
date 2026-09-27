@@ -198,5 +198,28 @@ public class CatalogArchitectureTests
     }
 
     #endregion
+
+    #region Background Jobs Rules
+
+    [Fact]
+    public void BackgroundJobs_Implementing_IJob_ShouldBeSealed_And_HaveDisallowConcurrentExecution()
+    {
+        var jobTypes = _infrastructureAssembly.GetTypes()
+            .Where(t => typeof(Quartz.IJob).IsAssignableFrom(t) && t is { IsClass: true, IsAbstract: false })
+            .ToList();
+
+        jobTypes.Should().NotBeEmpty("Altyapıda en az bir Quartz IJob (örn. ProcessOutboxMessagesJob) bulunmalıdır.");
+
+        foreach (var job in jobTypes)
+        {
+            job.IsSealed.Should().BeTrue($"Quartz IJob sınıfı '{job.Name}' sealed olmalıdır.");
+
+            var hasDisallowConcurrent = Attribute.IsDefined(job, typeof(Quartz.DisallowConcurrentExecutionAttribute));
+            hasDisallowConcurrent.Should().BeTrue(
+                $"Quartz IJob sınıfı '{job.Name}' çift çalıştırmayı önlemek için [DisallowConcurrentExecution] ile işaretlenmelidir.");
+        }
+    }
+
+    #endregion
 }
 

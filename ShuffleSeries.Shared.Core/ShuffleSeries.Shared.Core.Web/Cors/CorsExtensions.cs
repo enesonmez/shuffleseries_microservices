@@ -26,42 +26,31 @@ public static class CorsExtensions
     {
         var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
 
+        void ConfigurePolicy(Microsoft.AspNetCore.Cors.Infrastructure.CorsPolicyBuilder policy)
+        {
+            var specificOrigins = allowedOrigins?
+                .Where(origin => !string.IsNullOrWhiteSpace(origin) && origin != "*")
+                .ToArray();
+
+            if (specificOrigins is { Length: > 0 })
+            {
+                policy.WithOrigins(specificOrigins)
+                      .AllowAnyMethod()
+                      .AllowAnyHeader()
+                      .AllowCredentials();
+            }
+            else
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader();
+            }
+        }
+
         services.AddCors(options =>
         {
-            options.AddPolicy(policyName, policy =>
-            {
-                if (allowedOrigins is { Length: > 0 })
-                {
-                    policy.WithOrigins(allowedOrigins)
-                          .AllowAnyMethod()
-                          .AllowAnyHeader()
-                          .AllowCredentials();
-                }
-                else
-                {
-                    policy.AllowAnyOrigin()
-                          .AllowAnyMethod()
-                          .AllowAnyHeader();
-                }
-            });
-
-            // Default policy olarak da tanımla ki parametresiz app.UseCors() ile doğrudan çalışabilsin
-            options.AddDefaultPolicy(policy =>
-            {
-                if (allowedOrigins is { Length: > 0 })
-                {
-                    policy.WithOrigins(allowedOrigins)
-                          .AllowAnyMethod()
-                          .AllowAnyHeader()
-                          .AllowCredentials();
-                }
-                else
-                {
-                    policy.AllowAnyOrigin()
-                          .AllowAnyMethod()
-                          .AllowAnyHeader();
-                }
-            });
+            options.AddPolicy(policyName, ConfigurePolicy);
+            options.AddDefaultPolicy(ConfigurePolicy);
         });
 
         return services;

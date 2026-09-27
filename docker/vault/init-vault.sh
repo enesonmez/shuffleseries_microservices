@@ -9,17 +9,32 @@ done
 
 echo "Vault is online. Seeding initial secrets for ShuffleSeries microservices..."
 
-# 1. Shared Infrastructure Secrets (RabbitMQ, Redis, JWT)
+# 1. Shared Infrastructure Secrets & Runtime Config (RabbitMQ, Redis, JWT, Logging Sinks, OpenTelemetry, CORS)
 vault kv put -mount=secret shuffleseries/shared \
   "MessageBroker:Host=localhost" \
   "MessageBroker:Port=5672" \
   "MessageBroker:Username=${RABBITMQ_USER:-guest_123}" \
   "MessageBroker:Password=${RABBITMQ_PASSWORD:-guest_123}" \
   "Redis:Password=${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!}" \
-  "Jwt:Secret=SuperSecretSecretKeyForJwtAuthenticationTokens2026!!"
+  "Jwt:Secret=SuperSecretSecretKeyForJwtAuthenticationTokens2026!!" \
+  "Logging:Sinks:Console:Enabled=true" \
+  "Logging:Sinks:Console:UseJsonFormat=true" \
+  "Logging:Sinks:File:Enabled=false" \
+  "Logging:Sinks:File:Path=logs/shuffleseries-.json" \
+  "Logging:Sinks:File:UseJsonFormat=true" \
+  "Logging:Sinks:PostgreSql:Enabled=false" \
+  "Logging:Sinks:PostgreSql:TableName=AppLogs" \
+  "OpenTelemetry:Enabled=true" \
+  "OpenTelemetry:OtlpEndpoint=http://localhost:4317" \
+  "Cors:AllowedOrigins=*"
 
-# 2. Catalog Service Secrets (PostgreSQL Connection String)
+# 2. Catalog Service Specific Secrets & Config
 vault kv put -mount=secret shuffleseries/catalog \
-  "ConnectionStrings:Database=Host=localhost;Port=5432;Database=${POSTGRES_DB_NAME:-shuffleseries_db};Username=${POSTGRES_DB_USER:-admin};Password=${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!};Maximum Pool Size=50;"
+  "ConnectionStrings:Database=Host=localhost;Port=5432;Database=${POSTGRES_DB_NAME:-shuffleseries_db};Username=${POSTGRES_DB_USER:-admin};Password=${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!};Maximum Pool Size=50;" \
+  "Logging:Sinks:File:Path=logs/catalog-.json"
 
-echo "Vault initial secrets seeded successfully."
+# 3. API Gateway Specific Config
+vault kv put -mount=secret shuffleseries/apigateway \
+  "Logging:Sinks:File:Path=logs/apigateway-.json"
+
+echo "Vault initial secrets and configuration seeded successfully."

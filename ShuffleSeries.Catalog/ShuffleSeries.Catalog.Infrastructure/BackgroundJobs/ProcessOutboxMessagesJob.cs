@@ -8,10 +8,12 @@ using ShuffleSeries.Shared.Core.Domain.Primitives;
 namespace ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 
 [DisallowConcurrentExecution]
-public class ProcessOutboxMessagesJob : IJob
+public sealed class ProcessOutboxMessagesJob : IJob
 {
     private readonly CatalogDbContext _dbContext;
     private readonly IPublishEndpoint _publishEndpoint;
+
+    private const int MaxRetries = 3;
 
     public ProcessOutboxMessagesJob(CatalogDbContext dbContext, IPublishEndpoint publishEndpoint)
     {
@@ -22,7 +24,7 @@ public class ProcessOutboxMessagesJob : IJob
     public async Task Execute(IJobExecutionContext context)
     {
         var messages = await _dbContext.OutboxMessages
-            .Where(m => m.ProcessedOnUtc == null)
+            .Where(m => m.ProcessedOnUtc == null && m.RetryCount < MaxRetries)
             .OrderBy(m => m.OccurredOnUtc)
             .Take(20)
             .ToListAsync(context.CancellationToken);
@@ -41,6 +43,7 @@ public class ProcessOutboxMessagesJob : IJob
                 if (eventType is null)
                 {
                     outboxMessage.Error = $"Not found event type: {outboxMessage.Type}";
+                    outboxMessage.RetryCount++;
                     continue;
                 }
 
@@ -49,6 +52,7 @@ public class ProcessOutboxMessagesJob : IJob
                 if (domainEvent is null)
                 {
                     outboxMessage.Error = "The message content could not be deserialized.";
+                    outboxMessage.RetryCount++;
                     continue;
                 }
 
@@ -60,6 +64,7 @@ public class ProcessOutboxMessagesJob : IJob
             catch (Exception ex)
             {
                 outboxMessage.Error = ex.Message;
+                outboxMessage.RetryCount++;
             }
         }
 
