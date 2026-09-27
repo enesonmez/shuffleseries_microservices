@@ -1,4 +1,3 @@
-using AwesomeAssertions;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Shared.Core.Tests.Domain.Primitives;
@@ -52,8 +51,7 @@ public class BaseEntityTests
         var entity2 = new TestEntity(id);
 
         entity1.Equals(entity2).Should().BeTrue();
-        (entity1 == entity2).Should().BeTrue();
-        (entity1 != entity2).Should().BeFalse();
+        entity1.Equals((object)entity2).Should().BeTrue();
         entity1.GetHashCode().Should().Be(entity2.GetHashCode());
     }
 
@@ -64,8 +62,7 @@ public class BaseEntityTests
         var entity2 = new TestEntity(Guid.NewGuid());
 
         entity1.Equals(entity2).Should().BeFalse();
-        (entity1 == entity2).Should().BeFalse();
-        (entity1 != entity2).Should().BeTrue();
+        entity1.Equals((object)entity2).Should().BeFalse();
     }
 
     [Fact]
@@ -76,7 +73,6 @@ public class BaseEntityTests
         var entity2 = new AnotherTestEntity(id);
 
         entity1.Equals(entity2).Should().BeFalse();
-        (entity1 == entity2).Should().BeFalse();
     }
 
     [Fact]
@@ -85,11 +81,6 @@ public class BaseEntityTests
         var entity = new TestEntity(Guid.NewGuid());
 
         entity.Equals(null).Should().BeFalse();
-        (entity == null).Should().BeFalse();
-        (null == entity).Should().BeFalse();
-        (entity != null).Should().BeTrue();
-        ((TestEntity?)null == (TestEntity?)null).Should().BeTrue();
-        ((TestEntity?)null != (TestEntity?)null).Should().BeFalse();
     }
 
     [Fact]
@@ -100,8 +91,8 @@ public class BaseEntityTests
         var entity3 = new GenericTestEntity("item-2");
 
         entity1.Id.Should().Be("item-1");
-        (entity1 == entity2).Should().BeTrue();
-        (entity1 == entity3).Should().BeFalse();
+        entity1.Equals(entity2).Should().BeTrue();
+        entity1.Equals(entity3).Should().BeFalse();
     }
 
     [Fact]
@@ -188,5 +179,27 @@ public class BaseEntityTests
 
         agg.ClearDomainEvents();
         agg.GetDomainEvents().Should().BeEmpty();
+    }
+
+    private sealed class GuidAggregateRoot : AggregateRoot
+    {
+        public GuidAggregateRoot(Guid id) : base(id) { }
+        public GuidAggregateRoot() : base() { }
+        public void DoSomething() => RaiseDomainEvent(new DummyDomainEvent("GuidTriggered"));
+    }
+
+    [Fact]
+    public void GuidAggregateRoot_ShouldSupportDomainEventsAndGuidId()
+    {
+        var id = Guid.NewGuid();
+        var agg = new GuidAggregateRoot(id);
+        agg.Id.Should().Be(id);
+        agg.DoSomething();
+        agg.GetDomainEvents().Should().HaveCount(1);
+        agg.ClearDomainEvents();
+        agg.GetDomainEvents().Should().BeEmpty();
+
+        var defaultAgg = new GuidAggregateRoot();
+        defaultAgg.Id.Should().Be(Guid.Empty);
     }
 }

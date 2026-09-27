@@ -18,16 +18,12 @@ internal sealed class SeriesRepository : ISeriesRepository
     public void Update(Series series) => _context.Series.Update(series);
     public void Delete(Series series) => _context.Series.Remove(series);
 
-    public async Task<Series?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
-    {
-        return await _context.Series.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-    }
+    public async Task<Series?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await _context.Series.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<bool> ExistsByTitleAsync(string title, CancellationToken cancellationToken = default)
-    {
-        return await _context.Series
-            .AnyAsync(x => x.Title.ToLower() == title.ToLower(), cancellationToken);
-    }
+    public async Task<bool> ExistsByTitleAsync(string title, CancellationToken cancellationToken = default) =>
+        await _context.Series
+            .AnyAsync(x => string.Equals(x.Title, title, StringComparison.OrdinalIgnoreCase), cancellationToken);
 
     public async Task<(IReadOnlyList<Series> Items, int TotalCount)> GetPagedListAsync(int page, int pageSize,
         CancellationToken cancellationToken = default)

@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;

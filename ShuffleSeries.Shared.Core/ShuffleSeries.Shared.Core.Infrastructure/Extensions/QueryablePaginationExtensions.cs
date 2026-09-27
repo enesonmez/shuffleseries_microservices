@@ -25,10 +25,8 @@ public static class QueryablePaginationExtensions
     /// <summary>
     /// Sayfa numarası ve boyutu ile sorguya güvenli Skip ve Take uygular.
     /// </summary>
-    public static IQueryable<T> ApplyPagination<T>(this IQueryable<T> source, int? pageNumber, int? pageSize)
-    {
-        return source.ApplyPagination(new PaginationRequest(pageNumber, pageSize));
-    }
+    public static IQueryable<T> ApplyPagination<T>(this IQueryable<T> source, int? pageNumber, int? pageSize) =>
+        source.ApplyPagination(new PaginationRequest(pageNumber, pageSize));
 
     /// <summary>
     /// IQueryable sorgusunu asenkron olarak sayfalar ve PaginatedList nesnesine dönüştürür.
@@ -60,8 +58,6 @@ public static class QueryablePaginationExtensions
         this IQueryable<T> source,
         int? pageNumber,
         int? pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        return source.ToPaginatedListAsync(new PaginationRequest(pageNumber, pageSize), cancellationToken);
-    }
+        CancellationToken cancellationToken = default) =>
+        source.ToPaginatedListAsync(new PaginationRequest(pageNumber, pageSize), cancellationToken);
 }

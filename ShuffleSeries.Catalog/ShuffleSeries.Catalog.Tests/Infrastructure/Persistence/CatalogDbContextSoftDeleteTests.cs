@@ -1,4 +1,3 @@
-using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;

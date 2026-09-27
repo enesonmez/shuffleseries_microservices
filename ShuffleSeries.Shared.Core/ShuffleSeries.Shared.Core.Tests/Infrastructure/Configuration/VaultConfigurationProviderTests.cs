@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using AwesomeAssertions;
 using Microsoft.Extensions.Configuration;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
 
@@ -40,7 +39,7 @@ public class VaultConfigurationProviderTests
         {
             Enabled = false,
             Address = "http://localhost:8200",
-            Paths = new List<string> { "shuffleseries/shared" }
+            Paths = ["shuffleseries/shared"]
         };
 
         using var provider = new VaultConfigurationProvider(options, handler);
@@ -88,7 +87,7 @@ public class VaultConfigurationProviderTests
             Enabled = true,
             Address = "http://localhost:8200",
             Token = "test-token",
-            Paths = new List<string> { "shuffleseries/catalog" }
+            Paths = ["shuffleseries/catalog"]
         };
 
         using var provider = new VaultConfigurationProvider(options, handler);
@@ -120,7 +119,7 @@ public class VaultConfigurationProviderTests
             Enabled = true,
             Optional = true,
             Address = "http://localhost:8200",
-            Paths = new List<string> { "shuffleseries/missing" }
+            Paths = ["shuffleseries/missing"]
         };
 
         using var provider = new VaultConfigurationProvider(options, handler);
@@ -142,7 +141,7 @@ public class VaultConfigurationProviderTests
             Enabled = true,
             Optional = false,
             Address = "http://localhost:8200",
-            Paths = new List<string> { "shuffleseries/missing" }
+            Paths = ["shuffleseries/missing"]
         };
 
         using var provider = new VaultConfigurationProvider(options, handler);
@@ -165,7 +164,7 @@ public class VaultConfigurationProviderTests
             Enabled = true,
             Optional = true,
             Address = "http://localhost:8200",
-            Paths = new List<string> { "shuffleseries/shared" }
+            Paths = ["shuffleseries/shared"]
         };
 
         using var provider = new VaultConfigurationProvider(options, handler);
@@ -202,11 +201,93 @@ public class VaultConfigurationProviderTests
             {
                 opts.Address = "http://localhost:8200";
                 opts.Token = "test-token";
-                opts.Paths = new List<string> { "shuffleseries/shared" };
+                opts.Paths = ["shuffleseries/shared"];
             }, handler)
             .Build();
 
         // Assert
         configuration["AppKey"].Should().Be("AppValue");
+    }
+
+    [Fact]
+    public void AddVault_WithServiceName_ConfiguresStandardHierarchicalPaths()
+    {
+        // Arrange
+        const string vaultJson = """
+        {
+            "data": {
+                "data": {
+                    "CatalogKey": "CatalogSecret"
+                }
+            }
+        }
+        """;
+
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(vaultJson, Encoding.UTF8, "application/json")
+        });
+
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            ["Vault:Address"] = "http://localhost:8200",
+            ["Vault:Token"] = "test-token",
+            ["Vault:MountPoint"] = "secret",
+            ["Vault:Enabled"] = "true",
+            ["Vault:Optional"] = "true",
+            ["Vault:Paths:0"] = "custom/path"
+        };
+
+        // Act
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .AddVault("catalog", handler)
+            .Build();
+
+        // Assert
+        configuration["CatalogKey"].Should().Be("CatalogSecret");
+    }
+
+    [Fact]
+    public void AddVault_WithNullServiceName_ShouldOnlyAddSharedPath()
+    {
+        // Arrange
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            ["Vault:Enabled"] = "false"
+        };
+
+        // Act
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .AddVault(serviceName: null, handler)
+            .Build();
+
+        // Assert
+        configuration.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void AddVault_NullBuilder_ShouldThrowArgumentNullException()
+    {
+        IConfigurationBuilder builder = null!;
+        var act1 = () => builder.AddVault(_ => { });
+        var act2 = () => builder.AddVault("catalog");
+
+        act1.Should().Throw<ArgumentNullException>();
+        act2.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void AddVault_NullConfigureAction_ShouldThrowArgumentNullException()
+    {
+        var builder = new ConfigurationBuilder();
+        Action<VaultConfigurationOptions> configure = null!;
+
+        var act = () => builder.AddVault(configure);
+
+        act.Should().Throw<ArgumentNullException>();
     }
 }

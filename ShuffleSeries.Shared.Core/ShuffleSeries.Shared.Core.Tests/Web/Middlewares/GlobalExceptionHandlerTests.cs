@@ -1,5 +1,4 @@
 using System.Text.Json;
-using AwesomeAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -11,6 +10,11 @@ namespace ShuffleSeries.Shared.Core.Tests.Web.Middlewares;
 
 public class GlobalExceptionHandlerTests
 {
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly Mock<ILogger<GlobalExceptionHandler>> _loggerMock = new();
     private readonly GlobalExceptionHandler _handler;
 
@@ -31,10 +35,7 @@ public class GlobalExceptionHandlerTests
     private static async Task<ProblemDetails?> ReadProblemDetailsAsync(MemoryStream stream)
     {
         stream.Seek(0, SeekOrigin.Begin);
-        return await JsonSerializer.DeserializeAsync<ProblemDetails>(stream, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
+        return await JsonSerializer.DeserializeAsync<ProblemDetails>(stream, _jsonOptions);
     }
 
     [Fact]
@@ -185,5 +186,58 @@ public class GlobalExceptionHandlerTests
         var result = await _handler.TryHandleAsync(httpContextMock.Object, new Exception("Test"), CancellationToken.None);
 
         result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AddSharedExceptionHandling_ShouldRegisterServices()
+    {
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        ShuffleSeries.Shared.Core.Web.DependencyInjection.AddSharedExceptionHandling(services);
+
+        services.Should().Contain(d => d.ImplementationType == typeof(GlobalExceptionHandler));
+    }
+
+    [Fact]
+    public void UseSharedExceptionHandling_ShouldConfigureMiddleware()
+    {
+        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder();
+        ShuffleSeries.Shared.Core.Web.DependencyInjection.AddSharedExceptionHandling(builder.Services);
+        var app = builder.Build();
+
+        var result = ShuffleSeries.Shared.Core.Web.DependencyInjection.UseSharedExceptionHandling(app);
+
+        result.Should().NotBeNull();
+    }
+
+    private sealed class UntypedCustomException : CustomException
+    {
+        public UntypedCustomException(string message, System.Net.HttpStatusCode statusCode)
+            : base(message, statusCode, code: null, title: null) { }
+    }
+
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.Unauthorized, "Unauthorized", "https://tools.ietf.org/html/rfc7235#section-3.1")]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, "Forbidden", "https://tools.ietf.org/html/rfc7231#section-6.5.3")]
+    [InlineData(System.Net.HttpStatusCode.BadRequest, "Bad Request", "https://tools.ietf.org/html/rfc7231#section-6.5.1")]
+    [InlineData(System.Net.HttpStatusCode.NotFound, "Not Found", "https://tools.ietf.org/html/rfc7231#section-6.5.4")]
+    [InlineData(System.Net.HttpStatusCode.Conflict, "Conflict", "https://tools.ietf.org/html/rfc7231#section-6.5.8")]
+    [InlineData(System.Net.HttpStatusCode.UnprocessableEntity, "Business Rule Violation", "https://tools.ietf.org/html/rfc4918#section-11.2")]
+    [InlineData(System.Net.HttpStatusCode.InternalServerError, "Internal Server Error", "https://tools.ietf.org/html/rfc7231#section-6.6.1")]
+    public async Task TryHandleAsync_CustomExceptionWithNullTitle_ShouldFallBackToDefaultTitleAndRfc(
+        System.Net.HttpStatusCode statusCode, string expectedTitle, string expectedType)
+    {
+        var (context, stream) = CreateHttpContext();
+        var ex = new UntypedCustomException("Error without explicit title", statusCode);
+
+        var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
+
+        result.Should().BeTrue();
+        context.Response.StatusCode.Should().Be((int)statusCode);
+
+        var problemDetails = await ReadProblemDetailsAsync(stream);
+        problemDetails.Should().NotBeNull();
+        problemDetails!.Title.Should().Be(expectedTitle);
+        problemDetails.Type.Should().Be(expectedType);
+        problemDetails.Detail.Should().Be("Error without explicit title");
     }
 }

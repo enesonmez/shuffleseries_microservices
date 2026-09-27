@@ -62,23 +62,16 @@ public static class VaultExtensions
 
             MountPoint = vaultSection["MountPoint"] ?? "secret",
 
-            Enabled = bool.TryParse(Environment.GetEnvironmentVariable("VAULT_ENABLED") ?? vaultSection["Enabled"], out var enabled)
-                ? enabled
-                : true,
+            Enabled = !bool.TryParse(Environment.GetEnvironmentVariable("VAULT_ENABLED") ?? vaultSection["Enabled"], out var enabled) || enabled,
 
-            Optional = bool.TryParse(Environment.GetEnvironmentVariable("VAULT_OPTIONAL") ?? vaultSection["Optional"], out var optional)
-                ? optional
-                : true
+            Optional = !bool.TryParse(Environment.GetEnvironmentVariable("VAULT_OPTIONAL") ?? vaultSection["Optional"], out var optional) || optional
         };
 
         // Konfigürasyondan belirtilen yolları al
-        var configuredPaths = vaultSection.GetSection("Paths").Get<List<string>>() ?? new List<string>();
-        foreach (var path in configuredPaths)
+        var configuredPaths = vaultSection.GetSection("Paths").Get<List<string>>() ?? [];
+        foreach (var path in configuredPaths.Where(path => !string.IsNullOrWhiteSpace(path) && !options.Paths.Contains(path)))
         {
-            if (!string.IsNullOrWhiteSpace(path) && !options.Paths.Contains(path))
-            {
-                options.Paths.Add(path);
-            }
+            options.Paths.Add(path);
         }
 
         // Standart hiyerarşik yollar (Shared ve Servise Özel)

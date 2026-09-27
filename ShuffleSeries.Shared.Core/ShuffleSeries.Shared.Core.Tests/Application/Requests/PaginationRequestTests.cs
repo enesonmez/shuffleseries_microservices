@@ -1,4 +1,3 @@
-using AwesomeAssertions;
 using ShuffleSeries.Shared.Core.Application.Requests;
 
 namespace ShuffleSeries.Shared.Core.Tests.Application.Requests;

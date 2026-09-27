@@ -13,7 +13,8 @@ COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Web/ShuffleSeries.Sha
 COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Exceptions/ShuffleSeries.Shared.Core.Exceptions.csproj", "ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Exceptions/"]
 RUN dotnet restore "ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.csproj"
 
-COPY . .
+COPY ["ShuffleSeries.ApiGateway/", "ShuffleSeries.ApiGateway/"]
+COPY ["ShuffleSeries.Shared.Core/", "ShuffleSeries.Shared.Core/"]
 WORKDIR "/src/ShuffleSeries.ApiGateway"
 RUN dotnet build "./ShuffleSeries.ApiGateway.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
@@ -23,6 +24,6 @@ RUN dotnet publish "./ShuffleSeries.ApiGateway.csproj" -c $BUILD_CONFIGURATION -
 
 FROM base AS final
 WORKDIR /app
-
 COPY --from=publish /app/publish .
+USER app
 ENTRYPOINT ["dotnet", "ShuffleSeries.ApiGateway.dll"]

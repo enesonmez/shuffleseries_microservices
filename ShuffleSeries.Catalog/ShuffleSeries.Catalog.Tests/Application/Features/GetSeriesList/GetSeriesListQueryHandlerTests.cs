@@ -1,4 +1,3 @@
-using AwesomeAssertions;
 using Moq;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesList;
 using ShuffleSeries.Catalog.Domain.Entities;

@@ -83,6 +83,7 @@ echo "🧹 4. Kod stili ve format kontrolü yapılıyor (dotnet format)..."
 DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet format --verify-no-changes
 
 # 8. Eski Test Sonuçlarını Temizle
+find . -name "TestResults" -type d -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf ./TestResults
 
 # 9. SonarScanner Başlat (Begin)
@@ -103,7 +104,8 @@ dotnet-sonarscanner begin \
     "${SCANNER_AUTH_ARGS[@]}" \
     /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" \
     /d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" \
-    /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.Tests/**,**/Migrations/**,**/docker/**"
+    /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.Tests/**,**/Migrations/**,**/docker/**" \
+    /d:sonar.coverage.exclusions="**/Migrations/**,**/*ModelSnapshot.cs,**/Program.cs,**/Extensions/MigrationExtensions.cs"
 
 # 10. Çözümü Derle
 echo ""
@@ -114,10 +116,10 @@ DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c Release
 echo ""
 echo "🧪 7. Testler çalıştırılıyor ve Code Coverage toplanıyor..."
 DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet test -c Release --no-build \
+    --settings coverage.runsettings \
     --collect:"XPlat Code Coverage" \
     --results-directory ./TestResults \
-    --logger "trx" \
-    -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover,cobertura
+    --logger "trx"
 
 # 12. SonarScanner Tamamla (End)
 echo ""

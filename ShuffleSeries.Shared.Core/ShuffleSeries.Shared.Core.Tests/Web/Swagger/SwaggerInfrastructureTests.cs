@@ -1,4 +1,3 @@
-using AwesomeAssertions;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
@@ -136,5 +135,34 @@ public class SwaggerInfrastructureTests
         options.Should().NotBeNull();
         options!.Title.Should().Be("ShuffleSeries API");
         options.Version.Should().Be("v1");
+    }
+
+    [Fact]
+    public void UseSharedSwagger_WithDefaultOptions_ShouldNotThrow()
+    {
+        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder();
+        builder.Services.AddSharedSwagger();
+        var app = builder.Build();
+
+        var act = () => app.UseSharedSwagger();
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void UseSharedSwagger_WithFeaturesDisabled_ShouldNotThrow()
+    {
+        var builder = Microsoft.AspNetCore.Builder.WebApplication.CreateBuilder();
+        builder.Services.AddSharedSwagger(opts =>
+        {
+            opts.EnableOpenApi = false;
+            opts.EnableSwaggerUi = false;
+            opts.EnableScalarUi = false;
+        });
+        var app = builder.Build();
+
+        var act = () => app.UseSharedSwagger();
+
+        act.Should().NotThrow();
     }
 }

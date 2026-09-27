@@ -25,7 +25,7 @@ public sealed class VaultConfigurationOptions
     /// <summary>
     /// Okunacak sır yollarının listesi (örn. ["shuffleseries/shared", "shuffleseries/catalog"]).
     /// </summary>
-    public IList<string> Paths { get; set; } = new List<string>();
+    public IList<string> Paths { get; set; } = [];
 
     /// <summary>
     /// Vault entegrasyonunun aktif olup olmadığını belirler.
