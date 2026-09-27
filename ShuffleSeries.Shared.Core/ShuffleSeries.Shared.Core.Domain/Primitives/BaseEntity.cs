@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ShuffleSeries.Shared.Core.Domain.Primitives;
 
-public abstract class BaseEntity<TId> : IEquatable<BaseEntity<TId>>, ISoftDeletable, IHardDeletable
+public abstract class BaseEntity<TId> : ISoftDeletable, IHardDeletable
 {
     public TId Id { get; protected set; } = default!;
     public DateTime CreatedAtUtc { get; protected set; }
@@ -43,35 +43,18 @@ public abstract class BaseEntity<TId> : IEquatable<BaseEntity<TId>>, ISoftDeleta
         IsHardDeleteRequested = false;
     }
 
-    public virtual void HardDelete()
-    {
-        IsHardDeleteRequested = true;
-    }
-
-    public bool Equals(BaseEntity<TId>? other)
-    {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        if (other.GetType() != GetType()) return false;
-        return EqualityComparer<TId>.Default.Equals(Id, other.Id);
-    }
+    public virtual void HardDelete() => IsHardDeleteRequested = true;
 
     public override bool Equals(object? obj)
     {
         if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
-        return obj.GetType() == GetType() && Equals((BaseEntity<TId>)obj);
+        if (obj.GetType() != GetType()) return false;
+        if (obj is not BaseEntity<TId> other) return false;
+        return EqualityComparer<TId>.Default.Equals(Id, other.Id);
     }
 
-    public override int GetHashCode()
-    {
-        return EqualityComparer<TId>.Default.GetHashCode(Id!);
-    }
-
-    public static bool operator ==(BaseEntity<TId>? a, BaseEntity<TId>? b) =>
-        a is null && b is null || a is not null && b is not null && a.Equals(b);
-
-    public static bool operator !=(BaseEntity<TId>? a, BaseEntity<TId>? b) => !(a == b);
+    public override int GetHashCode() => EqualityComparer<TId>.Default.GetHashCode(Id!);
 }
 
 public abstract class BaseEntity : BaseEntity<Guid>

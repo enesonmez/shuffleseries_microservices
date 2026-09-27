@@ -33,11 +33,12 @@ public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
         }
 
         var outboxMessages = context.ChangeTracker
-            .Entries<IAggregateRoot>()
-            .Select(x => x.Entity)
+            .Entries()
+            .Where(x => x.Entity is IAggregateRoot)
+            .Select(x => (IAggregateRoot)x.Entity)
             .SelectMany(aggregateRoot =>
             {
-                var domainEvents = aggregateRoot.GetDomainEvents();
+                var domainEvents = aggregateRoot.GetDomainEvents().ToList();
                 aggregateRoot.ClearDomainEvents();
                 return domainEvents;
             })

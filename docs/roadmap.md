@@ -22,6 +22,13 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
   * dotnet format --verify-no-changes ile otomatik Clean Code ve stil kapısı (Style Gate).
   * SonarQube / SonarCloud entegrasyonu, XPlat Code Coverage (Cobertura/OpenCover) raporlaması ve otomatik artifact yükleme.
   * Catalog.Api ve ApiGateway için Docker container build doğrulama (Container Integrity Gate).
+* [x] Task 1.7: SonarQube Kalite Kapısı, Kod Kapsama (Code Coverage) ve Güvenlik Sıkılaştırması
+  * Dockerfile'lar üzerinde Least Privilege prensibi ile non-root `USER app` güvenliği (S6471).
+  * CORS mimarisinin güvenli olarak incelenmesi ve onaylanması (S5122).
+  * appsettings dosyalarından sabit Vault adreslerinin arındırılması ve 12-factor env yönetimi.
+  * BaseEntity eşitlik operasyonlarının Microsoft standartlarına (S3875) uyarlanması.
+  * Domain event snapshotting ve Outbox bütünlüğünün `.ToList()` ile güvenceye alınması.
+  * Kod kapsama oranının (Code Coverage) %90.2'ye çıkarılması, 171 testin hatasız geçmesi ve SonarQube Quality Gate'in (Green / OK) tescillenmesi.
 
 # Milestone 2: API Gateway ve Identity (Auth) Service
 Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin yönetilmesi.

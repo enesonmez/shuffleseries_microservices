@@ -1,5 +1,4 @@
 using System.Net;
-using AwesomeAssertions;
 using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.Shared.Core.Tests.Exceptions;
@@ -7,106 +6,123 @@ namespace ShuffleSeries.Shared.Core.Tests.Exceptions;
 public class CustomExceptionTests
 {
     [Fact]
-    public void BusinessException_ShouldHaveCorrectDefaults()
+    public void BadRequestException_ShouldHaveCorrectDefaults()
     {
-        var ex = new BusinessException("CUSTOM_ERR", "Something business-related went wrong.");
+        var ex = new BadRequestException("Invalid input", "CUSTOM_CODE");
+        ex.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        ex.Code.Should().Be("CUSTOM_CODE");
+        ex.Message.Should().Be("Invalid input");
 
-        ex.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-        ex.Code.Should().Be("CUSTOM_ERR");
-        ex.Message.Should().Be("Something business-related went wrong.");
-        ex.Title.Should().Be("Business Rule Violation");
+        var exDefault = new BadRequestException();
+        exDefault.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        exDefault.Code.Should().Be("BAD_REQUEST");
     }
 
     [Fact]
-    public void NotFoundException_WithEntityAndKey_ShouldFormatMessageCorrectly()
+    public void NotFoundException_ShouldHaveCorrectDefaults()
     {
-        var id = Guid.NewGuid();
-        var ex = new NotFoundException("Movie", id);
-
+        var ex = new NotFoundException("Resource not found");
         ex.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        ex.Code.Should().Be("MOVIE_NOT_FOUND");
-        ex.Message.Should().Be($"Entity 'Movie' with identifier '{id}' was not found.");
-        ex.Title.Should().Be("Not Found");
+        ex.Message.Should().Be("Resource not found");
+
+        var guid = Guid.NewGuid();
+        var ex2 = new NotFoundException("Series", guid);
+        ex2.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        ex2.Code.Should().Be("SERIES_NOT_FOUND");
+        ex2.Message.Should().Contain(guid.ToString());
+
+        var exDefault = new NotFoundException();
+        exDefault.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        exDefault.Code.Should().Be("NOT_FOUND");
     }
 
     [Fact]
-    public void ValidationException_WithErrorsDictionary_ShouldStoreErrors()
+    public void ConflictException_ShouldHaveCorrectDefaults()
+    {
+        var ex = new ConflictException("Already exists", "CUSTOM_CONFLICT");
+        ex.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        ex.Code.Should().Be("CUSTOM_CONFLICT");
+        ex.Message.Should().Be("Already exists");
+
+        var exDefault = new ConflictException();
+        exDefault.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        exDefault.Code.Should().Be("CONFLICT");
+    }
+
+    [Fact]
+    public void UnauthorizedException_ShouldHaveCorrectDefaults()
+    {
+        var ex = new UnauthorizedException("User not authenticated");
+        ex.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        ex.Message.Should().Be("User not authenticated");
+
+        var exDefault = new UnauthorizedException();
+        exDefault.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public void ForbiddenException_ShouldHaveCorrectDefaults()
+    {
+        var ex = new ForbiddenException("Access forbidden");
+        ex.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        ex.Message.Should().Be("Access forbidden");
+
+        var exDefault = new ForbiddenException();
+        exDefault.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public void InternalServerException_ShouldHaveCorrectDefaults()
+    {
+        var inner = new Exception("Inner DB error");
+        var ex = new InternalServerException("Internal error", "CUSTOM_INTERNAL", inner);
+        ex.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        ex.Code.Should().Be("CUSTOM_INTERNAL");
+        ex.Message.Should().Be("Internal error");
+        ex.InnerException.Should().Be(inner);
+
+        var exDefault = new InternalServerException();
+        exDefault.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        exDefault.Code.Should().Be("INTERNAL_SERVER_ERROR");
+    }
+
+    [Fact]
+    public void BusinessException_ShouldStoreCodeAndMessage()
+    {
+        var ex = new BusinessException("SERIES_LIMIT_EXCEEDED", "Cannot add more series.");
+        ex.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        ex.Code.Should().Be("SERIES_LIMIT_EXCEEDED");
+        ex.Message.Should().Be("Cannot add more series.");
+
+        var exMsg = new BusinessException("Single message");
+        exMsg.Code.Should().Be("BUSINESS_RULE_VIOLATION");
+        exMsg.Message.Should().Be("Single message");
+
+        var exDefault = new BusinessException();
+        exDefault.Code.Should().Be("BUSINESS_RULE_VIOLATION");
+        exDefault.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    public void ValidationException_ShouldStoreErrorsProperly()
     {
         var errors = new Dictionary<string, string[]>
         {
-            ["Title"] = ["Title is required.", "Title is too long."],
-            ["Year"] = ["Year must be positive."]
+            ["Title"] = new[] { "Title is required" },
+            ["Year"] = new[] { "Year must be positive" }
         };
 
         var ex = new ValidationException(errors);
-
         ex.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        ex.Code.Should().Be("VALIDATION_ERROR");
-        ex.Title.Should().Be("Validation Error");
         ex.Errors.Should().BeEquivalentTo(errors);
-    }
 
-    [Fact]
-    public void ValidationException_WithPropertyAndMessage_ShouldStoreSingleError()
-    {
-        var ex = new ValidationException("Title", "Title is required.");
+        var exDefault = new ValidationException();
+        exDefault.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        exDefault.Errors.Should().BeEmpty();
 
-        ex.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        ex.Errors.Should().ContainKey("Title");
-        ex.Errors["Title"].Should().ContainSingle("Title is required.");
-    }
-
-    [Fact]
-    public void ConflictException_ShouldHaveConflictStatus()
-    {
-        var ex = new ConflictException("Resource already exists.");
-
-        ex.StatusCode.Should().Be(HttpStatusCode.Conflict);
-        ex.Code.Should().Be("CONFLICT");
-        ex.Title.Should().Be("Conflict");
-        ex.Message.Should().Be("Resource already exists.");
-    }
-
-    [Fact]
-    public void UnauthorizedException_ShouldHaveUnauthorizedStatus()
-    {
-        var ex = new UnauthorizedException();
-
-        ex.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        ex.Code.Should().Be("UNAUTHORIZED");
-        ex.Title.Should().Be("Unauthorized");
-    }
-
-    [Fact]
-    public void ForbiddenException_ShouldHaveForbiddenStatus()
-    {
-        var ex = new ForbiddenException();
-
-        ex.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        ex.Code.Should().Be("FORBIDDEN");
-        ex.Title.Should().Be("Forbidden");
-    }
-
-    [Fact]
-    public void InternalServerException_ShouldHaveInternalServerErrorStatus()
-    {
-        var inner = new InvalidOperationException("DB failed");
-        var ex = new InternalServerException("Something crashed", "CRASH", inner);
-
-        ex.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
-        ex.Code.Should().Be("CRASH");
-        ex.Title.Should().Be("Internal Server Error");
-        ex.InnerException.Should().Be(inner);
-    }
-
-    [Fact]
-    public void BadRequestException_ShouldHaveBadRequestStatus()
-    {
-        var ex = new BadRequestException("Invalid parameter value.", "INVALID_PARAM");
-
-        ex.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        ex.Code.Should().Be("INVALID_PARAM");
-        ex.Title.Should().Be("Bad Request");
-        ex.Message.Should().Be("Invalid parameter value.");
+        var exSingle = new ValidationException("Title", "Title is required");
+        exSingle.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        exSingle.Errors.Should().ContainKey("Title");
+        exSingle.Errors["Title"].Should().Contain("Title is required");
     }
 }

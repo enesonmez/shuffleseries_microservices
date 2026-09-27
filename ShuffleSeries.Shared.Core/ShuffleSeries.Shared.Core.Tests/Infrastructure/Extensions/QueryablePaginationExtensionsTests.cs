@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Shared.Core.Application.Requests;
 using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 
@@ -51,5 +51,41 @@ public class QueryablePaginationExtensionsTests
 
         // Assert
         result.Should().HaveCount(expectedCount);
+    }
+
+    private sealed class DummyEntity
+    {
+        public int Id { get; set; }
+    }
+
+    private sealed class DummyPaginationDbContext : Microsoft.EntityFrameworkCore.DbContext
+    {
+        public Microsoft.EntityFrameworkCore.DbSet<DummyEntity> Entities => Set<DummyEntity>();
+        public DummyPaginationDbContext(Microsoft.EntityFrameworkCore.DbContextOptions<DummyPaginationDbContext> options) : base(options) { }
+    }
+
+    [Fact]
+    public async Task ToPaginatedListAsync_ShouldReturnPaginatedList()
+    {
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<DummyPaginationDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var db = new DummyPaginationDbContext(options);
+        db.Entities.AddRange(Enumerable.Range(1, 25).Select(i => new DummyEntity { Id = i }));
+        await db.SaveChangesAsync();
+
+        var paginated1 = await db.Entities.ToPaginatedListAsync(new PaginationRequest(2, 10));
+        paginated1.TotalCount.Should().Be(25);
+        paginated1.Items.Should().HaveCount(10);
+        paginated1.PageNumber.Should().Be(2);
+
+        var paginated2 = await db.Entities.ToPaginatedListAsync(1, 5);
+        paginated2.TotalCount.Should().Be(25);
+        paginated2.Items.Should().HaveCount(5);
+
+        var paginatedNull = await db.Entities.ToPaginatedListAsync((PaginationRequest?)null);
+        paginatedNull.TotalCount.Should().Be(25);
+        paginatedNull.Items.Should().HaveCount(10);
     }
 }

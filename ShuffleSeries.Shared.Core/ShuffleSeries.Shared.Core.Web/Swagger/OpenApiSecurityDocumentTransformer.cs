@@ -45,10 +45,10 @@ public sealed class OpenApiSecurityDocumentTransformer : IOpenApiDocumentTransfo
             var schemeReference = new OpenApiSecuritySchemeReference("Bearer", document);
             var requirement = new OpenApiSecurityRequirement
             {
-                [schemeReference] = new List<string>()
+                [schemeReference] = []
             };
 
-            document.Security ??= new List<OpenApiSecurityRequirement>();
+            document.Security ??= [];
             document.Security.Add(requirement);
         }
 

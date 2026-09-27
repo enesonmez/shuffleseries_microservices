@@ -1,4 +1,3 @@
-using AwesomeAssertions;
 using Moq;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;
 using ShuffleSeries.Catalog.Domain.Entities;

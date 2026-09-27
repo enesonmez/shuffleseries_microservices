@@ -29,8 +29,11 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
         var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
 
-        _logger.LogError(exception, "An unhandled exception occurred: {Message}. TraceId: {TraceId}",
-            exception.Message, traceId);
+        if (_logger.IsEnabled(LogLevel.Error))
+        {
+            _logger.LogError(exception, "An unhandled exception occurred: {Message}. TraceId: {TraceId}",
+                exception.Message, traceId);
+        }
 
         var problemDetails = new ProblemDetails
         {

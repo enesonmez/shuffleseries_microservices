@@ -1,6 +1,6 @@
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Shared.Core.Application.Behaviors;
-using FluentValidation;
 
 namespace ShuffleSeries.Catalog.Application;
 

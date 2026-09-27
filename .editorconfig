@@ -1,0 +1,129 @@
+# ==============================================================================
+# ShuffleSeries - Solution-wide Code Style and EditorConfig
+# ==============================================================================
+root = true
+
+# All files
+[*]
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+end_of_line = lf
+charset = utf-8
+
+# XML and Project Files
+[*.{csproj,props,targets,xml,runsettings}]
+indent_size = 2
+
+# JSON and YAML Files
+[*.{json,yml,yaml}]
+indent_size = 2
+
+# Markdown Files
+[*.md]
+trim_trailing_whitespace = false
+
+# C# Files
+[*.cs]
+# Using Directives Organization
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# Remove Unused Using Directives (Fail-Fast Gate)
+dotnet_diagnostic.IDE0005.severity = warning
+
+# Language Rules
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_pattern_matching = true:suggestion
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Naming Conventions (IDE1006)
+dotnet_diagnostic.IDE1006.severity = warning
+dotnet_diagnostic.IDE0130.severity = warning
+
+# 1. Interfaces must start with 'I' and use PascalCase
+dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface_symbols
+dotnet_naming_rule.interface_should_be_begins_with_i.style = begins_with_i_style
+dotnet_naming_rule.interface_should_be_begins_with_i.severity = warning
+
+dotnet_naming_symbols.interface_symbols.applicable_kinds = interface
+dotnet_naming_symbols.interface_symbols.applicable_accessibilities = *
+
+dotnet_naming_style.begins_with_i_style.required_prefix = I
+dotnet_naming_style.begins_with_i_style.capitalization = pascal_case
+
+# 2. Types (class, struct, enum, record, delegate) must use PascalCase
+dotnet_naming_rule.types_should_be_pascal_case.symbols = type_symbols
+dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case_style
+dotnet_naming_rule.types_should_be_pascal_case.severity = warning
+
+dotnet_naming_symbols.type_symbols.applicable_kinds = class, struct, enum, delegate
+dotnet_naming_symbols.type_symbols.applicable_accessibilities = *
+
+# 3. Generic Type Parameters must start with 'T' and use PascalCase
+dotnet_naming_rule.type_parameters_should_begin_with_t.symbols = type_parameter_symbols
+dotnet_naming_rule.type_parameters_should_begin_with_t.style = begins_with_t_style
+dotnet_naming_rule.type_parameters_should_begin_with_t.severity = warning
+
+dotnet_naming_symbols.type_parameter_symbols.applicable_kinds = type_parameter
+dotnet_naming_symbols.type_parameter_symbols.applicable_accessibilities = *
+
+dotnet_naming_style.begins_with_t_style.required_prefix = T
+dotnet_naming_style.begins_with_t_style.capitalization = pascal_case
+
+# 4. Methods, Properties, Events must use PascalCase
+dotnet_naming_rule.members_should_be_pascal_case.symbols = member_symbols
+dotnet_naming_rule.members_should_be_pascal_case.style = pascal_case_style
+dotnet_naming_rule.members_should_be_pascal_case.severity = warning
+
+dotnet_naming_symbols.member_symbols.applicable_kinds = method, property, event
+dotnet_naming_symbols.member_symbols.applicable_accessibilities = *
+
+# 5. Non-public instance fields must begin with '_' and use camelCase
+dotnet_naming_rule.instance_fields_should_begin_with_underscore.symbols = instance_field_symbols
+dotnet_naming_rule.instance_fields_should_begin_with_underscore.style = begins_with_underscore_style
+dotnet_naming_rule.instance_fields_should_begin_with_underscore.severity = warning
+
+dotnet_naming_symbols.instance_field_symbols.applicable_kinds = field
+dotnet_naming_symbols.instance_field_symbols.applicable_accessibilities = private, protected, private_protected
+
+dotnet_naming_style.begins_with_underscore_style.required_prefix = _
+dotnet_naming_style.begins_with_underscore_style.capitalization = camel_case
+
+# 6. Local variables and parameters must use camelCase
+dotnet_naming_rule.parameters_and_locals_should_be_camel_case.symbols = local_and_parameter_symbols
+dotnet_naming_rule.parameters_and_locals_should_be_camel_case.style = camel_case_style
+dotnet_naming_rule.parameters_and_locals_should_be_camel_case.severity = warning
+
+dotnet_naming_symbols.local_and_parameter_symbols.applicable_kinds = parameter, local
+dotnet_naming_symbols.local_and_parameter_symbols.applicable_accessibilities = *
+
+# 7. Constants must use PascalCase
+dotnet_naming_rule.constants_should_be_pascal_case.symbols = constant_symbols
+dotnet_naming_rule.constants_should_be_pascal_case.style = pascal_case_style
+dotnet_naming_rule.constants_should_be_pascal_case.severity = warning
+
+dotnet_naming_symbols.constant_symbols.applicable_kinds = field
+dotnet_naming_symbols.constant_symbols.required_modifiers = const
+
+# Shared Styles
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+dotnet_naming_style.camel_case_style.capitalization = camel_case
+
+# Formatting Rules
+csharp_new_line_before_open_brace = all
+csharp_space_after_cast = false
+csharp_space_around_binary_operators = before_and_after
+
+# Generated Code & Migrations Exclusions
+[**/Migrations/**]
+generated_code = true
+dotnet_diagnostic.IDE0005.severity = none
+dotnet_diagnostic.IDE1006.severity = none
+

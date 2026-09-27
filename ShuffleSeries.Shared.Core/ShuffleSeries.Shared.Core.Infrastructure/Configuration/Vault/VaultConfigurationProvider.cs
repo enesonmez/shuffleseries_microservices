@@ -43,7 +43,7 @@ public class VaultConfigurationProvider : ConfigurationProvider, IDisposable
         }
 
         _httpClient ??= _handler != null ? new HttpClient(_handler, disposeHandler: false) : new HttpClient();
-        _httpClient.BaseAddress = new Uri(_options.Address.TrimEnd('/') + "/");
+        _httpClient.BaseAddress = new UriBuilder(_options.Address).Uri;
         _httpClient.Timeout = _options.Timeout;
 
         foreach (var path in _options.Paths)

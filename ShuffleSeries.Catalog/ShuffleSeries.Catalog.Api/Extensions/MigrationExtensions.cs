@@ -20,8 +20,11 @@ public static class MigrationExtensions
         {
             try
             {
-                logger.LogInformation("Checking and applying database migrations... (Attempt {Attempt}/{Max})",
-                    retryCount + 1, maxRetries);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation("Checking and applying database migrations... (Attempt {Attempt}/{Max})",
+                        retryCount + 1, maxRetries);
+                }
 
                 await context.Database.MigrateAsync();
 
@@ -31,9 +34,12 @@ public static class MigrationExtensions
             catch (Exception ex)
             {
                 retryCount++;
-                logger.LogWarning(ex,
-                    "Database is not accepting connections yet or is not ready. Retrying in {Delay} seconds...",
-                    delaySeconds);
+                if (logger.IsEnabled(LogLevel.Warning))
+                {
+                    logger.LogWarning(ex,
+                        "Database is not accepting connections yet or is not ready. Retrying in {Delay} seconds...",
+                        delaySeconds);
+                }
 
                 if (retryCount >= maxRetries)
                 {

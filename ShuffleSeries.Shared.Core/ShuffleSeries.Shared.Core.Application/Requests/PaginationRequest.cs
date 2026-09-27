@@ -36,12 +36,12 @@ public record PaginationRequest
     /// </summary>
     public int Take => PageSize;
 
-    public PaginationRequest(int? pageNumber = DefaultPageNumber, int? pageSize = DefaultPageSize)
+    public PaginationRequest(int? pageNumber, int? pageSize)
     {
         PageNumber = pageNumber is null or < 1 ? DefaultPageNumber : pageNumber.Value;
         PageSize = pageSize is null or < 1
             ? DefaultPageSize
-            : (pageSize.Value > MaxPageSize ? MaxPageSize : pageSize.Value);
+            : Math.Min(pageSize.Value, MaxPageSize);
     }
 
     public PaginationRequest() : this(DefaultPageNumber, DefaultPageSize)

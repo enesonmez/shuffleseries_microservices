@@ -15,8 +15,6 @@ public sealed class VaultConfigurationSource : IConfigurationSource
         Options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
-    public IConfigurationProvider Build(IConfigurationBuilder builder)
-    {
-        return new VaultConfigurationProvider(Options, Handler);
-    }
+    public IConfigurationProvider Build(IConfigurationBuilder builder) =>
+        new VaultConfigurationProvider(Options, Handler);
 }

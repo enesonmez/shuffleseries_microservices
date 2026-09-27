@@ -19,11 +19,9 @@ app.UseSwaggerUI(options =>
 
     // Mikroservislerin OpenAPI v3 spesifikasyonları Gateway dropdown'ına eklenir:
     options.SwaggerEndpoint("/catalog-api/openapi/v1.json", "Catalog Service API (v1)");
-    // Yeni mikroservisler eklendikçe buraya tek satırla dahil edilebilir:
-    // options.SwaggerEndpoint("/identity-api/openapi/v1.json", "Identity Service API (v1)");
-    // options.SwaggerEndpoint("/shuffle-api/openapi/v1.json", "Shuffle Engine API (v1)");
+    // Not: Gelecekte eklenecek mikroservislerin OpenAPI spesifikasyonları buraya SwaggerEndpoint olarak dahil edilebilir.
 });
 
 app.MapReverseProxy();
 
-app.Run();
+await app.RunAsync();

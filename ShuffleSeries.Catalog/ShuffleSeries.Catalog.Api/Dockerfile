@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 USER app
 WORKDIR /app
 EXPOSE 8080
@@ -16,7 +16,8 @@ COPY ["ShuffleSeries.Catalog/ShuffleSeries.Catalog.Domain/ShuffleSeries.Catalog.
 COPY ["ShuffleSeries.Catalog/ShuffleSeries.Catalog.Infrastructure/ShuffleSeries.Catalog.Infrastructure.csproj", "ShuffleSeries.Catalog/ShuffleSeries.Catalog.Infrastructure/"]
 COPY ["ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Web/ShuffleSeries.Shared.Core.Web.csproj", "ShuffleSeries.Shared.Core/ShuffleSeries.Shared.Core.Web/"]
 RUN dotnet restore "ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api/ShuffleSeries.Catalog.Api.csproj"
-COPY . .
+COPY ["ShuffleSeries.Catalog/", "ShuffleSeries.Catalog/"]
+COPY ["ShuffleSeries.Shared.Core/", "ShuffleSeries.Shared.Core/"]
 WORKDIR "/src/ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api"
 RUN dotnet build "./ShuffleSeries.Catalog.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
@@ -27,4 +28,5 @@ RUN dotnet publish "./ShuffleSeries.Catalog.Api.csproj" -c $BUILD_CONFIGURATION 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+USER app
 ENTRYPOINT ["dotnet", "ShuffleSeries.Catalog.Api.dll"]

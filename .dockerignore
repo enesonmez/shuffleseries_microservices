@@ -1,0 +1,53 @@
+# ==============================================================================
+# ShuffleSeries - Docker Build Context Exclusions
+# ==============================================================================
+# Prevents host-specific build artifacts, caches, git metadata, and sensitive
+# environment files from being copied into container images during build.
+# ==============================================================================
+
+# Git & Version Control
+.git/
+.gitignore
+.gitattributes
+
+# IDE & Editor caches
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.fleet/
+
+# Build outputs & temporary files (CRITICAL: prevents host OS binaries from leaking)
+**/bin/
+**/obj/
+**/TestResults/
+.sonarqube/
+.dotnet/
+coverage.runsettings
+
+# Environment & Secrets (Never bake into images)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+
+# Documentation, CI/CD & Local Scripts
+docs/
+.github/
+scripts/
+README.md
+AGENTS.md
+docker-compose*.yml
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

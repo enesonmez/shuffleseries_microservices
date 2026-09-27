@@ -45,4 +45,4 @@ app.MapSeriesEndpoints();
 
 await app.ApplyMigrationsAsync();
 
-app.Run();
+await app.RunAsync();

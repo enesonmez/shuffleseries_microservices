@@ -11,6 +11,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		docker-compose.sonarqube.yml = docker-compose.sonarqube.yml
 		docker-compose.yml = docker-compose.yml
 		.env.example = .env.example
+		.dockerignore = .dockerignore
+		.editorconfig = .editorconfig
+		coverage.runsettings = coverage.runsettings
+		Directory.Build.props = Directory.Build.props
+		docker-compose.apps.yml = docker-compose.apps.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShuffleSeries.Catalog", "ShuffleSeries.Catalog", "{BB3A0AD2-D6CE-40CA-8938-5FE0B4536382}"
