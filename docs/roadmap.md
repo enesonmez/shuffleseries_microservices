@@ -29,6 +29,11 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
   * BaseEntity eşitlik operasyonlarının Microsoft standartlarına (S3875) uyarlanması.
   * Domain event snapshotting ve Outbox bütünlüğünün `.ToList()` ile güvenceye alınması.
   * Kod kapsama oranının (Code Coverage) %90.2'ye çıkarılması, 171 testin hatasız geçmesi ve SonarQube Quality Gate'in (Green / OK) tescillenmesi.
+* [x] Task 1.8: Mimari Bağımlılık ve Testcontainers Tabanlı Gerçek Entegrasyon Test Altyapısı
+  * NetArchTest.Rules ile Onion Architecture katman bağımlılıklarını (Domain, Application, Infrastructure, Api) ve CQRS/DDD tasarım kurallarını denetleyen merkezi Architecture Tests projesinin kurulması.
+  * Testcontainers for .NET (PostgreSQL) entegrasyonu ile InMemory yerine gerçek Docker veritabanı container'ı üzerinde çalışan izole entegrasyon test altyapısının kurulması.
+  * WebApplicationFactory (ASP.NET Core Mvc Testing) ile Minimal API endpoint'lerinin gerçek HTTP istekleriyle uçtan uca test edilmesi.
+  * Respawn kütüphanesi ile testler arasında veritabanı şemasını silmeden tabloları milisaniyeler içinde sıfırlayarak yüksek hızlı ve izole test döngüsünün sağlanması.
 
 # Milestone 2: API Gateway ve Identity (Auth) Service
 Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin yönetilmesi.
@@ -47,6 +52,7 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * POST /api/auth/merge-guest: Misafir oturumundaki verilerin (beğenilen/kaydedilen içerikler, kalan biletler ve swipe geçmişi) yeni oluşturulan veya giriş yapılan kalıcı hesaba aktarılması (Data Merge).
   * DELETE /api/auth/account: Kullanıcı hesabını ve tüm kişisel verilerini kalıcı olarak silme (Apple App Store Guideline 5.1.1(v) ve GDPR/KVKK yasal uyumluluk gereksinimi).
 * [ ] Task 2.3: Güvenlik ve Token Blacklist Mimarisi
+  * Sektörde kullanılan tüm JWT güvenlik mekanizmalarının oluşturulması.
   * Revoke edilen (kullanımdan kalkan) token'lar için Redis üzerinde bir Blacklist tutulması.
   * API Gateway JWT doğrularken bu Redis Blacklist'ini kontrol etmesinin (Security & Caching) sağlanması.
 * [ ] Task 2.4: Outbox Pattern ve Identity Event Choreography

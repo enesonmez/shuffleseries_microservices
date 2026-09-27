@@ -143,15 +143,17 @@ flowchart TD
 │   ├── ShuffleSeries.Shared.Core.Domain/          # BaseEntity, AggregateRoot, Domain Events, Repositories
 │   ├── ShuffleSeries.Shared.Core.Exceptions/      # CustomException hierarchy (Business, NotFound, Conflict, etc.)
 │   ├── ShuffleSeries.Shared.Core.Application/     # Common DTOs (ApiResponse, PaginationRequest, PaginatedList)
-│   ├── ShuffleSeries.Shared.Core.Infrastructure/  # EF Core Interceptors (Outbox messaging)
-│   ├── ShuffleSeries.Shared.Core.Web/             # RFC 9457 GlobalExceptionHandler, ProblemDetails
+│   ├── ShuffleSeries.Shared.Core.Infrastructure/  # EF Core Interceptors (Outbox messaging, Soft Delete)
+│   ├── ShuffleSeries.Shared.Core.Web/             # RFC 9457 GlobalExceptionHandler, ProblemDetails, CORS, OpenAPI
 │   └── ShuffleSeries.Shared.Core.Tests/           # Unit test suite for shared core primitives
 ├── ShuffleSeries.Catalog/              # Catalog bounded context
-│   ├── ShuffleSeries.Catalog.Domain/
-│   ├── ShuffleSeries.Catalog.Application/
-│   ├── ShuffleSeries.Catalog.Infrastructure/
-│   ├── ShuffleSeries.Catalog.Api/
-│   └── ShuffleSeries.Catalog.Tests/
+│   ├── ShuffleSeries.Catalog.Domain/              # Rich Domain entities, Aggregates, Domain Services
+│   ├── ShuffleSeries.Catalog.Application/         # CQRS Commands, Queries, MediatR Handlers, Validators
+│   ├── ShuffleSeries.Catalog.Infrastructure/      # EF Core PostgreSQL persistence, Outbox jobs, Repositories
+│   ├── ShuffleSeries.Catalog.Api/                 # Minimal API endpoints & OpenAPI specification
+│   ├── ShuffleSeries.Catalog.Tests/               # Unit test suite (Moq, Domain, Validators)
+│   └── ShuffleSeries.Catalog.IntegrationTests/    # Real DB integration tests (Testcontainers, Respawn, WebApplicationFactory)
+├── ShuffleSeries.ArchitectureTests/    # Centralized Architecture Dependency Tests (NetArchTest.Rules)
 ├── ShuffleSeries.ApiGateway/           # YARP-based intelligent API Gateway
 └── docs/                               # Architectural documentation, roadmaps, and task guides
     ├── roadmap.md                      # Milestone & task tracking
@@ -174,7 +176,7 @@ flowchart TD
 | **Secret Management** | HashiCorp Vault (KV-v2 engine, automated seeding) |
 | **Resilience** | Polly (Retry, Circuit Breaker, Fallback) |
 | **Observability** | OpenTelemetry, Serilog, Prometheus, Jaeger |
-| **Testing** | xUnit, FluentAssertions, Moq, Coverlet |
+| **Testing Architecture** | xUnit, AwesomeAssertions, Moq, NetArchTest.Rules, Testcontainers (PostgreSQL), WebApplicationFactory, Respawn, Coverlet |
 | **CI/CD & Quality** | GitHub Actions, SonarQube / SonarCloud, Docker Buildx |
 
 ---
@@ -295,9 +297,21 @@ docker compose -f docker-compose.apps.yml down
 dotnet build
 ```
 
-### 🧪 Run All Unit & Integration Tests
+### 🧪 Test Execution (Unit, Architecture & Real Integration)
+ShuffleSeries enforces a strict, multi-tiered testing strategy:
+- **Unit Tests (`ShuffleSeries.Shared.Core.Tests`, `ShuffleSeries.Catalog.Tests`):** Fast, isolated tests for domain entities, validation logic, and CQRS handlers.
+- **Architecture Dependency Tests (`ShuffleSeries.ArchitectureTests`):** Architectural Fitness Functions via `NetArchTest.Rules` verifying layer boundaries (Domain, Application, Infrastructure, Api) and CQRS/DDD conventions.
+- **Real Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (PostgreSQL), and `Respawn` for lightning-fast sub-second table resets.
+
 ```bash
+# Run all 188 tests across the entire solution
 dotnet test
+
+# Run Architecture Dependency Tests (Fitness Functions)
+dotnet test ShuffleSeries.ArchitectureTests/ShuffleSeries.ArchitectureTests.csproj
+
+# Run Real Integration Tests (with Testcontainers PostgreSQL)
+dotnet test ShuffleSeries.Catalog/ShuffleSeries.Catalog.IntegrationTests/ShuffleSeries.Catalog.IntegrationTests.csproj
 ```
 
 ### 🏃 Run Catalog Service Locally
@@ -321,13 +335,13 @@ The platform is fortified with an automated, multi-stage GitHub Actions pipeline
 ```mermaid
 flowchart LR
     A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
-    B --> C["🧪 Automated Tests\n(171 Tests + 90.2% Coverage)"]
+    B --> C["🧪 Automated Tests\n(188 Tests + 90.2% Coverage)"]
     C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 100% Safe)"]
     D --> E["🐳 Docker Integrity Gate\n(Non-Root 'app' Containers)"]
 ```
 
 - **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
-- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) achieving **90.2%** test coverage, exceeding the 80% Quality Gate threshold.
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) achieving **90.2%** test coverage across 188 automated tests, exceeding the 80% Quality Gate threshold.
 - **SonarQube Quality Gate:** Validates **0 Bugs**, **0 Vulnerabilities**, **0 Code Smells**, and **100% Security Hotspots Reviewed**.
 - **Container Verification:** Validates Docker builds for both `ShuffleSeries.Catalog.Api` and `ShuffleSeries.ApiGateway` on every push and pull request, enforcing the non-root `USER app` security standard.
 

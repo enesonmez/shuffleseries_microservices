@@ -82,13 +82,18 @@ echo ""
 echo "🧹 4. Kod stili ve format kontrolü yapılıyor (dotnet format)..."
 DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet format --verify-no-changes
 
-# 8. Eski Test Sonuçlarını Temizle
+# 8. NuGet Bağımlılık Güvenlik Taraması (SCA Fail-Fast Gate)
+echo ""
+echo "🛡️ 5. NuGet paket güvenlik açıkları taranıyor (dotnet list package --vulnerable)..."
+DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet list package --vulnerable --include-transitive
+
+# 9. Eski Test Sonuçlarını Temizle
 find . -name "TestResults" -type d -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf ./TestResults
 
-# 9. SonarScanner Başlat (Begin)
+# 10. SonarScanner Başlat (Begin)
 echo ""
-echo "🛡️ 5. SonarScanner analizi başlatılıyor..."
+echo "🛡️ 6. SonarScanner analizi başlatılıyor..."
 SCANNER_AUTH_ARGS=()
 if [ -n "$SONAR_TOKEN" ]; then
     SCANNER_AUTH_ARGS+=("/d:sonar.token=$SONAR_TOKEN")
@@ -107,23 +112,23 @@ dotnet-sonarscanner begin \
     /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.Tests/**,**/Migrations/**,**/docker/**" \
     /d:sonar.coverage.exclusions="**/Migrations/**,**/*ModelSnapshot.cs,**/Program.cs,**/Extensions/MigrationExtensions.cs"
 
-# 10. Çözümü Derle
+# 11. Çözümü Derle
 echo ""
-echo "🔨 6. Çözüm derleniyor (Release)..."
+echo "🔨 7. Çözüm derleniyor (Release)..."
 DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build -c Release
 
-# 11. Testleri Çalıştır ve Code Coverage Topla
+# 12. Testleri Çalıştır ve Code Coverage Topla
 echo ""
-echo "🧪 7. Testler çalıştırılıyor ve Code Coverage toplanıyor..."
+echo "🧪 8. Testler çalıştırılıyor ve Code Coverage toplanıyor..."
 DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet test -c Release --no-build \
     --settings coverage.runsettings \
     --collect:"XPlat Code Coverage" \
     --results-directory ./TestResults \
     --logger "trx"
 
-# 12. SonarScanner Tamamla (End)
+# 13. SonarScanner Tamamla (End)
 echo ""
-echo "🏁 8. SonarScanner analizi tamamlanıyor ve rapor sunucuya gönderiliyor..."
+echo "🏁 9. SonarScanner analizi tamamlanıyor ve rapor sunucuya gönderiliyor..."
 END_AUTH_ARGS=()
 if [ -n "$SONAR_TOKEN" ]; then
     END_AUTH_ARGS+=("/d:sonar.token=$SONAR_TOKEN")

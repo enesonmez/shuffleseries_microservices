@@ -48,9 +48,13 @@ Yazdığın kodlarda "Security by Design" prensibini benimse ve güncel OWASP We
 * **Trafik ve Token Güvenliği (API4):** Brute-Force ve DDoS'a karşı YARP üzerinde sıkı Rate Limiting uygula. Çalınma riskine karşı "Refresh Token Rotation" ve revoke edilen token'lar için Redis Blacklist mekanizması kurgula.
 * **İletişim ve Hata Yönetimi:** Dış ve iç iletişimde HTTPS (TLS) zorunludur. Hata yanıtlarında stack trace veya iç sistem bilgisini sızdırma; her zaman standart ve güvenli ProblemDetails modeli dön.
 ## Adım 4: Görev Sonrası Kapanış ve Öğretici Dokümantasyon (Post-Task)
-1. dotnet format ile değişiklik yapılan dosyaları formatla.
-2.	SonarQube Validasyonu: Yazdığın kodun Code Smell, Vulnerability veya Bug içerip içermediğini teorik olarak gözden geçir.
-3.  Yazdılan kod dahilinde yazılması gereken unit test'leri ve integration test'leri yaz ve sistemde çalıştır. Eğer geçerli ise devam et. Değilse sorunu düzelt.
+1. Test Mimarisi ve Doğrulama Standartları:
+    * İlgili geliştirme için aşağıdaki test türleri detaylı şekilde yazılır ve test edilir
+    * **Unit Tests:** Hızlı domain iş kuralları, validasyonlar ve izole mantık testleri için AwesomeAssertions ve Moq kullan.
+    * **Architecture Tests:** Katman sınırları (Onion Architecture: Domain -> Application -> Infrastructure -> Api) ve CQRS/DDD kurallarını `NetArchTest.Rules` (`ShuffleSeries.ArchitectureTests`) ile otomatik doğrula.
+    * **Real Integration Tests (Testcontainers + Respawn):** Veritabanı ve kuyruk testlerinde sahte `InMemory` veya mock kullanma; `WebApplicationFactory` + `Testcontainers` (gerçek PostgreSQL) + `Respawn` (milisaniyelik veri temizliği) ile gerçek entegrasyon testlerini yaz ve çalıştır.
+2. dotnet format ile değişiklik yapılan dosyaları formatla.
+3. SonarQube Validasyonu: Yazdığın kodun Code Smell, Vulnerability veya Bug içerip içermediğini teorik olarak gözden geçir.
 4.	Eğitici Dokümantasyon Üretimi: Görev tamamlandığında, projenin ana dizininde bulunan /docs/tasks/ klasörüne görevin adıyla (örn. task.3.2-catalog-outbox-implementation.md) bir eğitim dokümanı oluştur. Bu dokümanda şunlar yer almalıdır:
     *	Ne Yaptık?: Uygulanan kodun genel özeti.
     *	Neden Yaptık?: Mimari kararların (örn. neden RabbitMQ'ya direkt yazmak yerine Outbox kullandığımızın) teknik açıklaması.

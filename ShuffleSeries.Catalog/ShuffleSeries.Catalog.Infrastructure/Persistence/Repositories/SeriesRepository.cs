@@ -23,7 +23,7 @@ internal sealed class SeriesRepository : ISeriesRepository
 
     public async Task<bool> ExistsByTitleAsync(string title, CancellationToken cancellationToken = default) =>
         await _context.Series
-            .AnyAsync(x => string.Equals(x.Title, title, StringComparison.OrdinalIgnoreCase), cancellationToken);
+            .AnyAsync(x => EF.Functions.ILike(x.Title, title), cancellationToken);
 
     public async Task<(IReadOnlyList<Series> Items, int TotalCount)> GetPagedListAsync(int page, int pageSize,
         CancellationToken cancellationToken = default)
