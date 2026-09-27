@@ -46,3 +46,12 @@ app.MapSeriesEndpoints();
 await app.ApplyMigrationsAsync();
 
 await app.RunAsync();
+
+#pragma warning disable ASP0027 // Required for WebApplicationFactory<Program> in integration test projects
+public partial class Program
+{
+    protected Program()
+    {
+    }
+}
+#pragma warning restore ASP0027

@@ -74,6 +74,9 @@ jobs:
       - name: 🔄 Restore NuGet Dependencies
         run: dotnet restore
 
+      - name: 🛡️ Audit NuGet Packages for Vulnerabilities (Security Gate)
+        run: dotnet list package --vulnerable --include-transitive
+
       - name: 🔨 Build Solution (Release Mode)
         run: dotnet build --no-restore --configuration Release
 
