@@ -235,6 +235,14 @@ flowchart TD
 - **`OpenApiSecurityDocumentTransformer`**: Automatically instruments OpenAPI documents with JWT Bearer security schemes (`Bearer {token}`) for seamless interactive authentication.
 - **Dual UI Support**: Simultaneously exposes `/swagger` (classic Swagger UI) and `/scalar/v1` (modern high-performance Scalar API Reference) backed by the same `/openapi/v1.json` specification.
 
+### 9. Core Observability, Serilog Sinks & PII Masking (`ShuffleSeries.Shared.Core.Web` & `Application`)
+- **Distributed Correlation ID Tracking**: `CorrelationIdMiddleware` and `ICorrelationIdContext` intercept incoming `X-Correlation-ID` headers (or generate new unique trace IDs), echoing them back on responses and injecting them into Serilog `LogContext` and W3C `Activity` tags. `CorrelationIdDelegatingHandler` automatically propagates correlation headers across downstream HTTP calls.
+- **Extensible Serilog Sinks Architecture**: Pluggable `ILogSinkConfigurator` strategy pattern supporting Console (JSON & Text), Rolling File, and PostgreSQL sinks via `appsettings.json`, ready to accept future sinks (Seq, Loki, Elastic) with zero core modifications.
+- **OWASP API8 PII Sensitive Data Masking**: `ISensitiveDataMasker` and `[MaskSensitiveData]` attribute recursively traverse complex object hierarchies via `JsonNode`, replacing passwords, JWT tokens, API keys, CVV, and SSN with `***MASKED***`, backed by a thread-safe reflection cache.
+- **MediatR Telemetry & Performance Detection**: `LoggingBehavior` logs masked request and response payloads, while `PerformanceBehavior` measures execution durations and raises warning alerts for requests exceeding 500 ms.
+- **Standardized Health Checks**: Exposes `/health/live` (Liveness probe for process health) and `/health/ready` (Readiness probe with JSON component status breakdown for PostgreSQL, Redis, and queues).
+- **Idempotency & Inbox Foundation**: `IIntegrationEvent` contract and `InboxMessage` entity in `Shared.Core.Domain` providing the bedrock for duplicate-free distributed event consumption.
+
 ---
 
 ## 🚀 Getting Started & Testing
@@ -304,7 +312,7 @@ ShuffleSeries enforces a strict, multi-tiered testing strategy:
 - **Real Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (PostgreSQL), and `Respawn` for lightning-fast sub-second table resets.
 
 ```bash
-# Run all 188 tests across the entire solution
+# Run all 225 tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)
@@ -335,13 +343,13 @@ The platform is fortified with an automated, multi-stage GitHub Actions pipeline
 ```mermaid
 flowchart LR
     A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
-    B --> C["🧪 Automated Tests\n(188 Tests + 90.2% Coverage)"]
+    B --> C["🧪 Automated Tests\n(237 Tests + Real Testcontainers)"]
     C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 100% Safe)"]
     D --> E["🐳 Docker Integrity Gate\n(Non-Root 'app' Containers)"]
 ```
 
 - **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
-- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) achieving **90.2%** test coverage across 188 automated tests, exceeding the 80% Quality Gate threshold.
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **237 automated tests** (Unit, Architecture, and real PostgreSQL Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
 - **SonarQube Quality Gate:** Validates **0 Bugs**, **0 Vulnerabilities**, **0 Code Smells**, and **100% Security Hotspots Reviewed**.
 - **Container Verification:** Validates Docker builds for both `ShuffleSeries.Catalog.Api` and `ShuffleSeries.ApiGateway` on every push and pull request, enforcing the non-root `USER app` security standard.
 

@@ -1,6 +1,26 @@
+using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
+using ShuffleSeries.Shared.Core.Web.Correlation;
 using ShuffleSeries.Shared.Core.Web.Cors;
+using ShuffleSeries.Shared.Core.Web.Health;
+using ShuffleSeries.Shared.Core.Web.Logging;
+using ShuffleSeries.Shared.Core.Web.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog with extensible sinks (Console, File, PostgreSQL)
+builder.Host.UseSharedSerilog("ApiGateway");
+
+// Configure HashiCorp Vault Secrets Management
+builder.Configuration.AddVault("apigateway");
+
+// Add Distributed Correlation ID Tracking
+builder.Services.AddSharedCorrelation();
+
+// Add OpenTelemetry Tracing and Metrics
+builder.Services.AddSharedOpenTelemetry(builder.Configuration, "ApiGateway");
+
+// Add Health Checks
+builder.Services.AddSharedHealthChecks();
 
 // Add Centralized CORS Policy
 builder.Services.AddSharedCors(builder.Configuration);
@@ -10,7 +30,11 @@ builder.Services.AddReverseProxy()
 
 var app = builder.Build();
 
+app.UseSharedCorrelation();
+
 app.UseSharedCors();
+
+app.MapSharedHealthChecks();
 
 app.UseSwaggerUI(options =>
 {

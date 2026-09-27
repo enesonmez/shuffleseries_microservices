@@ -1,10 +1,13 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using ShuffleSeries.Shared.Core.Exceptions;
 using ShuffleSeries.Shared.Core.Web.Middlewares;
+
+#pragma warning disable CA1873 // Avoid unevaluated expensive arguments in test assertions
 
 namespace ShuffleSeries.Shared.Core.Tests.Web.Middlewares;
 
@@ -239,5 +242,55 @@ public class GlobalExceptionHandlerTests
         problemDetails!.Title.Should().Be(expectedTitle);
         problemDetails.Type.Should().Be(expectedType);
         problemDetails.Detail.Should().Be("Error without explicit title");
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_WhenCorrelationContextPresent_ShouldIncludeCorrelationIdInProblemDetails()
+    {
+        var (context, stream) = CreateHttpContext();
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        var correlationContext = new ShuffleSeries.Shared.Core.Web.Correlation.CorrelationIdContext();
+        correlationContext.SetCorrelationId("test-correlation-xyz");
+        services.AddSingleton<ShuffleSeries.Shared.Core.Web.Correlation.ICorrelationIdContext>(correlationContext);
+        context.RequestServices = services.BuildServiceProvider();
+
+        var ex = new InvalidOperationException("Some error");
+
+        var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
+
+        result.Should().BeTrue();
+        var problemDetails = await ReadProblemDetailsAsync(stream);
+        problemDetails.Should().NotBeNull();
+        problemDetails!.Extensions.Should().ContainKey("correlationId");
+        problemDetails.Extensions["correlationId"]?.ToString().Should().Be("test-correlation-xyz");
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_ShouldLogWithCorrelationIdAndTraceId()
+    {
+        var (context, stream) = CreateHttpContext();
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        var correlationContext = new ShuffleSeries.Shared.Core.Web.Correlation.CorrelationIdContext();
+        correlationContext.SetCorrelationId("log-corr-12345");
+        services.AddSingleton<ShuffleSeries.Shared.Core.Web.Correlation.ICorrelationIdContext>(correlationContext);
+        context.RequestServices = services.BuildServiceProvider();
+
+        _loggerMock.Setup(l => l.IsEnabled(LogLevel.Error)).Returns(true);
+
+        var ex = new InvalidOperationException("Fatal DB connection loss");
+
+        var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
+
+        result.Should().BeTrue();
+
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("log-corr-12345")
+                                             && v.ToString()!.Contains("CorrelationId")),
+                ex,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 }

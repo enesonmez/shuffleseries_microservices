@@ -58,7 +58,21 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["ConnectionStrings:Database"] = _dbContainer.GetConnectionString(),
                 ["Vault:Enabled"] = "false",
                 ["Vault:Optional"] = "true",
-                ["MessageBroker:Host"] = "localhost"
+            });
+        });
+
+        builder.ConfigureServices(services =>
+        {
+            services.PostConfigure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckServiceOptions>(options =>
+            {
+                var brokerChecks = options.Registrations
+                    .Where(r => r.Name.Contains("masstransit", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var check in brokerChecks)
+                {
+                    options.Registrations.Remove(check);
+                }
             });
         });
     }

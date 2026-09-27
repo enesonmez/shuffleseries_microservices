@@ -24,7 +24,8 @@ public class OutboxMessageTests
             Content = "{\"Title\":\"Test\"}",
             OccurredOnUtc = now,
             ProcessedOnUtc = now.AddSeconds(5),
-            Error = "Temporary failure"
+            Error = "Temporary failure",
+            RetryCount = 2
         };
 
         message.Id.Should().Be(id);
@@ -33,6 +34,7 @@ public class OutboxMessageTests
         message.OccurredOnUtc.Should().Be(now);
         message.ProcessedOnUtc.Should().Be(now.AddSeconds(5));
         message.Error.Should().Be("Temporary failure");
+        message.RetryCount.Should().Be(2);
     }
 
     [Fact]
