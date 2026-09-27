@@ -16,6 +16,7 @@ CHECKLIST.md
 .dotnet_home/
 .local/
 Library/
+scratch/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

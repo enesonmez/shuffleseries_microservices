@@ -33,7 +33,15 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
   * NetArchTest.Rules ile Onion Architecture katman bağımlılıklarını (Domain, Application, Infrastructure, Api) ve CQRS/DDD tasarım kurallarını denetleyen merkezi Architecture Tests projesinin kurulması.
   * Testcontainers for .NET (PostgreSQL) entegrasyonu ile InMemory yerine gerçek Docker veritabanı container'ı üzerinde çalışan izole entegrasyon test altyapısının kurulması.
   * WebApplicationFactory (ASP.NET Core Mvc Testing) ile Minimal API endpoint'lerinin gerçek HTTP istekleriyle uçtan uca test edilmesi.
-  * Respawn kütüphanesi ile testler arasında veritabanı şemasını silmeden tabloları milisaniyeler içinde sıfırlayarak yüksek hızlı ve izole test döngüsünün sağlanması.
+* [x] Task 1.9: Temel Gözlemlenebilirlik (Observability), Asenkron Serilog Sinks Mimarisi, Outbox Zehirli Mesaj Direnci, Vault Seeding ve Idempotency Temeli
+  * CorrelationId & Context Propagation: İstemciden gelen `X-Correlation-ID` header'ını yakalayan, yoksa üreten, Serilog LogContext ve W3C Activity etiketlerine enjekte eden, downstream HTTP çağrılarına taşıyan `CorrelationIdMiddleware` ve `CorrelationIdDelegatingHandler`.
+  * Asenkron ve Genişletilebilir Serilog Mimarisi: `Serilog.Sinks.Async` ile non-blocking ring buffer tabanlı; konfigürasyon (`appsettings`/Vault) ve kod üzerinden Console, File (Rolling File), PostgreSQL sink'lerini destekleyen ve yeni sink'lerin (Seq, Loki, Elastic) `ILogSinkConfigurator` ile kolayca takılabildiği modüler loglama altyapısı.
+  * OpenTelemetry Enstrümantasyonu: ASP.NET Core, HttpClient ve EF Core çağrılarının W3C trace standartlarında izlenmesi ve OTLP exporter hazırlığı.
+  * Standart Health Checks: Liveness (`/health/live`) ve Readiness (`/health/ready`) probe'larının standart JSON sözleşmesiyle sunulması.
+  * MediatR Telemetri & PII Maskeleme: `LoggingBehavior` (hassas verileri - şifre, token, kart no - `[MaskSensitiveData]` ve anahtar kelime eşleşmesiyle maskeleyen PII Masker) ve `PerformanceBehavior` (500 ms üzeri yavaş istekleri uyaran timer).
+  * Outbox Dayanıklılığı ve Zehirli Mesaj Koruması: `OutboxMessage` entity'sinde `RetryCount`, PostgreSQL kısmi indeksi (`WHERE "ProcessedOnUtc" IS NULL`), `OccurredOnUtc` indeksi ve `MaxRetries = 3` ile head-of-line blocking önleme.
+  * HashiCorp Vault Seeding & Sırsız AppSettings: Tüm loglama tercihleri, OpenTelemetry ayarları ve altyapı sırlarının `init-vault.sh` seed scriptine taşınması, `appsettings.json` dosyalarının sır ve operasyonel değerlerden arındırılması.
+  * Inbox & Integration Event Sözleşmeleri: `IIntegrationEvent` ve `InboxMessage` entity'leri ile idempotent event tüketimi temeli.
 
 # Milestone 2: API Gateway ve Identity (Auth) Service
 Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin yönetilmesi.
@@ -230,14 +238,15 @@ Kullanıcı telemetrisi ve mobil cihazlarla etkileşim/tutundurma bildirimleri.
     * Bildirim gönderiminde kullanıcının Profile.Preferences.Notifications ayarlarının filtrelenmesi.
   * Idempotency ve Resilience: Gönderilen bildirim hash'inin Redis'te saklanması, FCM/APNs çökmelerine karşı Polly Exponential Backoff ve DLQ (Dead Letter Queue) mimarisi.
 
-# Milestone 10: Gözlemlenebilirlik (Observability) ve Monitoring
-Sistemin "kör uçuş" yapmasını engelleyecek altyapıların entegrasyonu.
-* [ ] Task 10.1: Metrics (Metrikler)
-  * Servislere .NET Health Checks ve OpenTelemetry entegrasyonu.
-  * /metrics endpoint'i açılarak CPU, RAM, HTTP 5xx hata oranları ve gecikmelerin Prometheus ile toplanması (pull).
-  * Prometheus üzerinden pull edilen verilerle Grafana Dashboard'larının hazırlanması.
-* [ ] Task 10.2: Distributed Tracing (Dağıtık İzleme)
-  * OpenTelemetry ve Jaeger entegrasyonu ile mikroservisler arası isteklerin Trace ID ile uçtan uca (örn: Gateway -> Search -> Elasticsearch) takip edilmesi.
-* [ ] Task 10.3: Centralized Logging (Merkezi Loglama)
-  * Tüm servislerde logların konsola değil, yapılandırılmış (Structured JSON) log olarak Serilog aracılığıyla merkezi bir Seq veya Loki sistemine (TraceID ve UserId ile) aktarılması.
-  * Request - Response loglaması API Gateway katmanında merkezi bir yapıda kişisel verilerin maskelenerek (PII Masking) loglanması.
+# Milestone 10: Merkezi Gözlemlenebilirlik (Observability), APM ve Görselleştirme
+Temelde atılan enstrümantasyon (Task 1.9) verilerinin merkezi dashboard'lar ve alarmlar ile operasyonel hale getirilmesi.
+* [ ] Task 10.1: Prometheus & Grafana Dashboard'ları (Metrikler)
+  * Prometheus üzerinden mikroservislerin `/metrics` endpoint'lerinin pull edilmesi ve scrape konfigürasyonlarının yapılması.
+  * Grafana üzerinde SLO/SLA, latency (p95, p99), HTTP 5xx hata oranları, bellek/CPU tüketimi ve business metriklerini gösteren dashboard'ların tasarlanması.
+  * Kritik eşik aşımlarında (hata oranı > %1, p99 > 1s) Slack / E-posta uyarı mekanizmasının (AlertManager) kurulması.
+* [ ] Task 10.2: Jaeger / Tempo Dağıtık İzleme Paneli (Distributed Tracing UI)
+  * OTLP ile toplanan trace verilerinin Jaeger / Grafana Tempo üzerinde görselleştirilmesi.
+  * YARP Gateway -> Identity -> Catalog -> RabbitMQ -> Shuffle Engine uçtan uca istek akışının gecikme analizi (Waterfall trace view).
+* [ ] Task 10.3: Merkezi Log Sunucusu ve Log Retention (Seq / Grafana Loki)
+  * Serilog ile üretilen yapılandırılmış logların Seq veya Grafana Loki merkezi log deposuna yönlendirilmesi.
+  * Log retention (saklama süresi), indeksleme ve arşivleme politikalarının tanımlanması.

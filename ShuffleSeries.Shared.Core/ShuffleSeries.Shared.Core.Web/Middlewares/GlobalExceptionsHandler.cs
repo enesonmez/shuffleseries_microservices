@@ -29,10 +29,14 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
         var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
 
+        var correlationContext = httpContext.RequestServices?.GetService(typeof(Correlation.ICorrelationIdContext))
+            as Correlation.ICorrelationIdContext;
+        var correlationId = correlationContext?.CorrelationId ?? "N/A";
+
         if (_logger.IsEnabled(LogLevel.Error))
         {
-            _logger.LogError(exception, "An unhandled exception occurred: {Message}. TraceId: {TraceId}",
-                exception.Message, traceId);
+            _logger.LogError(exception, "An unhandled exception occurred: {Message}. CorrelationId: {CorrelationId}, TraceId: {TraceId}",
+                exception.Message, correlationId, traceId);
         }
 
         var problemDetails = new ProblemDetails
@@ -41,6 +45,11 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         };
 
         problemDetails.Extensions["traceId"] = traceId;
+
+        if (correlationContext is not null && !string.IsNullOrWhiteSpace(correlationContext.CorrelationId))
+        {
+            problemDetails.Extensions["correlationId"] = correlationContext.CorrelationId;
+        }
 
         switch (exception)
         {

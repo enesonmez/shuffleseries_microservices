@@ -25,6 +25,7 @@
 **/TestResults/
 .sonarqube/
 .dotnet/
+scratch/
 coverage.runsettings
 
 # Environment & Secrets (Never bake into images)
