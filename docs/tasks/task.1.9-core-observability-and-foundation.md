@@ -73,7 +73,7 @@ Proje genelindeki tüm testler (`dotnet test`) çalıştırılarak doğrulanmı�
 * **Birim Testleri (Unit Tests):** 192 adet test (`SensitiveDataDestructuringPolicyTests`, `LoggingBehaviorTests`, `PerformanceBehaviorTests`, `CorrelationIdTests`, `SerilogLoggingExtensibilityTests`, `HealthCheckExtensionsTests`, `InboxMessageTests`, `ProcessOutboxMessagesJobTests`, `OutboxMessageTests` vb.).
 * **Mimari Testler (Architecture Tests):** 15 adet test (Katman sınırları ve CQRS kuralları).
 * **Gerçek Entegrasyon Testleri (Real Integration Tests):** 18 adet test (`Testcontainers` PostgreSQL + `Respawn` + WebApplicationFactory).
-* **Toplam:** 225 test %100 başarı oranıyla tamamlandı.
+* **Toplam:** 226 test %100 başarı oranıyla tamamlandı.
 
 ### Test Senaryoları (Test Cases):
 1. **Serilog Destructuring PII Maskeleme Testi:** `Password`, `Token`, `Cvv` içeren bir nesne `SensitiveDataDestructuringPolicy` tarafından ayrıştırıldığında `***MASKED***` olduğu, `[MaskSensitiveData]` ile özel maske tanımlanabilmesi ve hassas olmayan alanların (`Email`, `Amount`) korunduğu doğrulandı.
@@ -82,6 +82,9 @@ Proje genelindeki tüm testler (`dotnet test`) çalıştırılarak doğrulanmı�
 4. **Correlation ID Yayılımı:**
    * İstemci `X-Correlation-ID: my-id-123` gönderdiğinde API yanıtında aynı başlığın döndüğü,
    * Başlık gönderilmediğinde yeni bir GUID üretilip yanıta eklendiği doğrulandı.
-5. **Health Checks Probe'ları:**
-   * `GET /health/live` -> HTTP 200 `{"status":"Healthy","type":"Liveness"}`
-   * `GET /health/ready` -> HTTP 200 `{"status":"Healthy","type":"Readiness"}`
+5. **Health Checks & Gateway YARP Yönlendirmesi:**
+   * `GET /health/live` -> API Gateway Liveness Probe (HTTP 200).
+   * `GET /health/ready` -> API Gateway Readiness Probe (HTTP 200).
+   * `GET /catalog-api/health/live` -> API Gateway YARP üzerinden Catalog Mikroservisi Liveness Probe.
+   * `GET /catalog-api/health/ready` -> API Gateway YARP üzerinden Catalog Mikroservisi Readiness Probe (PostgreSQL, Outbox durumu vb.).
+   * **YARP Active Health Check:** Gateway cluster seviyesinde Catalog servisini periyodik (10s) `/health/live` ile yoklayıp olası kesintilerde otomatik trafikten düşürür (traffic draining).
