@@ -42,10 +42,13 @@ public static class AuthenticationExtensions
 
         services.AddAuthorization(options =>
         {
-            // Örnek Policy Tanımlamaları:
+            // Kullanıcıların rolleri (Admin, Premium, Standard, Guest) kayıt anında atanır ve 'role' claim'i üzerinden gelir.
             options.AddPolicy("RequirePremiumRole", policy => policy.RequireRole("Premium"));
             options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
-            // Gerekli görülen diğer policyler eklenebilir.
+
+            // Ayrıca spesifik özellikler için tanımlanan ince ayarlı (fine-grained) claim'ler (Örn: "catalog.read") 
+            // kullanıcıya rolü dışında ekstra atanabilir veya çıkarılabilir.
+            options.AddPolicy("CanReadCatalog", policy => policy.RequireClaim("Permission", "catalog.read"));
         });
 
         return services;

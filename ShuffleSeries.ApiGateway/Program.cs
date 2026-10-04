@@ -61,3 +61,6 @@ app.UseSwaggerUI(options =>
 app.MapReverseProxy();
 
 await app.RunAsync();
+
+#pragma warning disable ASP0027
+public partial class Program { protected Program() { } }
