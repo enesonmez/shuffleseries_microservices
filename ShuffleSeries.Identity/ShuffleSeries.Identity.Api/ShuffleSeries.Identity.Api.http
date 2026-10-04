@@ -1,0 +1,263 @@
+@Identity_HostAddress = http://localhost:5011
+@Gateway_HostAddress = http://localhost:5001
+
+# Dynamic Tokens & IDs (Giriş veya kayıt sonrası buraya yapıştırılabilir)
+@AccessToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+@RefreshToken = your_refresh_token_here
+@GuestUserId = 00000000-0000-0000-0000-000000000000
+
+###############################################################################
+# 1. SAĞLIK KONTROLLERİ (HEALTH PROBES)
+###############################################################################
+
+### 🟢 1.1 Liveness Probe (Identity API Ayakta mı?)
+# Beklenen Sonuç: 200 OK -> {"status":"Healthy","type":"Liveness",...}
+GET {{Identity_HostAddress}}/health/live
+Accept: application/json
+
+### 🟢 1.2 Readiness Probe (PostgreSQL, Vault, RabbitMQ Hazır mı?)
+# Beklenen Sonuç: 200 OK -> {"status":"Healthy","type":"Readiness",...}
+GET {{Identity_HostAddress}}/health/ready
+Accept: application/json
+
+
+###############################################################################
+# 2. KULLANICI KAYDI (REGISTER)
+###############################################################################
+
+### 🟢 2.1 Başarılı Standart Kullanıcı Kaydı (POST - Happy Path)
+# Beklenen Sonuç: 200 OK -> accessToken, refreshToken, userId, roles: ["Standard"], permissions: [...]
+POST {{Identity_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "tester.e2e@shuffleseries.com",
+  "password": "Password123!"
+}
+
+### 🔴 2.2 Kayıt Validasyon Hatası: Geçersiz E-posta (POST)
+# Beklenen Sonuç: 400 Bad Request -> RFC 7807 Validation Problem Details
+POST {{Identity_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "invalid-email-format",
+  "password": "Password123!"
+}
+
+### 🔴 2.3 Kayıt Validasyon Hatası: Zayıf Şifre (POST)
+# Beklenen Sonuç: 400 Bad Request -> RFC 7807 Validation Problem Details
+POST {{Identity_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "weakpass@shuffleseries.com",
+  "password": "123"
+}
+
+### 🔴 2.4 Kayıt Çakışma Hatası: Mükerrer E-posta (POST - Conflict)
+# Beklenen Sonuç: 409 Conflict -> code: "USER_ALREADY_EXISTS"
+POST {{Identity_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "tester.e2e@shuffleseries.com",
+  "password": "Password123!"
+}
+
+
+###############################################################################
+# 3. KİMLİK DOĞRULAMA (LOGIN)
+###############################################################################
+
+### 🟢 3.1 Başarılı Giriş (POST - Happy Path)
+# Beklenen Sonuç: 200 OK -> accessToken, refreshToken, roles, permissions
+# NOT: Buradan dönen accessToken ve refreshToken değerlerini yukarıdaki değişkenlere atayabilirsiniz.
+POST {{Identity_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "tester.e2e@shuffleseries.com",
+  "password": "Password123!"
+}
+
+### 🔴 3.2 Giriş Hatası: Hatalı Şifre (POST - Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "INVALID_CREDENTIALS"
+POST {{Identity_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "tester.e2e@shuffleseries.com",
+  "password": "WrongPassword999!"
+}
+
+### 🔴 3.3 Giriş Hatası: Var Olmayan Kullanıcı (POST - Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "INVALID_CREDENTIALS"
+POST {{Identity_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "nonexistent.user@shuffleseries.com",
+  "password": "Password123!"
+}
+
+### 🔴 3.4 Giriş Validasyon Hatası: Boş Alanlar (POST)
+# Beklenen Sonuç: 400 Bad Request -> RFC 7807 Validation Problem Details
+POST {{Identity_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "tester.e2e@shuffleseries.com",
+  "password": ""
+}
+
+
+###############################################################################
+# 4. PROFİL BİLGİSİ & YETKİLER (/ME)
+###############################################################################
+
+### 🟢 4.1 Profil Bilgilerini Getir (GET - Bearer Token ile)
+# Beklenen Sonuç: 200 OK -> userId, email, roles, permissions, isGuest: false
+GET {{Identity_HostAddress}}/api/auth/me
+Authorization: Bearer {{AccessToken}}
+Accept: application/json
+
+### 🔴 4.2 Profil Bilgileri: Token Eksik (GET - RFC 7807 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_UNAUTHORIZED" (ProblemDetails)
+GET {{Identity_HostAddress}}/api/auth/me
+Accept: application/json
+
+### 🔴 4.3 Profil Bilgileri: Geçersiz/Bozuk Token (GET - RFC 7807 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_UNAUTHORIZED" (ProblemDetails)
+GET {{Identity_HostAddress}}/api/auth/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature
+Accept: application/json
+
+
+###############################################################################
+# 5. MİSAFİR OTURUMU (GUEST SESSION)
+###############################################################################
+
+### 🟢 5.1 Anonim Misafir Oturumu Oluştur (POST)
+# Beklenen Sonuç: 200 OK -> isGuest: true, roles: ["Guest"], geçici accessToken ve refreshToken
+POST {{Identity_HostAddress}}/api/auth/guest
+Content-Type: application/json
+
+
+###############################################################################
+# 6. MİSAFİR HESABI BİRLEŞTİRME (DATA MERGE & IDOR KORUMASI)
+###############################################################################
+
+### 🟢 6.1 Misafir Hesabını Giriş Yapmış Kullanıcıya Bağla (POST - 204 No Content)
+# Beklenen Sonuç: 204 No Content (Misafir verileri kalıcı hesaba aktarılır)
+POST {{Identity_HostAddress}}/api/auth/merge-guest
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "guestUserId": "{{GuestUserId}}",
+  "targetUserId": "00000000-0000-0000-0000-000000000000"
+}
+
+### 🔴 6.2 Başka Bir Kullanıcıya Birleştirme Denemesi (POST - IDOR Koruması 403)
+# Beklenen Sonuç: 403 Forbidden -> code: "FORBIDDEN" ("Cannot merge guest account into another user's account.")
+POST {{Identity_HostAddress}}/api/auth/merge-guest
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "guestUserId": "{{GuestUserId}}",
+  "targetUserId": "11111111-1111-1111-1111-111111111111"
+}
+
+
+###############################################################################
+# 7. REFRESH TOKEN ROTASYONU VE ÇALINMA TESPİTİ (OWASP API4)
+###############################################################################
+
+### 🟢 7.1 Refresh Token Rotasyonu (POST - Happy Path)
+# Beklenen Sonuç: 200 OK -> Yeni accessToken ve YENİ bir refreshToken
+POST {{Identity_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{RefreshToken}}"
+}
+
+### 🔴 7.2 İptal Edilmiş/Önceden Kullanılmış Token'ın Tekrar Sunulması (POST - Çalınma Tespiti)
+# Beklenen Sonuç: 401 Unauthorized -> code: "TOKEN_REUSE_DETECTED"
+# Mimari Koruma: Sistem tüm aktif oturumları anında iptal eder (Token Family Revocation).
+POST {{Identity_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{RefreshToken}}"
+}
+
+### 🔴 7.3 Geçersiz / Uydurma Refresh Token (POST - Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "INVALID_REFRESH_TOKEN"
+POST {{Identity_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "completely_fake_refresh_token_xyz_123"
+}
+
+
+###############################################################################
+# 8. TOKEN İPTALİ / ÇIKIŞ (REVOKE TOKEN)
+###############################################################################
+
+### 🟢 8.1 Aktif Refresh Token'ı İptal Et (POST - Logout)
+# Beklenen Sonuç: 204 No Content
+POST {{Identity_HostAddress}}/api/auth/revoke
+Content-Type: application/json
+
+{
+  "refreshToken": "{{RefreshToken}}"
+}
+
+### 🔴 8.2 Sistemde Olmayan Token'ı İptal Etmeye Çalışma (POST - Not Found)
+# Beklenen Sonuç: 404 Not Found -> code: "TOKEN_NOT_FOUND"
+POST {{Identity_HostAddress}}/api/auth/revoke
+Content-Type: application/json
+
+{
+  "refreshToken": "non_existent_refresh_token_abc_999"
+}
+
+
+###############################################################################
+# 9. HESAP SİLME (GDPR / APPLE 5.1.1(v) SOFT DELETE)
+###############################################################################
+
+### 🔴 9.1 Hesap Silme: Token Olmadan Çağırma (DELETE - 401)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_UNAUTHORIZED"
+DELETE {{Identity_HostAddress}}/api/auth/account
+Accept: application/json
+
+### 🟢 9.2 Kendi Hesabını Sil (DELETE - Bearer Token ile)
+# Beklenen Sonuç: 204 No Content (Hesap IsDeleted=true yapılır, UserAccountDeletedDomainEvent Outbox'a atılır)
+DELETE {{Identity_HostAddress}}/api/auth/account
+Authorization: Bearer {{AccessToken}}
+
+### 🔴 9.3 Zaten Silinmiş Hesabı Tekrar Silmeye Çalışma (DELETE - Not Found)
+# Beklenen Sonuç: 404 Not Found -> code: "USER_NOT_FOUND"
+DELETE {{Identity_HostAddress}}/api/auth/account
+Authorization: Bearer {{AccessToken}}
+
+
+###############################################################################
+# 10. YARP API GATEWAY ÜZERİNDEN ROTER VE GÜVENLİK TESTİ
+###############################################################################
+
+### 🔴 10.1 API Gateway Üzerinden /api/auth/me Çağrısı (Token Eksik - 401)
+# Beklenen Sonuç: 401 Unauthorized -> Gateway isteği Identity servisine iletir ve yanıtı döner.
+GET {{Gateway_HostAddress}}/api/auth/me
+Accept: application/json
+
+### 🟢 10.2 API Gateway Üzerinden /api/auth/me Çağrısı (Bearer Token ile - 200 OK)
+# Beklenen Sonuç: 200 OK -> Gateway Bearer token'ı downstream Identity servisine aynen iletir.
+GET {{Gateway_HostAddress}}/api/auth/me
+Authorization: Bearer {{AccessToken}}
+Accept: application/json

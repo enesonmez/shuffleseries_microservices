@@ -32,7 +32,40 @@ services:
           - catalog.api
           - catalog-api
 
-  # 2. YARP API Gateway (Reverse Proxy, Route Management, Swagger Aggregation)
+  # 2. Identity Mikroservisi (Authentication, JWT, Social Login, Sessions)
+  identity-api:
+    build:
+      context: .
+      dockerfile: ShuffleSeries.Identity/ShuffleSeries.Identity.Api/Dockerfile
+    container_name: shuffleseries_identity_api
+    restart: unless-stopped
+    ports:
+      - "5011:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Vault__Address=http://vault:8200
+      - Vault__Token=${VAULT_ROOT_TOKEN:-root}
+      - Vault__MountPoint=secret
+      - Vault__Optional=true
+      - ConnectionStrings__Database=Host=postgres;Port=5432;Database=shuffleseries_identity;Username=${POSTGRES_DB_USER:-admin};Password=${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!};
+      - MessageBroker__Host=rabbitmq
+      - MessageBroker__Username=${RABBITMQ_USER:-guest_123}
+      - MessageBroker__Password=${RABBITMQ_PASSWORD:-guest_123}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    networks:
+      shuffle_network:
+        aliases:
+          - identity.api
+          - identity-api
+
+  # 3. YARP API Gateway (Reverse Proxy, Route Management, Swagger Aggregation)
   api-gateway:
     build:
       context: .
@@ -49,8 +82,11 @@ services:
       - Vault__MountPoint=secret
       - Vault__Optional=true
       - ReverseProxy__Clusters__catalog-cluster__Destinations__destination1__Address=http://catalog.api:8080
+      - ReverseProxy__Clusters__identity-cluster__Destinations__destination1__Address=http://identity.api:8080
     depends_on:
       catalog-api:
+        condition: service_started
+      identity-api:
         condition: service_started
       vault:
         condition: service_healthy

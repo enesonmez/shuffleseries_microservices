@@ -225,4 +225,35 @@ public class SoftDeleteInfrastructureTests
 
         HardDeleteScope.IsActive.Should().BeFalse();
     }
+
+    private sealed class CustomTestTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    [Fact]
+    public async Task SoftDeleteInterceptor_WithCustomTimeProvider_ShouldUseTimeProviderTime()
+    {
+        // Arrange
+        var customTime = new DateTimeOffset(2026, 1, 15, 8, 30, 0, TimeSpan.Zero);
+        var timeProvider = new CustomTestTimeProvider(customTime);
+
+        var options = new DbContextOptionsBuilder<DummyDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .AddInterceptors(new SoftDeleteInterceptor(timeProvider))
+            .Options;
+
+        await using var context = new DummyDbContext(options);
+        var entity = new DummySoftDeletableEntity(Guid.NewGuid(), "TimeProvider Test Show");
+        context.SoftDeletables.Add(entity);
+        await context.SaveChangesAsync();
+
+        // Act
+        context.SoftDeletables.Remove(entity);
+        await context.SaveChangesAsync();
+
+        // Assert
+        entity.IsDeleted.Should().BeTrue();
+        entity.DeletedAtUtc.Should().Be(customTime.UtcDateTime);
+    }
 }

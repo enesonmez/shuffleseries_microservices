@@ -197,6 +197,22 @@ public class CatalogArchitectureTests
             $"Domain entity özellikleri encapsulation gereği public setter içeremez. İhlaller: {string.Join(", ", failingProperties)}");
     }
 
+    [Fact]
+    public void Repositories_ShouldImplement_IRepositoryMarkerInterface()
+    {
+        var testResult = Types.InAssembly(_domainAssembly)
+            .That()
+            .ResideInNamespace("ShuffleSeries.Catalog.Domain.Repositories")
+            .And()
+            .AreInterfaces()
+            .Should()
+            .ImplementInterface(typeof(ShuffleSeries.Shared.Core.Domain.Repositories.IRepository))
+            .GetResult();
+
+        testResult.IsSuccessful.Should().BeTrue(
+            $"Catalog Domain katmanındaki tüm Repository arayüzleri IRepository marker arayüzünü uygulamalıdır. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
+    }
+
     #endregion
 
     #region Background Jobs Rules

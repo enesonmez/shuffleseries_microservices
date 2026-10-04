@@ -50,7 +50,7 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * Mobil uygulamalardan gelecek yüksek istekleri (özellikle auth ve shuffle endpoint'lerini) korumak için Rate Limiting konfigürasyonlarının yapılması.
   * Gateway seviyesinde JWT Validasyonu (Authentication) yapısının kurulması.
   * Role & Claims bazlı Yetkilendirme (Authorization) politikalarının YARP route'larına entegre edilmesi (Böylece geçersiz token'a veya yetkisiz claim'e sahip istekler iç servislere hiç ulaşmadan Gateway'den döner).
-* [ ] Task 2.2: Identity Service Geliştirmesi
+* [x] Task 2.2: Identity Service Geliştirmesi
   * POST /api/auth/register: Yeni kullanıcı e-posta/şifre kaydı.
   * POST /api/auth/login: Credential doğrulaması ve JWT + Refresh Token dönülmesi.
   * POST /api/auth/refresh: Süresi dolan JWT'nin refresh token ile yenilenmesi.

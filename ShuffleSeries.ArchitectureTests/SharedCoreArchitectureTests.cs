@@ -85,4 +85,12 @@ public class SharedCoreArchitectureTests
         testResult.IsSuccessful.Should().BeTrue(
             $"Shared.Core.Application içindeki IPipelineBehavior uygulayan sınıflar 'sealed' olmalıdır. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
     }
+
+    [Fact]
+    public void IRepositoryGeneric_ShouldInheritFrom_IRepositoryMarker()
+    {
+        typeof(ShuffleSeries.Shared.Core.Domain.Repositories.IRepository)
+            .IsAssignableFrom(typeof(ShuffleSeries.Shared.Core.Domain.Repositories.IRepository<>))
+            .Should().BeTrue("Generic IRepository<TEntity> arayüzü IRepository marker arayüzünden türemelidir.");
+    }
 }

@@ -39,4 +39,9 @@ vault kv put -mount=secret shuffleseries/catalog \
 vault kv put -mount=secret shuffleseries/apigateway \
   "Logging:Sinks:File:Path=logs/apigateway-.json"
 
+# 4. Identity Service Specific Secrets & Config
+vault kv put -mount=secret shuffleseries/identity \
+  "ConnectionStrings:Database=Host=postgres;Port=5432;Database=shuffleseries_identity;Username=${POSTGRES_DB_USER:-admin};Password=${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!};Maximum Pool Size=50;" \
+  "Logging:Sinks:File:Path=logs/identity-.json"
+
 echo "Vault initial secrets and configuration seeded successfully."
