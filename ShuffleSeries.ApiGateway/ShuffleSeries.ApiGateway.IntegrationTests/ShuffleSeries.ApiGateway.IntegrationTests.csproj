@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ShuffleSeries.ApiGateway\ShuffleSeries.ApiGateway.csproj" />
+    <ProjectReference Include="..\ShuffleSeries.ApiGateway.Api\ShuffleSeries.ApiGateway.Api.csproj" />
   </ItemGroup>
 
 </Project>

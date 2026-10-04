@@ -31,7 +31,7 @@
         <ProjectReference Include="..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Infrastructure\ShuffleSeries.Shared.Core.Infrastructure.csproj" />
         <ProjectReference Include="..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Web\ShuffleSeries.Shared.Core.Web.csproj" />
         <ProjectReference Include="..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Exceptions\ShuffleSeries.Shared.Core.Exceptions.csproj" />
-        <ProjectReference Include="..\ShuffleSeries.ApiGateway\ShuffleSeries.ApiGateway.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ApiGateway\ShuffleSeries.ApiGateway.Api\ShuffleSeries.ApiGateway.Api.csproj" />
     </ItemGroup>
 
 </Project>
