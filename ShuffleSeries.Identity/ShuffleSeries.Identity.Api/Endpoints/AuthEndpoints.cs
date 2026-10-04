@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using ShuffleSeries.Identity.Api.Contracts.Requests;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.CreateGuestSession;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.DeleteAccount;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Login;
@@ -25,14 +26,14 @@ public static class AuthEndpoints
 
         // 1. POST: Register standard user
         group.MapPost("/register", async (
-                [FromBody] RegisterCommand command,
+                [FromBody] RegisterRequest request,
                 HttpContext httpContext,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
-                var enrichedCommand = command with { IpAddress = ip };
-                var response = await sender.Send(enrichedCommand, cancellationToken);
+                var command = new RegisterCommand(request.Email, request.Password, ip);
+                var response = await sender.Send(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("Register")
@@ -43,14 +44,14 @@ public static class AuthEndpoints
 
         // 2. POST: Login with credentials
         group.MapPost("/login", async (
-                [FromBody] LoginCommand command,
+                [FromBody] LoginRequest request,
                 HttpContext httpContext,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
-                var enrichedCommand = command with { IpAddress = ip };
-                var response = await sender.Send(enrichedCommand, cancellationToken);
+                var command = new LoginCommand(request.Email, request.Password, ip);
+                var response = await sender.Send(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("Login")
@@ -61,14 +62,14 @@ public static class AuthEndpoints
 
         // 3. POST: Refresh Token rotation
         group.MapPost("/refresh", async (
-                [FromBody] RefreshTokenCommand command,
+                [FromBody] RefreshTokenRequest request,
                 HttpContext httpContext,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
-                var enrichedCommand = command with { IpAddress = ip };
-                var response = await sender.Send(enrichedCommand, cancellationToken);
+                var command = new RefreshTokenCommand(request.RefreshToken, ip);
+                var response = await sender.Send(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("RefreshToken")
@@ -79,10 +80,11 @@ public static class AuthEndpoints
 
         // 4. POST: Revoke Token (logout)
         group.MapPost("/revoke", async (
-                [FromBody] RevokeTokenCommand command,
+                [FromBody] RevokeTokenRequest request,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
+                var command = new RevokeTokenCommand(request.RefreshToken);
                 await sender.Send(command, cancellationToken);
                 return Results.NoContent();
             })
@@ -108,14 +110,14 @@ public static class AuthEndpoints
 
         // 6. POST: Social Login (Google / Apple SSO)
         group.MapPost("/social-login", async (
-                [FromBody] SocialLoginCommand command,
+                [FromBody] SocialLoginRequest request,
                 HttpContext httpContext,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
-                var enrichedCommand = command with { IpAddress = ip };
-                var response = await sender.Send(enrichedCommand, cancellationToken);
+                var command = new SocialLoginCommand(request.Provider, request.IdToken, request.AppleRefreshToken, ip);
+                var response = await sender.Send(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("SocialLogin")
@@ -126,23 +128,19 @@ public static class AuthEndpoints
 
         // 7. POST: Merge Guest Account
         group.MapPost("/merge-guest", async (
-                [FromBody] MergeGuestAccountCommand command,
+                [FromBody] MergeGuestRequest request,
                 ClaimsPrincipal user,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                // OWASP API1/API2 IDOR Protection: If caller is authenticated, ensure TargetUserId matches claims or set it from claims
-                var effectiveCommand = command;
-                if (user.TryGetUserId() is { } authenticatedUserId)
+                var targetUserId = user.TryGetUserId() ?? request.TargetUserId ?? Guid.Empty;
+                if (user.TryGetUserId() is { } authenticatedUserId && request.TargetUserId is not null && request.TargetUserId != Guid.Empty && request.TargetUserId != authenticatedUserId)
                 {
-                    if (command.TargetUserId != Guid.Empty && command.TargetUserId != authenticatedUserId)
-                    {
-                        throw new CannotMergeIntoDifferentUserException();
-                    }
-                    effectiveCommand = command with { TargetUserId = authenticatedUserId };
+                    throw new CannotMergeIntoDifferentUserException();
                 }
 
-                await sender.Send(effectiveCommand, cancellationToken);
+                var command = new MergeGuestAccountCommand(request.GuestUserId, targetUserId);
+                await sender.Send(command, cancellationToken);
                 return Results.NoContent();
             })
             .WithName("MergeGuestAccount")

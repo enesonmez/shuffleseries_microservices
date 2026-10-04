@@ -72,6 +72,7 @@ Gerçekleştirilen temel bileşenler ve özellikler:
 * **IAuthorizationMiddlewareResultHandler & RFC 7807 Standardı:** ASP.NET Core `AuthorizationMiddleware` yetki eksikliğinde exception fırlatmayıp `ForbidAsync` (boş 403) çağırdığından, `ProblemDetailsAuthorizationMiddlewareResultHandler` yazılarak `403 Forbidden` yanıtları standart RFC 7807 ProblemDetails JSON gövdesine (`AUTH_FORBIDDEN`, traceId, correlationId) kavuşturuldu.
 * **JwtBearerEvents.OnChallenge & 401 RFC 7807 Standardı:** Kimlik doğrulanmamış veya süresi dolmuş token ile yapılan isteklerde framework'ün boş 401 dönmesi engellendi; `OnChallenge` olayı ile standart `AUTH_UNAUTHORIZED` ProblemDetails gövdesi dönmesi sağlandı.
 * **SystemPolicies & Claim Type Alignment:** Yetkilendirme politikaları `SystemPolicies` altında strongly-typed olarak toplandı; token üretimindeki küçük harfli `"permission"` claim tipi ile politikalardaki arama tipi birebir senkronize edildi.
+* **HTTP Request DTO & Mass Assignment Koruması (OWASP API3/API6):** Minimal API endpoint'lerinin doğrudan MediatR CQRS Command nesnelerine bağlanması (`[FromBody] RegisterCommand`) engellendi. Bu durumun yol açtığı `ipAddress` gibi sunucu tarafında yönetilmesi gereken alanların OpenAPI/Swagger şemalarına sızması ve istemci tarafından manipüle edilebilme riski ortadan kaldırıldı. Sunum katmanında amaca özel `RegisterRequest`, `LoginRequest` gibi hafif Request DTO'ları tanımlandı; `HttpContext` üzerinden istemci IP'si ve JWT claims'leri güvenli biçimde çözümlenerek CQRS komutları sunucu tarafında oluşturuldu.
 
 ---
 
