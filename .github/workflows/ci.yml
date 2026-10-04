@@ -116,4 +116,4 @@ jobs:
         run: docker build -f ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api/Dockerfile -t shuffleseries-catalog:ci .
 
       - name: 🚪 Build API Gateway Container Image
-        run: docker build -f ShuffleSeries.ApiGateway/Dockerfile -t shuffleseries-apigateway:ci .
+        run: docker build -f ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.Api/Dockerfile -t shuffleseries-apigateway:ci .

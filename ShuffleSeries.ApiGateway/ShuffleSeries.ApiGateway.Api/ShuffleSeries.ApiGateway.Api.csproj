@@ -15,12 +15,12 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Infrastructure\ShuffleSeries.Shared.Core.Infrastructure.csproj" />
-      <ProjectReference Include="..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Web\ShuffleSeries.Shared.Core.Web.csproj" />
+      <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Infrastructure\ShuffleSeries.Shared.Core.Infrastructure.csproj" />
+      <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Web\ShuffleSeries.Shared.Core.Web.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="..\.dockerignore">
+      <Content Include="..\..\.dockerignore">
         <Link>.dockerignore</Link>
       </Content>
     </ItemGroup>

@@ -36,7 +36,7 @@ services:
   api-gateway:
     build:
       context: .
-      dockerfile: ShuffleSeries.ApiGateway/Dockerfile
+      dockerfile: ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.Api/Dockerfile
     container_name: shuffleseries_api_gateway
     restart: unless-stopped
     ports:
