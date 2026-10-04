@@ -45,7 +45,7 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
 
 # Milestone 2: API Gateway ve Identity (Auth) Service
 Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin yönetilmesi.
-* [ ] Task 2.1: YARP API Gateway Kurulumu
+* [x] Task 2.1: YARP API Gateway Kurulumu
   * YARP tabanlı Gateway projesinin oluşturulması.
   * Mobil uygulamalardan gelecek yüksek istekleri (özellikle auth ve shuffle endpoint'lerini) korumak için Rate Limiting konfigürasyonlarının yapılması.
   * Gateway seviyesinde JWT Validasyonu (Authentication) yapısının kurulması.

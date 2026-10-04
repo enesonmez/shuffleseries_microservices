@@ -11,7 +11,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - Vault__Address=${VAULT_ADDR:-http://vault:8200}
+      - Vault__Address=http://vault:8200
       - Vault__Token=${VAULT_ROOT_TOKEN:-root}
       - Vault__MountPoint=secret
       - Vault__Optional=true
@@ -44,9 +44,16 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
+      - Vault__Address=http://vault:8200
+      - Vault__Token=${VAULT_ROOT_TOKEN:-root}
+      - Vault__MountPoint=secret
+      - Vault__Optional=true
       - ReverseProxy__Clusters__catalog-cluster__Destinations__destination1__Address=http://catalog.api:8080
     depends_on:
-      - catalog-api
+      catalog-api:
+        condition: service_started
+      vault:
+        condition: service_healthy
     networks:
       shuffle_network:
         aliases:
