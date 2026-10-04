@@ -1,9 +1,11 @@
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
+using ShuffleSeries.Shared.Core.Web.Authentication;
 using ShuffleSeries.Shared.Core.Web.Correlation;
 using ShuffleSeries.Shared.Core.Web.Cors;
 using ShuffleSeries.Shared.Core.Web.Health;
 using ShuffleSeries.Shared.Core.Web.Logging;
 using ShuffleSeries.Shared.Core.Web.Observability;
+using ShuffleSeries.Shared.Core.Web.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +27,12 @@ builder.Services.AddSharedHealthChecks();
 // Add Centralized CORS Policy
 builder.Services.AddSharedCors(builder.Configuration);
 
+// Add JWT Authentication & Authorization Policies
+builder.Services.AddSharedJwtAuthentication(builder.Configuration);
+
+// Add Global & Strict Rate Limiters
+builder.Services.AddSharedRateLimiter();
+
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
@@ -35,6 +43,10 @@ app.UseSharedCorrelation();
 app.UseSharedCors();
 
 app.MapSharedHealthChecks();
+
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseSwaggerUI(options =>
 {
