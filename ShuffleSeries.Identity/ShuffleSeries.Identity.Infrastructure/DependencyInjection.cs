@@ -6,9 +6,11 @@ using Quartz;
 using ShuffleSeries.Identity.Application.Interfaces;
 using ShuffleSeries.Identity.Domain.Repositories;
 using ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
+using ShuffleSeries.Identity.Infrastructure.Configuration;
 using ShuffleSeries.Identity.Infrastructure.Persistence;
 using ShuffleSeries.Identity.Infrastructure.Persistence.Repositories;
 using ShuffleSeries.Identity.Infrastructure.Services;
+using ShuffleSeries.Identity.Infrastructure.Services.Social;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure;
 using ShuffleSeries.Shared.Core.Infrastructure.Health;
@@ -81,6 +83,12 @@ public static class DependencyInjection
         services.AddScoped<IPermissionResolver, PermissionResolver>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITokenService, JwtTokenService>();
+
+        // External Social Auth Providers (Strategy / Provider Pattern)
+        services.AddHttpClient();
+        services.Configure<ExternalAuthOptions>(configuration.GetSection(ExternalAuthOptions.SectionName));
+        services.AddScoped<ISocialAuthProvider, GoogleAuthProvider>();
+        services.AddScoped<ISocialAuthProvider, AppleAuthProvider>();
         services.AddScoped<IExternalAuthService, ExternalAuthService>();
     }
 }

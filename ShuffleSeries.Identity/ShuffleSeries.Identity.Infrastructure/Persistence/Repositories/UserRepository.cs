@@ -19,6 +19,7 @@ internal sealed class UserRepository : IUserRepository
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await _context.Users
+            .AsSplitQuery()
             .Include(u => u.UserRoles)
             .Include(u => u.UserPermissions)
             .Include(u => u.UserLogins)
@@ -27,6 +28,7 @@ internal sealed class UserRepository : IUserRepository
 
     public async Task<User?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default) =>
         await _context.Users
+            .AsSplitQuery()
             .Include(u => u.UserRoles)
             .Include(u => u.UserPermissions)
             .Include(u => u.UserLogins)
@@ -37,6 +39,7 @@ internal sealed class UserRepository : IUserRepository
     {
         var normalized = email.Trim().ToUpperInvariant();
         return await _context.Users
+            .AsSplitQuery()
             .Include(u => u.UserRoles)
             .Include(u => u.UserPermissions)
             .Include(u => u.UserLogins)
@@ -46,6 +49,7 @@ internal sealed class UserRepository : IUserRepository
 
     public async Task<User?> GetByRefreshTokenHashAsync(string refreshTokenHash, CancellationToken cancellationToken = default) =>
         await _context.Users
+            .AsSplitQuery()
             .Include(u => u.UserRoles)
             .Include(u => u.UserPermissions)
             .Include(u => u.RefreshTokens)
@@ -53,6 +57,7 @@ internal sealed class UserRepository : IUserRepository
 
     public async Task<User?> GetByLoginAsync(string provider, string providerKey, CancellationToken cancellationToken = default) =>
         await _context.Users
+            .AsSplitQuery()
             .Include(u => u.UserRoles)
             .Include(u => u.UserPermissions)
             .Include(u => u.UserLogins)

@@ -12,6 +12,8 @@ internal sealed class UserRoleConfiguration : IEntityTypeConfiguration<UserRole>
 
         builder.HasKey(ur => new { ur.UserId, ur.RoleId });
 
+        builder.HasIndex(ur => ur.RoleId);
+
         builder.Property(ur => ur.AssignedAtUtc)
             .IsRequired();
 
@@ -35,6 +37,8 @@ internal sealed class RolePermissionConfiguration : IEntityTypeConfiguration<Rol
 
         builder.HasKey(rp => new { rp.RoleId, rp.PermissionId });
 
+        builder.HasIndex(rp => rp.PermissionId);
+
         builder.HasOne(rp => rp.Role)
             .WithMany(r => r.RolePermissions)
             .HasForeignKey(rp => rp.RoleId)
@@ -54,6 +58,8 @@ internal sealed class UserPermissionConfiguration : IEntityTypeConfiguration<Use
         builder.ToTable("UserPermissions");
 
         builder.HasKey(up => new { up.UserId, up.PermissionId });
+
+        builder.HasIndex(up => up.PermissionId);
 
         builder.Property(up => up.IsGranted)
             .IsRequired();

@@ -23,6 +23,8 @@ internal sealed class UserLoginConfiguration : IEntityTypeConfiguration<UserLogi
         builder.HasIndex(ul => new { ul.Provider, ul.ProviderKey })
             .IsUnique();
 
+        builder.HasIndex(ul => ul.UserId);
+
         builder.Property(ul => ul.ProviderEmail)
             .HasMaxLength(256);
 
@@ -53,6 +55,13 @@ internal sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refre
 
         builder.HasIndex(rt => rt.TokenHash)
             .IsUnique();
+
+        builder.HasIndex(rt => rt.UserId);
+
+        builder.HasIndex(rt => rt.ExpiresAtUtc);
+
+        builder.HasIndex(rt => rt.ReplacedByTokenHash)
+            .HasFilter("\"ReplacedByTokenHash\" IS NOT NULL");
 
         builder.Property(rt => rt.ExpiresAtUtc)
             .IsRequired();

@@ -73,16 +73,19 @@ Gerçekleştirilen temel bileşenler ve özellikler:
 * **JwtBearerEvents.OnChallenge & 401 RFC 7807 Standardı:** Kimlik doğrulanmamış veya süresi dolmuş token ile yapılan isteklerde framework'ün boş 401 dönmesi engellendi; `OnChallenge` olayı ile standart `AUTH_UNAUTHORIZED` ProblemDetails gövdesi dönmesi sağlandı.
 * **SystemPolicies & Claim Type Alignment:** Yetkilendirme politikaları `SystemPolicies` altında strongly-typed olarak toplandı; token üretimindeki küçük harfli `"permission"` claim tipi ile politikalardaki arama tipi birebir senkronize edildi.
 * **HTTP Request DTO & Mass Assignment Koruması (OWASP API3/API6):** Minimal API endpoint'lerinin doğrudan MediatR CQRS Command nesnelerine bağlanması (`[FromBody] RegisterCommand`) engellendi. Bu durumun yol açtığı `ipAddress` gibi sunucu tarafında yönetilmesi gereken alanların OpenAPI/Swagger şemalarına sızması ve istemci tarafından manipüle edilebilme riski ortadan kaldırıldı. Sunum katmanında amaca özel `RegisterRequest`, `LoginRequest` gibi hafif Request DTO'ları tanımlandı; `HttpContext` üzerinden istemci IP'si ve JWT claims'leri güvenli biçimde çözümlenerek CQRS komutları sunucu tarafında oluşturuldu.
+* **Genişletilebilir Sosyal Kimlik Sağlayıcıları (ISocialAuthProvider & Strategy Pattern):** Google ve Apple SSO akışları monolitik if-else mantığı yerine `ISocialAuthProvider` arayüzü ve `BaseJwtSocialAuthProvider` abstract temel sınıfı ile Strategy desenine dönüştürüldü. `ExternalAuthService` doğrudan sağlayıcı sınıflarına bağımlı olmak yerine `IEnumerable<ISocialAuthProvider>` enjeksiyonu alarak istekleri sağlayıcı adına göre dinamik delege eder (OCP). Yeni bir sağlayıcı (örn. GitHub) eklendiğinde mevcut kod değiştirilmeden yalnızca yeni bir sağlayıcı sınıfı eklenir.
+* **Konfigürasyon Güdümlü Kriptografik OIDC İmza Doğrulama (ValidateSignatures):** `ExternalAuthOptions:ValidateSignatures` bayrağı ile test/geliştirme ortamlarında mock token akışları (`mock_sub:email`) desteklenirken; canlı ortamda Google ve Apple'ın resmi OpenID Configuration ve JWKS (`jwks_uri`) endpoint'lerinden alınan RSA açık anahtarları üzerinden kriptografik imza, geçerlilik süresi (lifetime) ve `audience`/`issuer` doğrulaması güvence altına alınmıştır.
+* **İlişkisel Veritabanı FK İndeksleme & EF Core `.AsSplitQuery()` Optimizasyonu:** Çoka-çok junction tablolarında (`UserRoles`, `UserPermissions`, `RolePermissions`) birleşik birincil anahtarın ters yönündeki yabancı anahtarlara (`RoleId`, `PermissionId`) tekil B-Tree indeksler eklendi; `AuthTokens` tablosunda `UserId`, `ExpiresAtUtc` ve partial `ReplacedByTokenHash` indeksleri oluşturuldu. `UserRepository` üzerindeki çoklu `Include`/`ThenInclude` sorgularında kartezyen patlamayı (Cartesian Product) önlemek için `.AsSplitQuery()` zorunlu kılındı.
 
 ---
 
 ## Nasıl Test Edilir?
 
 ### 1. Otomatik Test Paketleri
-Sistem, Clean Architecture kurallarına ve gerçek veritabanı ortamına göre 3 seviyede test edilmiştir:
+Sistem, Clean Architecture kurallarına ve gerçek veritabanı ortamına göre 4 seviyede test edilmiştir:
 
 ```bash
-# 1. Identity Servisi İzole Unit Testleri (Domain kuralları, PasswordHasher, Token Rotation, PermissionResolver)
+# 1. Identity Servisi İzole Unit Testleri (Domain kuralları, PasswordHasher, Token Rotation, PermissionResolver, Social Auth Providers)
 dotnet test ShuffleSeries.Identity/ShuffleSeries.Identity.Tests
 
 # 2. Mimari Bağımlılık Testleri (NetArchTest Onion Architecture & CQRS Kuralları)
@@ -91,15 +94,45 @@ dotnet test ShuffleSeries.ArchitectureTests
 # 3. Gerçek Entegrasyon Testleri (Testcontainers PostgreSQL + WebApplicationFactory + Respawn)
 dotnet test ShuffleSeries.Identity/ShuffleSeries.Identity.IntegrationTests
 
-# 4. Tüm Çözüm Testleri (Tüm servisler - 277 test)
-dotnet test
+# 4. Kapsamlı API Gateway + Identity E2E Curl Test Paketi (28/28 Başarılı Senaryo)
+bash /Users/enesonmez/.gemini/antigravity/brain/35461663-bcf7-4ed0-9be7-6263d3e2bfb7/scratch/curl_test_auth_suite.sh http://localhost:5001
 ```
 
-### 2. Entegrasyon Test Senaryoları (Test Cases)
-* `Register_WithValidCredentials_Returns201CreatedAndTokens`: Yeni kullanıcı kaydında HTTP 201, JWT, Refresh Token ve standart rollerin dönmesi.
-* `Register_WithDuplicateEmail_Returns409Conflict`: Aynı e-posta ile mükerrer kayıtta HTTP 409 ve RFC 7807 ProblemDetails dönmesi.
-* `Login_WithValidCredentials_Returns200OkAndTokens`: Başarılı girişte JWT, Refresh Token ve claim listesinin dönmesi.
-* `Login_WithInvalidPassword_Returns401Unauthorized`: Yanlış şifre denemesinde HTTP 401 dönmesi.
-* `RefreshToken_WithValidToken_ReturnsNewTokens`: Geçerli refresh token ile yeni JWT ve yeni refresh token alınması (Rotation).
-* `CreateGuestSession_Returns201CreatedAndGuestClaims`: Misafir oturumu talebinde `is_guest: true` claim'li JWT üretilmesi.
-* `GetCurrentUser_WithBearerToken_ReturnsUserData`: Korunan `/api/auth/me` endpoint'inin JWT ile kullanıcı bilgilerini dönmesi.
+### 2. Kapsamlı Test Senaryoları (Test Cases Matrix - 28 Vaka)
+* **1. Health & Resilience:**
+  * `1.1 Liveness Probe` -> HTTP 200 (Gateway `/identity-api/health/live`)
+  * `1.2 Readiness Probe` -> HTTP 200 (Gateway `/identity-api/health/ready` - DB & Vault bağlı)
+* **2. Register Flow:**
+  * `2.1 Register Standard User` -> HTTP 200 / Token Pair (Mutlu Yol)
+  * `2.2 Register Validation Error: Invalid Email` -> HTTP 400 (RFC 7807 ValidationProblemDetails)
+  * `2.3 Register Validation Error: Weak Password` -> HTTP 400 (Kurallara uymayan şifre reddi)
+  * `2.4 Register Duplicate Email Conflict` -> HTTP 409 (`EmailAlreadyInUseException`)
+* **3. Login Flow:**
+  * `3.1 Login With Valid Credentials` -> HTTP 200 / Token Pair
+  * `3.2 Login Invalid Password` -> HTTP 401 (`InvalidCredentialsException`)
+  * `3.3 Login Non-Existent User` -> HTTP 401 (Kullanıcı numaralandırma koruması)
+  * `3.4 Login Missing Password` -> HTTP 400
+* **4. Profile & Authorization (/api/auth/me):**
+  * `4.1 Get Profile With Bearer Token` -> HTTP 200 (Kullanıcı claim'leri ve rolleri)
+  * `4.2 Get Profile Without Token` -> HTTP 401 (RFC 7807 `AUTH_UNAUTHORIZED`)
+  * `4.3 Get Profile With Invalid Token` -> HTTP 401
+* **5. Guest Session & Data Merge:**
+  * `5.1 Create Anonymous Guest Session` -> HTTP 200 (`is_guest: true`)
+  * `5.2 Merge Guest Into Authenticated User` -> HTTP 204 No Content
+  * `5.3 Merge Guest IDOR Attack` -> HTTP 403 Forbidden (`AUTH_FORBIDDEN` - Başka kullanıcının misafir oturumunu birleştirmeyi engelleme)
+* **6. Social Login Flow (Extensible Provider Pattern):**
+  * `6.1 Google Social Login With Mock Token` -> HTTP 200
+  * `6.2 Apple Social Login With Mock Token` -> HTTP 200
+  * `6.3 Social Login Unsupported Provider` -> HTTP 400 (`UNSUPPORTED_PROVIDER`)
+  * `6.4 Social Login Missing Token` -> HTTP 400
+* **7. Refresh Token Rotation (RTR):**
+  * `7.1 Refresh Token Rotation Success` -> HTTP 200 (Eski token iptali ve yeni token çifti)
+  * `7.2 Token Reuse Attack - Family Revocation` -> HTTP 401 (`TokenCompromisedException` & tüm aktif oturumların iptali)
+  * `7.3 Refresh With Non-Existent Token` -> HTTP 401
+* **8. Revoke Token (Logout):**
+  * `8.1 Revoke Active Token` -> HTTP 204 No Content
+  * `8.2 Revoke Non-Existent Token` -> HTTP 404 Not Found
+* **9. Delete Account:**
+  * `9.1 Delete Account Without Token` -> HTTP 401
+  * `9.2 Delete Account With Token` -> HTTP 204 No Content (Soft-delete & Outbox AccountDeleted event)
+  * `9.3 Delete Already Deleted Account` -> HTTP 404 Not Found
