@@ -150,6 +150,9 @@ services:
       RABBITMQ_USER: ${RABBITMQ_USER:-guest_123}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest_123}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!}
+      EXTERNAL_AUTH_VALIDATE_SIGNATURES: ${EXTERNAL_AUTH_VALIDATE_SIGNATURES:-false}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
     volumes:
       - ./docker/vault/init-vault.sh:/init-vault.sh:ro
     networks:
