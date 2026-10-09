@@ -6,6 +6,6 @@ public interface ISoftDeletable
     DateTime? DeletedAtUtc { get; }
     string? DeletedBy { get; }
 
-    void SoftDelete(string? deletedBy = null);
+    void SoftDelete(string? deletedBy = null, DateTime? deletedAtUtc = null);
     void UndoSoftDelete();
 }

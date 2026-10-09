@@ -34,6 +34,10 @@ public class AuthenticationExtensionsTests
         var authorizationOptions = serviceProvider.GetRequiredService<IOptions<AuthorizationOptions>>().Value;
         authorizationOptions.GetPolicy("RequirePremiumRole").Should().NotBeNull();
         authorizationOptions.GetPolicy("CanReadCatalog").Should().NotBeNull();
+
+        var resultHandler = serviceProvider.GetService<IAuthorizationMiddlewareResultHandler>();
+        resultHandler.Should().NotBeNull();
+        resultHandler.Should().BeOfType<ShuffleSeries.Shared.Core.Web.Authorization.ProblemDetailsAuthorizationMiddlewareResultHandler>();
     }
 
     [Fact]

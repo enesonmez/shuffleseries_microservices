@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ShuffleSeries.Shared.Core.Domain.Primitives;
 
-public abstract class BaseEntity<TId> : ISoftDeletable, IHardDeletable
+public abstract class BaseEntity<TId> : IAuditableEntity, ISoftDeletable, IHardDeletable
 {
     public TId Id { get; protected set; } = default!;
     public DateTime CreatedAtUtc { get; protected set; }
@@ -28,10 +28,10 @@ public abstract class BaseEntity<TId> : ISoftDeletable, IHardDeletable
     {
     }
 
-    public virtual void SoftDelete(string? deletedBy = null)
+    public virtual void SoftDelete(string? deletedBy = null, DateTime? deletedAtUtc = null)
     {
         IsDeleted = true;
-        DeletedAtUtc = DateTime.UtcNow;
+        DeletedAtUtc = deletedAtUtc ?? DateTime.UtcNow;
         DeletedBy = deletedBy;
     }
 

@@ -50,7 +50,7 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * Mobil uygulamalardan gelecek yüksek istekleri (özellikle auth ve shuffle endpoint'lerini) korumak için Rate Limiting konfigürasyonlarının yapılması.
   * Gateway seviyesinde JWT Validasyonu (Authentication) yapısının kurulması.
   * Role & Claims bazlı Yetkilendirme (Authorization) politikalarının YARP route'larına entegre edilmesi (Böylece geçersiz token'a veya yetkisiz claim'e sahip istekler iç servislere hiç ulaşmadan Gateway'den döner).
-* [ ] Task 2.2: Identity Service Geliştirmesi
+* [x] Task 2.2: Identity Service Geliştirmesi
   * POST /api/auth/register: Yeni kullanıcı e-posta/şifre kaydı.
   * POST /api/auth/login: Credential doğrulaması ve JWT + Refresh Token dönülmesi.
   * POST /api/auth/refresh: Süresi dolan JWT'nin refresh token ile yenilenmesi.
@@ -200,7 +200,12 @@ Kullanıcı tutundurma (retention), bilet ekonomisi (Boiling Frog), oyunlaştır
   * POST /api/subscriptions/google/verify: Google Play Billing purchase token doğrulaması.
   * GET /api/subscriptions/status: Kullanıcı aktif abonelik durumu, geçerlilik tarihi, paket tipi (Aylık/Yıllık/Sınırsız).
   * Server-to-Server Webhook'lar: POST /api/subscriptions/webhooks/apple ve /google (Yenileme, iptal, geri ödeme durumlarının anlık işlenmesi).
-  * Outbox: Abonelik başladığında veya yenilendiğinde UserSubscribedEvent, iptal/iade durumunda UserSubscriptionCancelledEvent fırlatılması (Tüketenler: Shuffle Engine -> Redis cache yetki güncelleme, Notification Service -> Tebrik push/email, History & Analytics -> Dönüşüm analitiği).
+  * Outbox & Event Choreography (Premium Rol Yükseltme ve Düşürme):
+    * UserSubscribedEvent: Abonelik başladığında veya yenilendiğinde fırlatılır (Tüketenler: Identity Service -> Kullanıcının 'Standard' veya 'Guest' rolünü 'Premium'a yükseltme (UserRole güncelleme ve VIP claim atama), Shuffle Engine -> Redis cache sınırsız bilet ve VIP arena kilidi açma, Notification Service -> Tebrik push/email, History & Analytics -> Dönüşüm analitiği).
+    * UserSubscriptionCancelledEvent: Abonelik süresi dolduğunda, iptal veya iade edildiğinde fırlatılır (Tüketenler: Identity Service -> 'Premium' rolünü iptal edip 'Standard'a düşürme (Role Downgrade), Shuffle Engine -> Redis cache yetkilerini standart kotalara çekme, History & Analytics -> Churn analitiği).
+  * Kullanıcı Premium Geçiş Modelleri:
+    * 1. In-App Yükseltme: Mevcut Standart veya Guest kullanıcının mobil paywall üzerinden StoreKit 2 / Google Play ile abone olup makbuz doğrulaması sonucu asenkron rol yükseltmesi.
+    * 2. Doğrudan Premium Hesap Açma: Web checkout veya promosyon kodu ile kayıt akışında ödeme onayı sonrası hesabın otomatik Premium statüsüne evrilmesi.
 
 # Milestone 9: History, Analytics & Notification Servisleri
 Kullanıcı telemetrisi ve mobil cihazlarla etkileşim/tutundurma bildirimleri.

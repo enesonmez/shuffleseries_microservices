@@ -6,8 +6,10 @@ using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
 
-public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
+public sealed class InsertOutboxMessagesInterceptor(TimeProvider? timeProvider = null) : SaveChangesInterceptor
 {
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
         InterceptionResult<int> result)
@@ -25,12 +27,14 @@ public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
-    private static void InsertOutboxMessages(DbContext? context)
+    private void InsertOutboxMessages(DbContext? context)
     {
         if (context is null)
         {
             return;
         }
+
+        var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
 
         var outboxMessages = context.ChangeTracker
             .Entries()
@@ -47,7 +51,7 @@ public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
                 Id = Guid.NewGuid(),
                 Type = domainEvent.GetType().Name,
                 Content = JsonSerializer.Serialize(domainEvent, domainEvent.GetType()),
-                OccurredOnUtc = DateTime.UtcNow
+                OccurredOnUtc = utcNow
             })
             .ToList();
 

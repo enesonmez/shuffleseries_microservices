@@ -4,8 +4,10 @@ using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
 
-public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
+public sealed class SoftDeleteInterceptor(TimeProvider? timeProvider = null) : SaveChangesInterceptor
 {
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData,
         InterceptionResult<int> result)
@@ -23,7 +25,7 @@ public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
 
-    private static void ApplySoftDelete(DbContext? context)
+    private void ApplySoftDelete(DbContext? context)
     {
         if (context is null || HardDeleteScope.IsActive)
         {
@@ -34,6 +36,8 @@ public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
             .Entries<ISoftDeletable>()
             .Where(e => e.State == EntityState.Deleted)
             .ToList();
+
+        var utcNow = _timeProvider.GetUtcNow().UtcDateTime;
 
         foreach (var entry in entries)
         {
@@ -48,7 +52,7 @@ public sealed class SoftDeleteInterceptor : SaveChangesInterceptor
             // atanmış olan DeletedBy ve DeletedAtUtc değerlerini koru, ezme!
             if (!entry.Entity.IsDeleted)
             {
-                entry.Entity.SoftDelete();
+                entry.Entity.SoftDelete(deletedBy: null, deletedAtUtc: utcNow);
             }
 
             entry.Property(nameof(ISoftDeletable.IsDeleted)).IsModified = true;

@@ -4,8 +4,8 @@ namespace ShuffleSeries.Shared.Core.Exceptions;
 
 public class NotFoundException : CustomException
 {
-    public NotFoundException(string message)
-        : base(message, HttpStatusCode.NotFound, "NOT_FOUND", "Not Found")
+    public NotFoundException(string message, string? code = "NOT_FOUND")
+        : base(message, HttpStatusCode.NotFound, code, "Not Found")
     {
     }
 

@@ -25,11 +25,12 @@ public static class DependencyInjection
         services.AddSharedInfrastructure();
         services.AddDbContext<CatalogDbContext>((sp, options) =>
         {
-            var outboxInterceptor = sp.GetRequiredService<InsertOutboxMessagesInterceptor>();
+            var auditableInterceptor = sp.GetRequiredService<AuditableEntityInterceptor>();
             var softDeleteInterceptor = sp.GetRequiredService<SoftDeleteInterceptor>();
+            var outboxInterceptor = sp.GetRequiredService<InsertOutboxMessagesInterceptor>();
 
             options.UseNpgsql(configuration.GetConnectionString("Database"))
-                .AddInterceptors(softDeleteInterceptor, outboxInterceptor);
+                .AddInterceptors(auditableInterceptor, softDeleteInterceptor, outboxInterceptor);
         });
 
         // PostgreSQL veritabanı hazır bulunuşluk sağlık kontrolü

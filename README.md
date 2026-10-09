@@ -110,6 +110,7 @@ flowchart TD
     subgraph FLOW_PREMIUM ["5️⃣ Gamification & Premium Subscription Stream"]
         direction LR
         P_GAM["🎟️ Tickets & Gamification\n(Outbox Publisher)"]:::pub -->|"Publishes"| E_GAM["UserSubscribed / Cancelled\nBadgeUnlocked / LevelUp\nTicketBalanceExhausted"]:::evt
+        E_GAM -->|"InBox"| C_GAM0["🔑 Identity (Promote/Demote Premium Role)"]:::sub
         E_GAM -->|"InBox"| C_GAM1["🎲 Shuffle Engine (Redis Premium Unlock)"]:::sub
         E_GAM -->|"InBox"| C_GAM2["🔔 Notification (Badge & VIP Push)"]:::sub
         E_GAM -->|"InBox"| C_GAM3["👤 Profile (Update Active Title)"]:::sub
@@ -131,7 +132,7 @@ flowchart TD
 | **2. Catalog & Metadata** | `Catalog Service` | `MediaCreated/Updated/Deleted`<br>`PlatformUpdatedEvent`<br>`MoodUpdatedEvent` | • `Shuffle Engine`<br>• `Search Service`<br>• `Notification Service` | Instant Redis memory-set synchronization, Elasticsearch index updates with platform/mood facets, and push alerts for favorite genres. |
 | **3. Swipe Arena** | `Shuffle Engine` | `ShuffleSwipedEvent` | • `Tickets & Gamification`<br>• `History & Analytics` | Real-time asynchronous ticket deduction on pass/skip without blocking the UI, plus dwell-time telemetry logging. |
 | **4. User Library** | `User Library` | `MediaAddedToWatchlist`<br>`MediaWatchedEvent`<br>`MediaRatedEvent` | • `Tickets & Gamification`<br>• `Search Service`<br>• `History & Analytics` | Awarding +3 tickets on every 3 ratings, updating "Trending Roulettes" daily counts, and chronological watch history tracking. |
-| **5. Gamification & IAP** | `Tickets & Gamification` | `UserSubscribed/Cancelled`<br>`BadgeUnlockedEvent`<br>`LevelUpEvent`<br>`TicketBalanceExhausted` | • `Shuffle Engine`<br>• `Notification Service`<br>• `Profile Service`<br>• `History & Analytics` | Real-time Redis entitlement caching (unlocking "My-List Shuffle" and VIP Arenas), celebration badge push notifications, and revenue analytics. |
+| **5. Gamification & IAP** | `Tickets & Gamification` | `UserSubscribed/Cancelled`<br>`BadgeUnlockedEvent`<br>`LevelUpEvent`<br>`TicketBalanceExhausted` | • `Identity Service`<br>• `Shuffle Engine`<br>• `Notification Service`<br>• `Profile Service`<br>• `History & Analytics` | Dynamic Premium role promotion/demotion in Identity, real-time Redis entitlement caching, celebration badge push notifications, and revenue analytics. |
 | **6. Profile & Settings** | `Profile Service` | `ProfileUpdatedEvent` | • `Shuffle Engine` | Immediate invalidation of pre-computed in-memory shuffle pools when user changes platforms or genres. |
 
 ---
@@ -153,8 +154,17 @@ flowchart TD
 │   ├── ShuffleSeries.Catalog.Api/                 # Minimal API endpoints & OpenAPI specification
 │   ├── ShuffleSeries.Catalog.Tests/               # Unit test suite (Moq, Domain, Validators)
 │   └── ShuffleSeries.Catalog.IntegrationTests/    # Real DB integration tests (Testcontainers, Respawn, WebApplicationFactory)
+├── ShuffleSeries.Identity/             # Identity & Access Management bounded context
+│   ├── ShuffleSeries.Identity.Domain/             # User aggregate, Roles, Permissions, UserLogins, RefreshTokens
+│   ├── ShuffleSeries.Identity.Application/        # CQRS Commands, Queries, PasswordHasher, TokenService, Resolvers
+│   ├── ShuffleSeries.Identity.Infrastructure/     # EF Core PostgreSQL persistence, JwtTokenService, Outbox processor
+│   ├── ShuffleSeries.Identity.Api/                # Minimal API endpoints (/api/auth) & OpenAPI specification
+│   ├── ShuffleSeries.Identity.Tests/              # Unit test suite (Domain, PBKDF2 Hasher, Token Rotation, Resolvers)
+│   └── ShuffleSeries.Identity.IntegrationTests/   # Real DB integration tests (Testcontainers PostgreSQL, Respawn)
 ├── ShuffleSeries.ArchitectureTests/    # Centralized Architecture Dependency Tests (NetArchTest.Rules)
 ├── ShuffleSeries.ApiGateway/           # YARP-based intelligent API Gateway
+│   ├── ShuffleSeries.ApiGateway.Api/              # Reverse proxy, Rate Limiting, Centralized Swagger aggregation
+│   └── ShuffleSeries.ApiGateway.IntegrationTests/ # Gateway HTTP pipeline & routing integration tests
 └── docs/                               # Architectural documentation, roadmaps, and task guides
     ├── roadmap.md                      # Milestone & task tracking
     ├── lessons.md                      # Knowledge base of architectural decisions & lessons learned
@@ -243,6 +253,12 @@ flowchart TD
 - **Standardized Health Checks**: Exposes `/health/live` (Liveness probe for process health) and `/health/ready` (Readiness probe with JSON component status breakdown for PostgreSQL, Redis, and queues).
 - **Idempotency & Inbox Foundation**: `IIntegrationEvent` contract and `InboxMessage` entity in `Shared.Core.Domain` providing the bedrock for duplicate-free distributed event consumption.
 
+### 10. Identity & Access Management (`ShuffleSeries.Identity`)
+- **Hybrid RBAC + PBAC Architecture**: Enterprise authorization where standard roles (`Guest`, `Standard`, `Premium`, `Admin`) bundle granular permissions, while `UserPermission` enables user-specific exception overrides (grant or revoke). Dynamic permission resolution bakes effective permissions into JWT claims (`permissions: ["catalog:read"]`), enabling zero-database-lookup authorization checks at the API Gateway level.
+- **OWASP API4 Refresh Token Rotation (RTR) & Reuse Detection**: Single-use, cryptographically secure refresh tokens stored as SHA-256 hashes. Presentation of an already revoked token triggers automated **Token Family Invalidation**, terminating all active user sessions immediately.
+- **Dedicated External SSO Linking (`UserLogins`)**: Supports Apple & Google SSO without polluting core user profiles. Retains Apple refresh tokens to support automated provider revocation during account deletion per Apple App Store Guideline 5.1.1(v) and GDPR.
+- **Frictionless Guest Sessions & Data Merge**: Instant anonymous session creation (`POST /api/auth/guest`) issuing a guest JWT and initial tickets; upon registration, merges guest history, tickets, and watchlist via `POST /api/auth/merge-guest` and triggers `UserMergedDomainEvent`.
+
 ---
 
 ## 🚀 Getting Started & Testing
@@ -284,6 +300,7 @@ To run both the backing infrastructure and application microservices (`Catalog.A
 docker compose -f docker-compose.yml -f docker-compose.apps.yml up -d --build
 ```
 This boots:
+- `shuffleseries_identity_api` on port `5002` (`http://localhost:5002/swagger`)
 - `shuffleseries_catalog_api` on port `5000` (`http://localhost:5000/swagger`)
 - `shuffleseries_api_gateway` on port `5001` (`http://localhost:5001/swagger`)
 - All backing services connected via `shuffleseries_network`
@@ -307,12 +324,12 @@ dotnet build
 
 ### 🧪 Test Execution (Unit, Architecture & Real Integration)
 ShuffleSeries enforces a strict, multi-tiered testing strategy:
-- **Unit Tests (`ShuffleSeries.Shared.Core.Tests`, `ShuffleSeries.Catalog.Tests`):** Fast, isolated tests for domain entities, validation logic, and CQRS handlers.
-- **Architecture Dependency Tests (`ShuffleSeries.ArchitectureTests`):** Architectural Fitness Functions via `NetArchTest.Rules` verifying layer boundaries (Domain, Application, Infrastructure, Api) and CQRS/DDD conventions.
-- **Real Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (PostgreSQL), and `Respawn` for lightning-fast sub-second table resets.
+- **Unit Tests (`ShuffleSeries.Shared.Core.Tests`, `ShuffleSeries.Catalog.Tests`, `ShuffleSeries.Identity.Tests`):** Fast, isolated tests for domain entities, validation logic, and CQRS handlers.
+- **Architecture Dependency Tests (`ShuffleSeries.ArchitectureTests`):** Architectural Fitness Functions via `NetArchTest.Rules` verifying layer boundaries (Domain, Application, Infrastructure, Api) and CQRS/DDD conventions across all microservices.
+- **Real Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`, `ShuffleSeries.Identity.IntegrationTests`, `ShuffleSeries.ApiGateway.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (PostgreSQL), and `Respawn` for lightning-fast sub-second table resets.
 
 ```bash
-# Run all 225 tests across the entire solution
+# Run all 264 tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)
@@ -320,18 +337,30 @@ dotnet test ShuffleSeries.ArchitectureTests/ShuffleSeries.ArchitectureTests.cspr
 
 # Run Real Integration Tests (with Testcontainers PostgreSQL)
 dotnet test ShuffleSeries.Catalog/ShuffleSeries.Catalog.IntegrationTests/ShuffleSeries.Catalog.IntegrationTests.csproj
+dotnet test ShuffleSeries.Identity/ShuffleSeries.Identity.IntegrationTests/ShuffleSeries.Identity.IntegrationTests.csproj
+dotnet test ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.IntegrationTests/ShuffleSeries.ApiGateway.IntegrationTests.csproj
 ```
 
-### 🏃 Run Catalog Service Locally
+### 🏃 Run Services Locally
 ```bash
+# Identity Service
+dotnet run --project ShuffleSeries.Identity/ShuffleSeries.Identity.Api
+
+# Catalog Service
 dotnet run --project ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api
+
+# API Gateway
+dotnet run --project ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.Api
 ```
-*(Automatically applies EF Core migrations to PostgreSQL, injects secrets from Vault, and starts MassTransit against RabbitMQ)*
+*(Automatically applies EF Core migrations to PostgreSQL, seeds initial roles & permissions, injects secrets from Vault, and starts MassTransit against RabbitMQ)*
 
 #### 📖 Interactive API Documentation Endpoints
 - **API Gateway Aggregated Swagger UI (All Services):** [http://localhost:5001/swagger](http://localhost:5001/swagger)
-- **Catalog Scalar API Reference (Modern UI):** [http://localhost:5000/scalar/v1](http://localhost:5000/scalar/v1)
+- **Identity Swagger UI (Standalone):** [http://localhost:5002/swagger](http://localhost:5002/swagger)
+- **Identity Scalar API Reference (Modern UI):** [http://localhost:5002/scalar/v1](http://localhost:5002/scalar/v1)
+- **Identity OpenAPI v3 Specification:** [http://localhost:5002/openapi/v1.json](http://localhost:5002/openapi/v1.json)
 - **Catalog Swagger UI (Standalone):** [http://localhost:5000/swagger](http://localhost:5000/swagger)
+- **Catalog Scalar API Reference (Modern UI):** [http://localhost:5000/scalar/v1](http://localhost:5000/scalar/v1)
 - **Catalog OpenAPI v3 Specification:** [http://localhost:5000/openapi/v1.json](http://localhost:5000/openapi/v1.json)
 
 ---
@@ -343,15 +372,15 @@ The platform is fortified with an automated, multi-stage GitHub Actions pipeline
 ```mermaid
 flowchart LR
     A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
-    B --> C["🧪 Automated Tests\n(237 Tests + Real Testcontainers)"]
+    B --> C["🧪 Automated Tests\n(277 Tests + Real Testcontainers)"]
     C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 100% Safe)"]
     D --> E["🐳 Docker Integrity Gate\n(Non-Root 'app' Containers)"]
 ```
 
 - **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
-- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **237 automated tests** (Unit, Architecture, and real PostgreSQL Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **277 automated tests** (Unit, Architecture, and real PostgreSQL Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
 - **SonarQube Quality Gate:** Validates **0 Bugs**, **0 Vulnerabilities**, **0 Code Smells**, and **100% Security Hotspots Reviewed**.
-- **Container Verification:** Validates Docker builds for both `ShuffleSeries.Catalog.Api` and `ShuffleSeries.ApiGateway` on every push and pull request, enforcing the non-root `USER app` security standard.
+- **Container Verification:** Validates Docker builds for microservices and API Gateway on every push and pull request, enforcing the non-root `USER app` security standard.
 
 ### 🛡️ Running SonarQube & Coverage Locally (Shift-Left Quality)
 You can run the exact same SonarQube analysis and code coverage locally before pushing:
