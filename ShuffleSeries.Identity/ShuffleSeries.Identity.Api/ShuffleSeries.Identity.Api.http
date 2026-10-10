@@ -20,6 +20,16 @@ Accept: application/json
 GET {{Identity_HostAddress}}/health/ready
 Accept: application/json
 
+### 🟢 1.3 Gateway Üzerinden Identity Liveness Probe
+# Beklenen Sonuç: 200 OK -> Gateway üzerinden identity.api:8080/health/live
+GET {{Gateway_HostAddress}}/identity-api/health/live
+Accept: application/json
+
+### 🟢 1.4 Gateway Üzerinden Identity Readiness Probe
+# Beklenen Sonuç: 200 OK -> Gateway üzerinden identity.api:8080/health/ready
+GET {{Gateway_HostAddress}}/identity-api/health/ready
+Accept: application/json
+
 
 ###############################################################################
 # 2. KULLANICI KAYDI (REGISTER)
@@ -159,14 +169,46 @@ Content-Type: application/json
   "password": "NewPassword123!"
 }
 
-### 🔴 6.2 Standart Kullanıcıyı Dönüştürme Denemesi (POST - 400 Bad Request)
-# Beklenen Sonuç: 400 Bad Request -> code: "USER_ALREADY_REGISTERED"
+### 🔴 6.2 Standart Kullanıcıyı Dönüştürme Denemesi (POST - 422 Unprocessable Entity)
+# Beklenen Sonuç: 422 Unprocessable Entity -> code: "USER_ALREADY_REGISTERED" (Business Rule Violation)
 POST {{Identity_HostAddress}}/api/auth/convert-guest
 Authorization: Bearer {{AccessToken}}
 Content-Type: application/json
 
 {
   "email": "promoted.user@shuffleseries.com",
+  "password": "NewPassword123!"
+}
+
+### 🔴 6.3 Misafir Dönüştürme: Token Eksik (POST - 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_UNAUTHORIZED"
+POST {{Identity_HostAddress}}/api/auth/convert-guest
+Content-Type: application/json
+
+{
+  "email": "unauthorized.convert@shuffleseries.com",
+  "password": "NewPassword123!"
+}
+
+### 🔴 6.4 Misafir Dönüştürme: Validasyon Hatası (POST - 400 Bad Request)
+# Beklenen Sonuç: 400 Bad Request -> RFC 7807 Validation Problem Details
+POST {{Identity_HostAddress}}/api/auth/convert-guest
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": "123"
+}
+
+### 🔴 6.5 Misafir Dönüştürme: Mükerrer E-posta (POST - 409 Conflict)
+# Beklenen Sonuç: 409 Conflict -> code: "USER_ALREADY_EXISTS"
+POST {{Identity_HostAddress}}/api/auth/convert-guest
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "email": "tester.e2e@shuffleseries.com",
   "password": "NewPassword123!"
 }
 
@@ -307,6 +349,16 @@ Content-Type: application/json
   "idToken": "mock_facebook_id_token"
 }
 
+### 🔴 11.4 Geçersiz Dış Sağlayıcı Belirteci ile Giriş (POST - 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "INVALID_EXTERNAL_TOKEN"
+POST {{Identity_HostAddress}}/api/auth/social-login
+Content-Type: application/json
+
+{
+  "provider": "Google",
+  "idToken": "invalid_unverifiable_mock_token"
+}
+
 
 ###############################################################################
 # 12. PAROLA GÜNCELLEME (CHANGE PASSWORD)
@@ -323,8 +375,8 @@ Content-Type: application/json
   "newPassword": "UpdatedPassword456!"
 }
 
-### 🔴 12.2 Parola Güncelleme: Yanlış Mevcut Şifre (POST - 400 Bad Request)
-# Beklenen Sonuç: 400 Bad Request -> code: "AUTH_INVALID_CURRENT_PASSWORD"
+### 🔴 12.2 Parola Güncelleme: Yanlış Mevcut Şifre (POST - 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "INVALID_CURRENT_PASSWORD"
 POST {{Identity_HostAddress}}/api/auth/change-password
 Authorization: Bearer {{AccessToken}}
 Content-Type: application/json
@@ -332,5 +384,37 @@ Content-Type: application/json
 {
   "currentPassword": "WrongCurrentPassword123!",
   "newPassword": "UpdatedPassword456!"
+}
+
+### 🔴 12.3 Parola Güncelleme: Token Eksik (POST - 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_UNAUTHORIZED"
+POST {{Identity_HostAddress}}/api/auth/change-password
+Content-Type: application/json
+
+{
+  "currentPassword": "CurrentPassword123!",
+  "newPassword": "UpdatedPassword456!"
+}
+
+### 🔴 12.4 Parola Güncelleme: Zayıf Yeni Şifre (POST - 400 Bad Request)
+# Beklenen Sonuç: 400 Bad Request -> RFC 7807 Validation Problem Details
+POST {{Identity_HostAddress}}/api/auth/change-password
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "CurrentPassword123!",
+  "newPassword": "123"
+}
+
+### 🔴 12.5 Parola Güncelleme: Yeni Şifre Mevcut Şifre ile Aynı (POST - 400 Bad Request)
+# Beklenen Sonuç: 400 Bad Request -> code: "ValidationFailure" ("New password must be different from current password.")
+POST {{Identity_HostAddress}}/api/auth/change-password
+Authorization: Bearer {{AccessToken}}
+Content-Type: application/json
+
+{
+  "currentPassword": "CurrentPassword123!",
+  "newPassword": "CurrentPassword123!"
 }
 
