@@ -198,4 +198,140 @@ public class UserTests
             .Which.Should().BeOfType<UserRegisteredDomainEvent>()
             .Which.Should().Match<UserRegisteredDomainEvent>(e => e.UserId == user.Id && e.Email == "converted@test.com" && !e.IsGuest);
     }
+
+    [Fact]
+    public void AssignRole_WhenRoleAlreadyAssigned_ShouldNotAddDuplicate()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "hash");
+        var roleId = Guid.NewGuid();
+        user.AssignRole(roleId);
+
+        // Act
+        user.AssignRole(roleId);
+
+        // Assert
+        user.UserRoles.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void RemoveRole_WhenRoleExists_ShouldRemoveAndTouchSecurityStamp()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "hash");
+        var roleId = Guid.NewGuid();
+        user.AssignRole(roleId);
+        var stampAfterAssign = user.SecurityStamp;
+
+        // Act
+        user.RemoveRole(roleId);
+
+        // Assert
+        user.UserRoles.Should().BeEmpty();
+        user.SecurityStamp.Should().NotBe(stampAfterAssign);
+    }
+
+    [Fact]
+    public void RemoveRole_WhenRoleDoesNotExist_ShouldDoNothing()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "hash");
+        var stamp = user.SecurityStamp;
+
+        // Act
+        user.RemoveRole(Guid.NewGuid());
+
+        // Assert
+        user.UserRoles.Should().BeEmpty();
+        user.SecurityStamp.Should().Be(stamp);
+    }
+
+    [Fact]
+    public void GrantPermission_WhenAlreadyExists_ShouldUpdateGrant()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "hash");
+        var permId = Guid.NewGuid();
+        user.RevokePermission(permId);
+
+        // Act
+        user.GrantPermission(permId);
+
+        // Assert
+        user.UserPermissions.Should().ContainSingle(up => up.PermissionId == permId && up.IsGranted);
+    }
+
+    [Fact]
+    public void RevokePermission_WhenNotExists_ShouldAddRevokedOverride()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "hash");
+        var permId = Guid.NewGuid();
+
+        // Act
+        user.RevokePermission(permId);
+
+        // Assert
+        user.UserPermissions.Should().ContainSingle(up => up.PermissionId == permId && !up.IsGranted);
+    }
+
+    [Fact]
+    public void RemovePermissionOverride_WhenNotExists_ShouldDoNothing()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "hash");
+        var stamp = user.SecurityStamp;
+
+        // Act
+        user.RemovePermissionOverride(Guid.NewGuid());
+
+        // Assert
+        user.UserPermissions.Should().BeEmpty();
+        user.SecurityStamp.Should().Be(stamp);
+    }
+
+    [Fact]
+    public void AddLogin_WhenDuplicateProviderAndKey_ShouldIgnore()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "hash");
+        user.AddLogin("Google", "sub123", "user@test.com");
+
+        // Act
+        user.AddLogin("Google", "sub123", "user@test.com");
+
+        // Assert
+        user.UserLogins.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void RevokeRefreshToken_WhenTokenNotFound_ShouldDoNothing()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "hash");
+        user.AddRefreshToken("hash_1", DateTime.UtcNow.AddDays(1));
+
+        // Act
+        user.RevokeRefreshToken("non_existent_hash");
+
+        // Assert
+        user.RefreshTokens.First().IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public void UpdatePassword_ShouldUpdateHash_RevokeAllTokens_AndTouchSecurityStamp()
+    {
+        // Arrange
+        var user = User.CreateStandard("user@test.com", "old_hash");
+        var token = user.AddRefreshToken("token_hash", DateTime.UtcNow.AddDays(5));
+        var initialStamp = user.SecurityStamp;
+
+        // Act
+        user.UpdatePassword("new_hashed_password");
+
+        // Assert
+        user.PasswordHash.Should().Be("new_hashed_password");
+        token.IsRevoked.Should().BeTrue();
+        user.SecurityStamp.Should().NotBe(initialStamp);
+    }
 }

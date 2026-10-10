@@ -246,4 +246,114 @@ public class RedisTokenBlacklistServiceTests
         // Assert
         result.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task BlacklistUserTokensAsync_WhenUserIdIsEmpty_ShouldReturnEarly()
+    {
+        // Act
+        await _sut.BlacklistUserTokensAsync(Guid.Empty, TimeSpan.FromHours(1));
+
+        // Assert
+        _databaseMock.Verify(db => db.StringSetAsync(
+            It.IsAny<RedisKey>(),
+            It.IsAny<RedisValue>(),
+            It.IsAny<TimeSpan?>(),
+            It.IsAny<When>(),
+            It.IsAny<CommandFlags>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BlacklistUserTokensAsync_WhenTtlIsZeroOrNegative_ShouldDefaultToOneHour()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var expectedKey = $"test:blacklist:user:{userId:N}";
+
+        _databaseMock.Setup(db => db.StringSetAsync(
+                It.Is<RedisKey>(k => k == expectedKey),
+                It.IsAny<RedisValue>(),
+                It.Is<TimeSpan?>(t => t == TimeSpan.FromHours(1)),
+                It.IsAny<When>(),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(true);
+
+        // Act
+        await _sut.BlacklistUserTokensAsync(userId, TimeSpan.Zero);
+
+        // Assert
+        _databaseMock.Invocations.Should().Contain(i =>
+            i.Method.Name == nameof(IDatabase.StringSetAsync) &&
+            i.Arguments[0].ToString() == expectedKey &&
+            i.Arguments[2].ToString() == $"EX {TimeSpan.FromHours(1).TotalSeconds}");
+    }
+
+    [Fact]
+    public async Task BlacklistUserTokensAsync_WhenRedisThrows_ShouldCatchAndNotThrow()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        _databaseMock.Setup(db => db.StringSetAsync(
+                It.IsAny<RedisKey>(),
+                It.IsAny<RedisValue>(),
+                It.IsAny<TimeSpan?>(),
+                It.IsAny<When>(),
+                It.IsAny<CommandFlags>()))
+            .ThrowsAsync(new RedisException("Write failed"));
+
+        // Act & Assert
+        var act = async () => await _sut.BlacklistUserTokensAsync(userId, TimeSpan.FromMinutes(30));
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task IsUserBlacklistedAsync_WhenUserIdIsEmpty_ShouldReturnFalse()
+    {
+        // Act
+        var result = await _sut.IsUserBlacklistedAsync(Guid.Empty, DateTime.UtcNow);
+
+        // Assert
+        result.Should().BeFalse();
+        _databaseMock.Verify(db => db.StringGetAsync(
+            It.IsAny<RedisKey>(),
+            It.IsAny<CommandFlags>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task IsUserBlacklistedAsync_WhenStoredValueIsNotNumeric_ShouldReturnFalse()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var expectedKey = $"test:blacklist:user:{userId:N}";
+
+        _databaseMock.Setup(db => db.StringGetAsync(
+                It.Is<RedisKey>(k => k == expectedKey),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync("invalid_non_numeric_timestamp");
+
+        // Act
+        var result = await _sut.IsUserBlacklistedAsync(userId, DateTime.UtcNow);
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IsTokenBlacklistedAsync_WhenInstanceNameIsEmpty_ShouldNotPrefixKey()
+    {
+        // Arrange
+        var emptyPrefixOptions = Options.Create(new RedisOptions { InstanceName = "" });
+        var serviceWithEmptyPrefix = new RedisTokenBlacklistService(_redisMock.Object, emptyPrefixOptions, _loggerMock.Object);
+        var jti = "test-unprefixed-jti";
+
+        _databaseMock.Setup(db => db.KeyExistsAsync(
+                It.Is<RedisKey>(k => k == $"blacklist:token:{jti}"),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(true);
+
+        // Act
+        var result = await serviceWithEmptyPrefix.IsTokenBlacklistedAsync(jti);
+
+        // Assert
+        result.Should().BeTrue();
+    }
 }
