@@ -7,8 +7,18 @@ public class IdentityDbContextFactory : IDesignTimeDbContextFactory<IdentityDbCo
 {
     public IdentityDbContext CreateDbContext(string[] args)
     {
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+            ?? new Npgsql.NpgsqlConnectionStringBuilder
+            {
+                Host = Environment.GetEnvironmentVariable("POSTGRES_HOST") ?? "localhost",
+                Port = 5432,
+                Database = Environment.GetEnvironmentVariable("POSTGRES_DB") ?? "shuffleseries_identity",
+                Username = Environment.GetEnvironmentVariable("POSTGRES_USER") ?? "postgres",
+                Password = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "postgres"
+            }.ConnectionString;
+
         var optionsBuilder = new DbContextOptionsBuilder<IdentityDbContext>();
-        optionsBuilder.UseNpgsql("Host=localhost;Database=shuffleseries_identity;Username=admin;Password=SuperSecretSecurePassword2026!!");
+        optionsBuilder.UseNpgsql(connectionString);
 
         return new IdentityDbContext(optionsBuilder.Options);
     }

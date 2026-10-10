@@ -82,7 +82,6 @@ public class ProcessOutboxMessagesJobTests
                 e.Email == "test@shuffleseries.com" &&
                 !e.IsGuest &&
                 e.OccurredOnUtc == occurredAt),
-            typeof(UserRegisteredEvent),
             It.IsAny<CancellationToken>()),
             Times.Once);
 
@@ -131,7 +130,6 @@ public class ProcessOutboxMessagesJobTests
                 e.UserId == userId &&
                 e.Email == "deleted@shuffleseries.com" &&
                 e.OccurredOnUtc == occurredAt),
-            typeof(UserAccountDeletedEvent),
             It.IsAny<CancellationToken>()),
             Times.Once);
 
@@ -222,7 +220,7 @@ public class ProcessOutboxMessagesJobTests
         var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
-        mockPublish.Setup(p => p.Publish(It.IsAny<object>(), It.IsAny<Type>(), It.IsAny<CancellationToken>()))
+        mockPublish.Setup(p => p.Publish(It.IsAny<UserRegisteredEvent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("RabbitMQ connection down"));
 
         var domainEvent = new UserRegisteredDomainEvent(Guid.NewGuid(), "test@shuffleseries.com", IsGuest: false);

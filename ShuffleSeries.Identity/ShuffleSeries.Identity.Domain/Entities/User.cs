@@ -202,8 +202,5 @@ public class User : AggregateRoot
         RaiseDomainEvent(new UserAccountDeletedDomainEvent(Id, Email));
     }
 
-    public void TouchSecurityStamp()
-    {
-        SecurityStamp = Guid.NewGuid().ToString("N");
-    }
+    public void TouchSecurityStamp() => SecurityStamp = Guid.NewGuid().ToString("N");
 }

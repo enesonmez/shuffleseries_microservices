@@ -311,7 +311,7 @@ public class AuthEndpointsIntegrationTests : IdentityIntegrationTestBase
         await ExecuteDbContextAsync(async context =>
         {
             var job = new PurgeExpiredRefreshTokensJob(context, TimeProvider.System, NullLogger<PurgeExpiredRefreshTokensJob>.Instance);
-            await job.Execute(null);
+            await job.ExecuteAsync();
         });
 
         // Assert: Old tokens purged, active token retained

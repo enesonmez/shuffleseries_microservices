@@ -33,7 +33,7 @@ internal sealed class LoginCommandHandler : IRequestHandler<LoginCommand, AuthRe
         _timeProvider = timeProvider;
     }
 
-    private const string DummyPasswordHash = "AQIDBAUGBwgJCgsMDQ4PEA==:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
+    private const string DummyVerificationHash = "AQIDBAUGBwgJCgsMDQ4PEA==:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
 
     public async Task<AuthResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
@@ -42,7 +42,7 @@ internal sealed class LoginCommandHandler : IRequestHandler<LoginCommand, AuthRe
 
         if (user is null || user.PasswordHash is null || user.Status != UserStatus.Active)
         {
-            _passwordHasher.VerifyPassword(request.Password, DummyPasswordHash);
+            _passwordHasher.VerifyPassword(request.Password, DummyVerificationHash);
             throw new InvalidCredentialsException();
         }
 
