@@ -1,19 +1,24 @@
+using System.Reflection;
 using System.Text.Json;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Quartz;
+using ShuffleSeries.Catalog.Domain.Events;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
+using ShuffleSeries.Shared.Core.Infrastructure.Outbox;
 
 namespace ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 
 [DisallowConcurrentExecution]
 public sealed class ProcessOutboxMessagesJob : IJob
 {
+    private static readonly Assembly _catalogDomainAssembly = typeof(SeriesCreatedDomainEvent).Assembly;
+
     private readonly CatalogDbContext _dbContext;
     private readonly IPublishEndpoint _publishEndpoint;
 
-    private const int MaxRetries = 3;
+    public const int MaxRetries = 3;
 
     public ProcessOutboxMessagesJob(CatalogDbContext dbContext, IPublishEndpoint publishEndpoint)
     {
@@ -38,7 +43,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
         {
             try
             {
-                var eventType = Type.GetType($"ShuffleSeries.Catalog.Domain.Events.{outboxMessage.Type}, ShuffleSeries.Catalog.Domain");
+                var eventType = DomainEventTypeCache.Resolve(_catalogDomainAssembly, outboxMessage.Type);
 
                 if (eventType is null)
                 {

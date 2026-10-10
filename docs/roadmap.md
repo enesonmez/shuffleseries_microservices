@@ -66,11 +66,14 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
     * Hesap silme (`/account`) ve Token Reuse saldırılarında tüm oturumları anında geçersiz kılan `blacklist:user:{userId}` Unix zaman damgası kaydı.
   * API Gateway seviyesinde `OnTokenValidated` hook'u ile Redis Blacklist sınır denetimi (Edge Enforcement) sağlanarak iptal edilmiş token'ların downstream mikroservislere ulaşmadan RFC 7807 `401 Unauthorized` (`AUTH_TOKEN_REVOKED`) ile kesilmesi.
   * HashiCorp Vault üzerinden merkezi Redis yapılandırması (`Redis:Host`, `Redis:Port`, `Redis:Password`), fail-open dayanıklılık stratejisi ve 35/35 tam başarılı uçtan uca `curl` test paketi ile doğrulanması.
-* [ ] Task 2.4: Outbox Pattern ve Identity Event Choreography
+* [x] Task 2.4: Outbox Pattern ve Identity Event Choreography
   * Dağıtık sistem tutarlılığı için Transactional Outbox Pattern uygulanması.
-  * UserRegisteredEvent fırlatılması (Tüketenler: Notification Service -> Hoş geldin e-postası, Ticket Economy -> 14 günlük balayı bilet kotası ve streak/XP profilini ilklendirme, Profile Service -> Başlangıç profil kaydı).
-  * UserMergedEvent fırlatılması (Tüketenler: User Library -> Misafir watchlist kayıtlarını hesaba aktarma, Ticket Economy -> Kalan biletleri aktarma, History & Analytics -> Telemetriyi bağlama).
-  * UserAccountDeletedEvent fırlatılması (Tüketenler: Profile, User Library, Ticket Economy, Notification -> Cihaz tokenlarını ve kişisel verileri temizleme).
+  * Identity Domain Event'lerinin (`UserRegisteredDomainEvent`, `UserMergedDomainEvent`, `UserAccountDeletedDomainEvent`) Bounded Context sınırlarını ihlal etmeden `ShuffleSeries.Shared.Core.Domain.Events` altındaki public Integration Event sözleşmelerine (`UserRegisteredEvent`, `UserMergedEvent`, `UserAccountDeletedEvent`) Anti-Corruption Layer (ACL) prensibiyle dönüştürülmesi.
+  * Outbox mesaj `Id` değerinin Integration Event `Id` alanına atanarak downstream consumer'lar için güvenli InBox Idempotency (deduplication) güvencesi sağlanması.
+  * Arka plan Quartz `ProcessOutboxMessagesJob` üzerinde poison message koruması (`MaxRetries = 3`), retry sayacı yönetimi ve `ProcessedOnUtc` takibi.
+  * `UserRegisteredEvent` fırlatılması (Tüketenler: Notification Service -> Hoş geldin e-postası, Ticket Economy -> 14 günlük balayı bilet kotası ve streak/XP profilini ilklendirme, Profile Service -> Başlangıç profil kaydı).
+  * `UserMergedEvent` fırlatılması (Tüketenler: User Library -> Misafir watchlist kayıtlarını hesaba aktarma, Ticket Economy -> Kalan biletleri ve streak/XP ilerlemesini aktarma, Profile -> Misafir platform/mood tercihlerini bağlama, History & Analytics -> Telemetriyi bağlama).
+  * `UserAccountDeletedEvent` fırlatılması (Tüketenler: Profile, User Library, Ticket Economy, Notification -> Cihaz tokenlarını ve kişisel verileri temizleme).
 
 # Milestone 3: Catalog Service (The Source of Truth)
 İçeriklerin (film, dizi, antoloji bölümleri), yayın platformlarının ve özgün ruh hali türlerinin CQRS ve Event-Driven prensiplerle inşası.
@@ -152,6 +155,7 @@ Kullanıcının uygulamadaki "kişiliğini" (platformları, his profili ve bildi
   * Outbox Pattern: Profil ve tercihler değiştiğinde RabbitMQ'ya ProfileUpdatedEvent atılarak Shuffle Engine'deki pre-computed önbelleğin temizlenmesi (Cache Invalidation).
   * InBox Consumer'ları:
     * UserRegisteredEvent dinlenerek başlangıç profil kaydı ve varsayılan bildirim ayarlarının oluşturulması.
+    * UserMergedEvent dinlenerek misafir oturumunda seçilen platform ve ruh hali (mood) tercihlerinin kalıcı hesaba aktarılması (Preferences Merge).
     * BadgeUnlockedEvent dinlenerek profil ekranındaki aktif ünvanın (örn: "Antoloji Avcısı") otomatik güncellenmesi.
     * UserAccountDeletedEvent dinlenerek kullanıcı profilinin kalıcı silinmesi/anonimleştirilmesi.
 
@@ -195,6 +199,7 @@ Kullanıcı tutundurma (retention), bilet ekonomisi (Boiling Frog), oyunlaştır
   * Outbox: Seviye atlandığında LevelUpEvent, rozet kazanıldığında BadgeUnlockedEvent fırlatılması (Tüketenler: Notification Service -> Tebrik bildirimi, Profile Service -> Ünvan güncelleme).
   * InBox Consumer'ları:
     * UserRegisteredEvent: Yeni kullanıcı için Streak=1 ve Level=1 başlangıç gamification kaydının açılması.
+    * UserMergedEvent: Misafir oturumundaki Streak (🔥) ve XP kazanımlarının kalıcı hesaba aktarılması.
     * UserAccountDeletedEvent: Rozet ve XP verilerinin silinmesi.
   * Günlük giriş ve swipe aksiyonlarında serinin artırılması, 24 saat işlem yapılmadığında serinin sıfırlanması kurgusu.
 * [ ] Task 8.3: Premium Abonelik & In-App Purchase (IAP) Mimarisi

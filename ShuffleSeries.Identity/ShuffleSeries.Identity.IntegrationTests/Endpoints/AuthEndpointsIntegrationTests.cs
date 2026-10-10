@@ -1,11 +1,14 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using ShuffleSeries.Identity.Api.Contracts.Requests;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Login;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.RefreshToken;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Register;
 using ShuffleSeries.Identity.Application.Models;
+using ShuffleSeries.Identity.Domain.Events;
 using ShuffleSeries.Identity.IntegrationTests.Infrastructure;
 
 namespace ShuffleSeries.Identity.IntegrationTests.Endpoints;
@@ -115,7 +118,7 @@ public class AuthEndpointsIntegrationTests : IdentityIntegrationTestBase
     }
 
     [Fact]
-    public async Task CreateGuestSession_ShouldReturnGuestToken_WithGuestClaims()
+    public async Task CreateGuestSession_ShouldReturnGuestToken_WithGuestClaims_AndPersistOutbox()
     {
         // Act
         var response = await Client.PostAsync("api/auth/guest", null);
@@ -127,6 +130,70 @@ public class AuthEndpointsIntegrationTests : IdentityIntegrationTestBase
         authResult!.IsGuest.Should().BeTrue();
         authResult.Roles.Should().Contain("Guest");
         authResult.Permissions.Should().Contain("shuffle:basic");
+
+        await ExecuteDbContextAsync(async context =>
+        {
+            var outboxMessages = await context.OutboxMessages
+                .Where(m => m.Type.Contains("UserRegisteredDomainEvent"))
+                .ToListAsync();
+
+            var guestOutbox = outboxMessages.FirstOrDefault(m => m.Content.Contains(authResult.UserId.ToString()));
+            guestOutbox.Should().NotBeNull();
+            var domainEvent = JsonSerializer.Deserialize<UserRegisteredDomainEvent>(guestOutbox!.Content);
+            domainEvent.Should().NotBeNull();
+            domainEvent!.IsGuest.Should().BeTrue();
+            domainEvent.UserId.Should().Be(authResult.UserId);
+        });
+    }
+
+    [Fact]
+    public async Task MergeGuest_WithValidPayload_ShouldReturn204_AndPersistUserMergedDomainEvent()
+    {
+        // Arrange 1: Create a guest session
+        var guestResponse = await Client.PostAsync("api/auth/guest", null);
+        guestResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var guestResult = await guestResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        guestResult.Should().NotBeNull();
+
+        // Arrange 2: Register a permanent user
+        var registerCommand = new RegisterCommand("permanentuser@shuffleseries.com", "Password123!");
+        var registerResponse = await Client.PostAsJsonAsync("api/auth/register", registerCommand);
+        registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var permanentResult = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        permanentResult.Should().NotBeNull();
+
+        // Act: Merge guest into permanent user using Bearer token
+        var mergeRequest = new HttpRequestMessage(HttpMethod.Post, "api/auth/merge-guest")
+        {
+            Content = JsonContent.Create(new MergeGuestRequest(guestResult!.UserId))
+        };
+        mergeRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", permanentResult!.AccessToken);
+        var mergeResponse = await Client.SendAsync(mergeRequest);
+
+        // Assert
+        mergeResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        await ExecuteDbContextAsync(async context =>
+        {
+            // Verify guest is soft-deleted
+            var guestInDb = await context.Users
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Id == guestResult.UserId);
+            guestInDb.Should().NotBeNull();
+            guestInDb!.IsDeleted.Should().BeTrue();
+
+            // Verify UserMergedDomainEvent outbox message is persisted
+            var outboxMessages = await context.OutboxMessages
+                .Where(m => m.Type.Contains("UserMergedDomainEvent"))
+                .ToListAsync();
+
+            var mergeOutbox = outboxMessages.FirstOrDefault(m => m.Content.Contains(guestResult.UserId.ToString()));
+            mergeOutbox.Should().NotBeNull();
+            var domainEvent = JsonSerializer.Deserialize<UserMergedDomainEvent>(mergeOutbox!.Content);
+            domainEvent.Should().NotBeNull();
+            domainEvent!.GuestUserId.Should().Be(guestResult.UserId);
+            domainEvent.TargetUserId.Should().Be(permanentResult.UserId);
+        });
     }
 
     [Fact]

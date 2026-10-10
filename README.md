@@ -272,6 +272,12 @@ flowchart TD
 - **Perimeter Defense at API Gateway Edge**: Token validation hook (`JwtBearerEvents.OnTokenValidated`) inspects the Redis blacklist directly at the gateway, returning RFC 7807 `401 Unauthorized` (`AUTH_TOKEN_REVOKED`) before malicious or stale requests can consume downstream microservice CPU, memory, or database connections.
 - **Fail-Open Resilience**: Redis connection degradation fails open with diagnostic warnings (`_logger.LogWarning`) to prevent complete system outages, balancing stringent security with 99.99% high availability.
 
+### 12. Transactional Outbox & Identity Event Choreography (`Shared.Core.Domain.Events` & `Identity.Infrastructure`)
+- **Dual-Write Prevention & Transactional Outbox**: All entity state mutations and event dispatches are committed within a single PostgreSQL ACID transaction via `InsertOutboxMessagesInterceptor`. A resilient Quartz background job (`ProcessOutboxMessagesJob`) polls and publishes integration events to RabbitMQ.
+- **Anti-Corruption Layer (ACL) Domain-to-Integration Translation**: Identity domain events (`UserRegisteredDomainEvent`, `UserMergedDomainEvent`, `UserAccountDeletedDomainEvent`) remain strictly private to the Identity Bounded Context and are translated into standardized public integration event contracts (`UserRegisteredEvent`, `UserMergedEvent`, `UserAccountDeletedEvent`) in `ShuffleSeries.Shared.Core.Domain.Events`.
+- **1-to-1 Outbox to InBox Idempotency Mapping**: The integration event's `Id` directly mirrors `outboxMessage.Id`, providing downstream consumers (`Notification`, `TicketEconomy`, `Profile`, `UserLibrary`, `History`) with deterministic deduplication keys against network duplicates.
+- **Poison Message Quarantine**: Configured with `MaxRetries = 3` and automated failure tracking to prevent corrupted payloads from halting background processing queues.
+
 ---
 
 ## 🚀 Getting Started & Testing
@@ -342,7 +348,7 @@ ShuffleSeries enforces a strict, multi-tiered testing strategy:
 - **Real Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`, `ShuffleSeries.Identity.IntegrationTests`, `ShuffleSeries.ApiGateway.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (PostgreSQL), and `Respawn` for lightning-fast sub-second table resets.
 
 ```bash
-# Run all 264 tests across the entire solution
+# Run all 358 tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)
@@ -385,13 +391,13 @@ The platform is fortified with an automated, multi-stage GitHub Actions pipeline
 ```mermaid
 flowchart LR
     A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
-    B --> C["🧪 Automated Tests\n(277 Tests + Real Testcontainers)"]
-    C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 100% Safe)"]
+    B --> C["🧪 Automated Tests\n(358 Tests + Real Testcontainers)"]
     D --> E["🐳 Docker Integrity Gate\n(Non-Root 'app' Containers)"]
+    C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 100% Safe)"]
 ```
 
 - **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
-- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **277 automated tests** (Unit, Architecture, and real PostgreSQL Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **358 automated tests** (Unit, Architecture, and real PostgreSQL Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
 - **SonarQube Quality Gate:** Validates **0 Bugs**, **0 Vulnerabilities**, **0 Code Smells**, and **100% Security Hotspots Reviewed**.
 - **Container Verification:** Validates Docker builds for microservices and API Gateway on every push and pull request, enforcing the non-root `USER app` security standard.
 
