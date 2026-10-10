@@ -4,6 +4,7 @@ using ShuffleSeries.Identity.Application.Models;
 using ShuffleSeries.Identity.Domain.Enums;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Application.Security;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.RefreshToken;
@@ -15,19 +16,22 @@ internal sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenC
     private readonly ITokenService _tokenService;
     private readonly IPermissionResolver _permissionResolver;
     private readonly TimeProvider _timeProvider;
+    private readonly ITokenBlacklistService? _blacklistService;
 
     public RefreshTokenCommandHandler(
         IUserRepository userRepository,
         IUnitOfWork unitOfWork,
         ITokenService tokenService,
         IPermissionResolver permissionResolver,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ITokenBlacklistService? blacklistService = null)
     {
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
         _tokenService = tokenService;
         _permissionResolver = permissionResolver;
         _timeProvider = timeProvider;
+        _blacklistService = blacklistService;
     }
 
     public async Task<TokenResponse> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
@@ -53,6 +57,12 @@ internal sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenC
         {
             user.RevokeAllRefreshTokens(revokedAtUtc: now);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            if (_blacklistService is not null)
+            {
+                await _blacklistService.BlacklistUserTokensAsync(user.Id, TimeSpan.FromHours(1), cancellationToken);
+            }
+
             throw new TokenCompromisedException();
         }
 

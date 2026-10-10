@@ -15,6 +15,7 @@ public class RefreshTokenCommandHandlerTests
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly Mock<ITokenService> _tokenServiceMock = new();
     private readonly Mock<IPermissionResolver> _permissionResolverMock = new();
+    private readonly Mock<ShuffleSeries.Shared.Core.Application.Security.ITokenBlacklistService> _blacklistServiceMock = new();
     private readonly TimeProvider _timeProvider = TimeProvider.System;
     private readonly RefreshTokenCommandHandler _handler;
 
@@ -25,11 +26,12 @@ public class RefreshTokenCommandHandlerTests
             _unitOfWorkMock.Object,
             _tokenServiceMock.Object,
             _permissionResolverMock.Object,
-            _timeProvider);
+            _timeProvider,
+            _blacklistServiceMock.Object);
     }
 
     [Fact]
-    public async Task Handle_WhenTokenIsRevoked_ShouldRevokeAllSessions_AndThrowUnauthorizedException()
+    public async Task Handle_WhenTokenIsRevoked_ShouldRevokeAllSessions_BlacklistInRedis_AndThrowUnauthorizedException()
     {
         // Arrange
         const string rawToken = "compromised_token";
@@ -50,6 +52,7 @@ public class RefreshTokenCommandHandlerTests
         var ex = await act.Should().ThrowAsync<TokenCompromisedException>();
         ex.Which.Code.Should().Be("TOKEN_REUSE_DETECTED");
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _blacklistServiceMock.Verify(b => b.BlacklistUserTokensAsync(user.Id, TimeSpan.FromHours(1), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

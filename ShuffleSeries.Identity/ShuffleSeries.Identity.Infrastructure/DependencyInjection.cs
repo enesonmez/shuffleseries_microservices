@@ -13,6 +13,7 @@ using ShuffleSeries.Identity.Infrastructure.Services;
 using ShuffleSeries.Identity.Infrastructure.Services.Social;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure;
+using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
 using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
 
@@ -23,6 +24,9 @@ public static class DependencyInjection
     public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddSharedInfrastructure();
+        services.AddSharedRedis(configuration);
+        services.AddSharedRedisHealthCheck();
+        services.AddSharedTokenBlacklist();
 
         services.AddDbContext<IdentityDbContext>((sp, options) =>
         {

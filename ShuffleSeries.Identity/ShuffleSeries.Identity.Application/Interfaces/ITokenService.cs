@@ -8,4 +8,5 @@ public interface ITokenService
     Task<TokenResponse> GenerateTokensAsync(User user, IReadOnlyList<string> roles, IReadOnlyList<string> permissions, CancellationToken cancellationToken = default);
     string HashToken(string rawToken);
     string GenerateRefreshToken();
+    (string? JwtId, DateTime? ExpiresAtUtc) ExtractTokenInfo(string accessToken);
 }

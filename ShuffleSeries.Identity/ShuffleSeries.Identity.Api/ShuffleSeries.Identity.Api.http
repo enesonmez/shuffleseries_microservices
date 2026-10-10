@@ -208,13 +208,15 @@ Content-Type: application/json
 # 8. TOKEN İPTALİ / ÇIKIŞ (REVOKE TOKEN)
 ###############################################################################
 
-### 🟢 8.1 Aktif Refresh Token'ı İptal Et (POST - Logout)
-# Beklenen Sonuç: 204 No Content
+### 🟢 8.1 Aktif Refresh & Access Token'ı İptal Et (POST - Logout & Redis Blacklist)
+# Beklenen Sonuç: 204 No Content (Refresh token DB'de iptal edilir, AccessToken jti Redis kara listesine eklenir)
 POST {{Identity_HostAddress}}/api/auth/revoke
 Content-Type: application/json
+Authorization: Bearer {{AccessToken}}
 
 {
-  "refreshToken": "{{RefreshToken}}"
+  "refreshToken": "{{RefreshToken}}",
+  "accessToken": "{{AccessToken}}"
 }
 
 ### 🔴 8.2 Sistemde Olmayan Token'ı İptal Etmeye Çalışma (POST - Not Found)
@@ -228,7 +230,7 @@ Content-Type: application/json
 
 
 ###############################################################################
-# 9. HESAP SİLME (GDPR / APPLE 5.1.1(v) SOFT DELETE)
+# 9. HESAP SİLME (GDPR / APPLE 5.1.1(v) SOFT DELETE & REDIS BLACKLIST)
 ###############################################################################
 
 ### 🔴 9.1 Hesap Silme: Token Olmadan Çağırma (DELETE - 401)
@@ -237,27 +239,34 @@ DELETE {{Identity_HostAddress}}/api/auth/account
 Accept: application/json
 
 ### 🟢 9.2 Kendi Hesabını Sil (DELETE - Bearer Token ile)
-# Beklenen Sonuç: 204 No Content (Hesap IsDeleted=true yapılır, UserAccountDeletedDomainEvent Outbox'a atılır)
+# Beklenen Sonuç: 204 No Content (Hesap IsDeleted=true yapılır, tüm oturumlar Redis'e blacklist eklenir, Outbox eventi atılır)
 DELETE {{Identity_HostAddress}}/api/auth/account
 Authorization: Bearer {{AccessToken}}
 
-### 🔴 9.3 Zaten Silinmiş Hesabı Tekrar Silmeye Çalışma (DELETE - Not Found)
-# Beklenen Sonuç: 404 Not Found -> code: "USER_NOT_FOUND"
+### 🔴 9.3 Zaten Silinmiş Hesabın Belirteciyle İstek Yapma (DELETE - 401 Revoked)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_TOKEN_REVOKED" (Kullanıcının belirteçleri Redis kara listesinde)
 DELETE {{Identity_HostAddress}}/api/auth/account
 Authorization: Bearer {{AccessToken}}
 
 
 ###############################################################################
-# 10. YARP API GATEWAY ÜZERİNDEN ROTER VE GÜVENLİK TESTİ
+# 10. YARP API GATEWAY ÜZERİNDEN ROTER VE REDIS TOKEN BLACKLIST GÜVENLİK TESTİ
 ###############################################################################
 
 ### 🔴 10.1 API Gateway Üzerinden /api/auth/me Çağrısı (Token Eksik - 401)
-# Beklenen Sonuç: 401 Unauthorized -> Gateway isteği Identity servisine iletir ve yanıtı döner.
+# Beklenen Sonuç: 401 Unauthorized -> Gateway isteği doğrular ve 401 AUTH_UNAUTHORIZED döner.
 GET {{Gateway_HostAddress}}/api/auth/me
 Accept: application/json
 
-### 🟢 10.2 API Gateway Üzerinden /api/auth/me Çağrısı (Bearer Token ile - 200 OK)
-# Beklenen Sonuç: 200 OK -> Gateway Bearer token'ı downstream Identity servisine aynen iletir.
+### 🟢 10.2 API Gateway Üzerinden /api/auth/me Çağrısı (Geçerli Bearer Token ile - 200 OK)
+# Beklenen Sonuç: 200 OK -> Gateway token doğrulaması ve Redis Blacklist kontrolünden geçer.
+GET {{Gateway_HostAddress}}/api/auth/me
+Authorization: Bearer {{AccessToken}}
+Accept: application/json
+
+### 🔴 10.3 API Gateway Üzerinden İptal Edilmiş (Revoked) Token ile Çağrı (401 AUTH_TOKEN_REVOKED)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_TOKEN_REVOKED", Title: "Token Revoked"
+# Açıklama: İptal edilen token Gateway seviyesinde OnTokenValidated hook'u ile Redis'ten yakalanır, downstream'e iletilmez!
 GET {{Gateway_HostAddress}}/api/auth/me
 Authorization: Bearer {{AccessToken}}
 Accept: application/json

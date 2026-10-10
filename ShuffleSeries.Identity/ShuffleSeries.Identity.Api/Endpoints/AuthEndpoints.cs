@@ -81,15 +81,29 @@ public static class AuthEndpoints
         // 4. POST: Revoke Token (logout)
         group.MapPost("/revoke", async (
                 [FromBody] RevokeTokenRequest request,
+                ClaimsPrincipal user,
+                HttpContext httpContext,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                var command = new RevokeTokenCommand(request.RefreshToken);
+                var accessToken = request.AccessToken;
+                if (string.IsNullOrWhiteSpace(accessToken) &&
+                    httpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
+                {
+                    var headerVal = authHeader.ToString();
+                    if (headerVal.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    {
+                        accessToken = headerVal["Bearer ".Length..].Trim();
+                    }
+                }
+
+                var jwtId = user.GetJwtId();
+                var command = new RevokeTokenCommand(request.RefreshToken, accessToken, jwtId);
                 await sender.Send(command, cancellationToken);
                 return Results.NoContent();
             })
             .WithName("RevokeToken")
-            .WithSummary("Revokes a refresh token")
+            .WithSummary("Revokes a refresh token and blacklists the active access token")
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound);

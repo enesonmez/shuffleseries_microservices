@@ -1,4 +1,6 @@
+using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
+using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Web.Authentication;
 using ShuffleSeries.Shared.Core.Web.Correlation;
 using ShuffleSeries.Shared.Core.Web.Cors;
@@ -26,6 +28,11 @@ builder.Services.AddSharedHealthChecks();
 
 // Add Centralized CORS Policy
 builder.Services.AddSharedCors(builder.Configuration);
+
+// Add Redis Connection, Health Check & Token Blacklist
+builder.Services.AddSharedRedis(builder.Configuration);
+builder.Services.AddSharedRedisHealthCheck();
+builder.Services.AddSharedTokenBlacklist();
 
 // Add JWT Authentication & Authorization Policies
 builder.Services.AddSharedJwtAuthentication(builder.Configuration);

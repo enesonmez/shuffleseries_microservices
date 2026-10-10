@@ -59,10 +59,13 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * POST /api/auth/social-login: Apple ve Google SSO (Tek Tıkla Giriş) ID token doğrulaması ve otomatik hesap eşleme.
   * POST /api/auth/merge-guest: Misafir oturumundaki verilerin (beğenilen/kaydedilen içerikler, kalan biletler ve swipe geçmişi) yeni oluşturulan veya giriş yapılan kalıcı hesaba aktarılması (Data Merge).
   * DELETE /api/auth/account: Kullanıcı hesabını ve tüm kişisel verilerini kalıcı olarak silme (Apple App Store Guideline 5.1.1(v) ve GDPR/KVKK yasal uyumluluk gereksinimi).
-* [ ] Task 2.3: Güvenlik ve Token Blacklist Mimarisi
-  * Sektörde kullanılan tüm JWT güvenlik mekanizmalarının oluşturulması.
-  * Revoke edilen (kullanımdan kalkan) token'lar için Redis üzerinde bir Blacklist tutulması.
-  * API Gateway JWT doğrularken bu Redis Blacklist'ini kontrol etmesinin (Security & Caching) sağlanması.
+* [x] Task 2.3: Güvenlik ve Token Blacklist Mimarisi
+  * Sektörde kullanılan tüm JWT güvenlik mekanizmalarının oluşturulması (`jti`, `iat`, `nbf`, `security_stamp`, katı `ClockSkew = TimeSpan.Zero` tolerans sıfırlaması - OWASP API4).
+  * Revoke edilen (kullanımdan kalkan) token'lar için Redis üzerinde yüksek performanslı iki kademeli Blacklist (`ITokenBlacklistService` & `RedisTokenBlacklistService`):
+    * Tekil token seviyesinde kalan TTL ömrüyle `blacklist:token:{jti}` kaydı.
+    * Hesap silme (`/account`) ve Token Reuse saldırılarında tüm oturumları anında geçersiz kılan `blacklist:user:{userId}` Unix zaman damgası kaydı.
+  * API Gateway seviyesinde `OnTokenValidated` hook'u ile Redis Blacklist sınır denetimi (Edge Enforcement) sağlanarak iptal edilmiş token'ların downstream mikroservislere ulaşmadan RFC 7807 `401 Unauthorized` (`AUTH_TOKEN_REVOKED`) ile kesilmesi.
+  * HashiCorp Vault üzerinden merkezi Redis yapılandırması (`Redis:Host`, `Redis:Port`, `Redis:Password`), fail-open dayanıklılık stratejisi ve 35/35 tam başarılı uçtan uca `curl` test paketi ile doğrulanması.
 * [ ] Task 2.4: Outbox Pattern ve Identity Event Choreography
   * Dağıtık sistem tutarlılığı için Transactional Outbox Pattern uygulanması.
   * UserRegisteredEvent fırlatılması (Tüketenler: Notification Service -> Hoş geldin e-postası, Ticket Economy -> 14 günlük balayı bilet kotası ve streak/XP profilini ilklendirme, Profile Service -> Başlangıç profil kaydı).

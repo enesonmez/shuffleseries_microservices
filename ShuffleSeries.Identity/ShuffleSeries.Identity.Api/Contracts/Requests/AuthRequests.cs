@@ -19,7 +19,7 @@ public sealed record RefreshTokenRequest(string RefreshToken);
 /// <summary>
 /// Request payload for revoking an active refresh token on logout.
 /// </summary>
-public sealed record RevokeTokenRequest(string RefreshToken);
+public sealed record RevokeTokenRequest(string RefreshToken, string? AccessToken = null);
 
 /// <summary>
 /// Request payload for Apple or Google Single Sign-On (SSO).

@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Application.Security;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.DeleteAccount;
@@ -21,11 +22,16 @@ internal sealed class DeleteAccountCommandHandler : IRequestHandler<DeleteAccoun
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ITokenBlacklistService? _blacklistService;
 
-    public DeleteAccountCommandHandler(IUserRepository userRepository, IUnitOfWork unitOfWork)
+    public DeleteAccountCommandHandler(
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
+        ITokenBlacklistService? blacklistService = null)
     {
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
+        _blacklistService = blacklistService;
     }
 
     public async Task<bool> Handle(DeleteAccountCommand request, CancellationToken cancellationToken)
@@ -38,6 +44,11 @@ internal sealed class DeleteAccountCommandHandler : IRequestHandler<DeleteAccoun
 
         user.DeleteAccount();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (_blacklistService is not null)
+        {
+            await _blacklistService.BlacklistUserTokensAsync(user.Id, TimeSpan.FromHours(1), cancellationToken);
+        }
 
         return true;
     }

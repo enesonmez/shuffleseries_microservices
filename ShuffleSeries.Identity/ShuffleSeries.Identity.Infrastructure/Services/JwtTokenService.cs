@@ -36,11 +36,15 @@ internal sealed class JwtTokenService : ITokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var nowUtc = _timeProvider.GetUtcNow().UtcDateTime;
+        var nowUnixSeconds = _timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString();
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+            new(JwtRegisteredClaimNames.Iat, nowUnixSeconds),
             new("is_guest", user.IsGuest.ToString().ToLowerInvariant()),
             new("security_stamp", user.SecurityStamp)
         };
@@ -61,6 +65,7 @@ internal sealed class JwtTokenService : ITokenService
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),
+            IssuedAt = nowUtc,
             Expires = expiresAt,
             Issuer = issuer,
             Audience = audience,
@@ -96,5 +101,28 @@ internal sealed class JwtTokenService : ITokenService
         var bytes = Encoding.UTF8.GetBytes(rawToken);
         var hash = SHA256.HashData(bytes);
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    public (string? JwtId, DateTime? ExpiresAtUtc) ExtractTokenInfo(string accessToken)
+    {
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return (null, null);
+        }
+
+        try
+        {
+            if (_tokenHandler.CanReadToken(accessToken))
+            {
+                var jwt = _tokenHandler.ReadJwtToken(accessToken);
+                return (jwt.Id, jwt.ValidTo);
+            }
+        }
+        catch
+        {
+            // Invalid token format
+        }
+
+        return (null, null);
     }
 }
