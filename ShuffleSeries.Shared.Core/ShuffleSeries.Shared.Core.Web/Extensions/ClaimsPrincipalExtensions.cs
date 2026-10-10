@@ -47,4 +47,20 @@ public static class ClaimsPrincipalExtensions
     public static bool HasPermission(this ClaimsPrincipal principal, string permission) =>
         principal.FindAll("permissions")
             .Any(c => c.Value.Equals(permission, StringComparison.OrdinalIgnoreCase));
+
+    public static string? GetJwtId(this ClaimsPrincipal principal) =>
+        principal.FindFirst("jti")?.Value
+        ?? principal.FindFirst(ClaimTypes.SerialNumber)?.Value;
+
+    public static DateTime? GetIssuedAtUtc(this ClaimsPrincipal principal)
+    {
+        var iatValue = principal.FindFirst("iat")?.Value;
+        if (long.TryParse(iatValue, out var iatSeconds))
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(iatSeconds).UtcDateTime;
+        }
+
+        return null;
+    }
 }
+

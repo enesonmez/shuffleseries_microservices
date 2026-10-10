@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using ShuffleSeries.Shared.Core.Application.Security;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Authorization;
 using ShuffleSeries.Shared.Core.Web.Correlation;
+using ShuffleSeries.Shared.Core.Web.Extensions;
 
 namespace ShuffleSeries.Shared.Core.Web.Authentication;
 
@@ -38,11 +40,29 @@ public static class AuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
-                    OnTokenValidated = context =>
+                    OnTokenValidated = async context =>
                     {
-                        // TODO: (Task 2.3) Burada Redis üzerinden Token Blacklist kontrolü yapılacak.
-                        // Eğer token (jti) blacklist'te (Revoked) ise: context.Fail("Token is revoked.");
-                        return Task.CompletedTask;
+                        var blacklistService = context.HttpContext.RequestServices.GetService<ITokenBlacklistService>();
+                        if (blacklistService is not null && context.Principal is not null)
+                        {
+                            var jti = context.Principal.GetJwtId();
+                            if (!string.IsNullOrEmpty(jti) && await blacklistService.IsTokenBlacklistedAsync(jti, context.HttpContext.RequestAborted))
+                            {
+                                context.HttpContext.Items["IsRevoked"] = true;
+                                context.Fail("Token has been revoked.");
+                                return;
+                            }
+
+                            var userId = context.Principal.TryGetUserId();
+                            var issuedAtUtc = context.Principal.GetIssuedAtUtc();
+                            if (userId.HasValue && issuedAtUtc.HasValue &&
+                                await blacklistService.IsUserBlacklistedAsync(userId.Value, issuedAtUtc.Value, context.HttpContext.RequestAborted))
+                            {
+                                context.HttpContext.Items["IsRevoked"] = true;
+                                context.Fail("User session has been revoked.");
+                                return;
+                            }
+                        }
                     },
                     OnChallenge = async context =>
                     {
@@ -60,16 +80,25 @@ public static class AuthenticationExtensions
                         var correlationContext = context.HttpContext.RequestServices.GetService<ICorrelationIdContext>();
                         var correlationId = correlationContext?.CorrelationId;
 
+                        var isRevoked = context.HttpContext.Items.ContainsKey("IsRevoked")
+                                        || context.AuthenticateFailure?.Message?.Contains("revoked", StringComparison.OrdinalIgnoreCase) == true
+                                        || context.ErrorDescription?.Contains("revoked", StringComparison.OrdinalIgnoreCase) == true;
+
+                        var errorCode = isRevoked ? "AUTH_TOKEN_REVOKED" : "AUTH_UNAUTHORIZED";
+                        var detail = isRevoked
+                            ? "Sunulan kimlik doğrulama belirteci iptal edilmiştir (Revoked/Blacklisted)."
+                            : "Kimlik doğrulaması başarısız oldu. Geçerli bir Bearer token gereklidir.";
+
                         var problemDetails = new ProblemDetails
                         {
                             Status = StatusCodes.Status401Unauthorized,
                             Type = "https://tools.ietf.org/html/rfc7235#section-3.1",
-                            Title = "Unauthorized",
-                            Detail = "Kimlik doğrulaması başarısız oldu. Geçerli bir Bearer token gereklidir.",
+                            Title = isRevoked ? "Token Revoked" : "Unauthorized",
+                            Detail = detail,
                             Instance = context.Request.Path
                         };
 
-                        problemDetails.Extensions["code"] = "AUTH_UNAUTHORIZED";
+                        problemDetails.Extensions["code"] = errorCode;
                         problemDetails.Extensions["traceId"] = traceId;
                         if (!string.IsNullOrWhiteSpace(correlationId))
                         {

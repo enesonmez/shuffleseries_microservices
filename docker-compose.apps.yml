@@ -52,12 +52,17 @@ services:
       - MessageBroker__Host=rabbitmq
       - MessageBroker__Username=${RABBITMQ_USER:-guest_123}
       - MessageBroker__Password=${RABBITMQ_PASSWORD:-guest_123}
+      - Redis__Host=redis
+      - Redis__Port=6379
+      - Redis__Password=${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!}
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
       vault:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       shuffle_network:
@@ -81,6 +86,9 @@ services:
       - Vault__Token=${VAULT_ROOT_TOKEN:-root}
       - Vault__MountPoint=secret
       - Vault__Optional=true
+      - Redis__Host=redis
+      - Redis__Port=6379
+      - Redis__Password=${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!}
       - ReverseProxy__Clusters__catalog-cluster__Destinations__destination1__Address=http://catalog.api:8080
       - ReverseProxy__Clusters__identity-cluster__Destinations__destination1__Address=http://identity.api:8080
     depends_on:
@@ -89,6 +97,8 @@ services:
       identity-api:
         condition: service_started
       vault:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       shuffle_network:

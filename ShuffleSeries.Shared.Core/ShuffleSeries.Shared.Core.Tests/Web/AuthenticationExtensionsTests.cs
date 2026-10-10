@@ -53,4 +53,36 @@ public class AuthenticationExtensionsTests
         // Assert
         act.Should().Throw<ArgumentNullException>().WithMessage("*Jwt:Secret*");
     }
+
+    [Fact]
+    public void AddSharedJwtAuthentication_ShouldEnforceZeroClockSkew_AndRegisterSecurityEvents()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var inMemorySettings = new Dictionary<string, string?> {
+            {"Jwt:Secret", "this_is_a_very_secret_key_that_is_long_enough"},
+            {"Jwt:Issuer", "TestIssuer"},
+            {"Jwt:Audience", "TestAudience"}
+        };
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        // Act
+        services.AddSharedJwtAuthentication(configuration);
+        var serviceProvider = services.BuildServiceProvider();
+
+        // Assert
+        var jwtOptions = serviceProvider.GetRequiredService<IOptionsMonitor<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions>>()
+            .Get(Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme);
+
+        jwtOptions.TokenValidationParameters.ClockSkew.Should().Be(TimeSpan.Zero);
+        jwtOptions.TokenValidationParameters.ValidateIssuerSigningKey.Should().BeTrue();
+        jwtOptions.TokenValidationParameters.ValidateIssuer.Should().BeTrue();
+        jwtOptions.TokenValidationParameters.ValidateAudience.Should().BeTrue();
+        jwtOptions.TokenValidationParameters.ValidateLifetime.Should().BeTrue();
+        jwtOptions.Events.Should().NotBeNull();
+        jwtOptions.Events.OnTokenValidated.Should().NotBeNull();
+        jwtOptions.Events.OnChallenge.Should().NotBeNull();
+    }
 }

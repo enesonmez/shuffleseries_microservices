@@ -36,7 +36,9 @@ flowchart TD
     RabbitMQ -->|"Subscribe (InBox)"| History
     RabbitMQ -->|"Subscribe (InBox)"| Notification
 
-    Shuffle -->|"In-Memory Cache & Sets"| Redis[("⚡ Redis Cache")]
+    Shuffle -->|"In-Memory Cache & Sets"| Redis[("⚡ Redis (Cache & Token Blacklist)")]
+    Gateway -->|"Verify Token Blacklist (Edge)"| Redis
+    Identity -->|"Write Revoked Tokens & Timestamps"| Redis
     Catalog -->|"Read/Write"| PostgresCatalog[("🐘 PostgreSQL (Catalog)")]
     Library -->|"Read/Write"| PostgresLibrary[("🐘 PostgreSQL (Library)")]
     Profile -->|"Read/Write"| PostgresProfile[("🐘 PostgreSQL (Profile)")]
@@ -45,7 +47,9 @@ flowchart TD
     Notification -->|"APNs & FCM"| PushGateway["📲 Mobile Push Services"]
     Vault[("🔐 HashiCorp Vault\n(Secret Management & KV v2)")]
 
-    SharedCore["🧱 ShuffleSeries.Shared.Core\n(Domain Primitives, Vault Configuration Provider, Soft Delete, ProblemDetails)"] -.-> Catalog
+    SharedCore["🧱 ShuffleSeries.Shared.Core\n(Domain Primitives, Vault Configuration Provider, Soft Delete, Token Blacklist, ProblemDetails)"] -.-> Catalog
+    SharedCore -.-> Identity
+    SharedCore -.-> Gateway
     SharedCore -.-> Shuffle
     SharedCore -.-> Search
     SharedCore -.-> Profile
@@ -56,6 +60,7 @@ flowchart TD
 
     Vault -.->|"Inject Secrets at Bootstrap"| Catalog
     Vault -.->|"Inject Secrets at Bootstrap"| Identity
+    Vault -.->|"Inject Secrets at Bootstrap"| Gateway
     Vault -.->|"Inject Secrets at Bootstrap"| Shuffle
 ```
 
@@ -258,6 +263,14 @@ flowchart TD
 - **OWASP API4 Refresh Token Rotation (RTR) & Reuse Detection**: Single-use, cryptographically secure refresh tokens stored as SHA-256 hashes. Presentation of an already revoked token triggers automated **Token Family Invalidation**, terminating all active user sessions immediately.
 - **Dedicated External SSO Linking (`UserLogins`)**: Supports Apple & Google SSO without polluting core user profiles. Retains Apple refresh tokens to support automated provider revocation during account deletion per Apple App Store Guideline 5.1.1(v) and GDPR.
 - **Frictionless Guest Sessions & Data Merge**: Instant anonymous session creation (`POST /api/auth/guest`) issuing a guest JWT and initial tickets; upon registration, merges guest history, tickets, and watchlist via `POST /api/auth/merge-guest` and triggers `UserMergedDomainEvent`.
+
+### 11. High-Performance Redis Token Blacklist & Edge Enforcement (`Shared.Core` & `ApiGateway`)
+- **Two-Tier Revocation Strategy (OWASP API4)**:
+  - **Single Token Revocation (`blacklist:token:{jti}`)**: Clean logouts (`POST /api/auth/revoke`) write the token's unique ID (`jti`) to Redis with TTL equal to the token's remaining lifetime (`exp - now`). Expired keys are automatically purged by Redis with zero memory leaks.
+  - **Bulk User Revocation (`blacklist:user:{userId}`)**: Account deletion (`DELETE /api/auth/account`) and token reuse attacks store the current Unix timestamp in Redis. Any token presented with `iat <= user.revokedAt` is immediately rejected, invalidating all devices in a single O(1) Redis write.
+- **Zero Clock Skew Enforcement**: Eliminates the default 5-minute ASP.NET Core tolerance (`ClockSkew = TimeSpan.Zero`), preventing revoked or expired tokens from being honored past their exact expiration.
+- **Perimeter Defense at API Gateway Edge**: Token validation hook (`JwtBearerEvents.OnTokenValidated`) inspects the Redis blacklist directly at the gateway, returning RFC 7807 `401 Unauthorized` (`AUTH_TOKEN_REVOKED`) before malicious or stale requests can consume downstream microservice CPU, memory, or database connections.
+- **Fail-Open Resilience**: Redis connection degradation fails open with diagnostic warnings (`_logger.LogWarning`) to prevent complete system outages, balancing stringent security with 99.99% high availability.
 
 ---
 
