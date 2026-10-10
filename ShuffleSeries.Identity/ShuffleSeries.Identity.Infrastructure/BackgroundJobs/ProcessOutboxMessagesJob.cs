@@ -94,12 +94,6 @@ public sealed class ProcessOutboxMessagesJob : IJob
                         e.IsGuest,
                         outboxMessage.OccurredOnUtc),
 
-                    UserMergedDomainEvent e => new UserMergedEvent(
-                        outboxMessage.Id,
-                        e.TargetUserId,
-                        e.GuestUserId,
-                        outboxMessage.OccurredOnUtc),
-
                     UserAccountDeletedDomainEvent e => new UserAccountDeletedEvent(
                         outboxMessage.Id,
                         e.UserId,

@@ -175,20 +175,27 @@ public class UserTests
     }
 
     [Fact]
-    public void MergeGuest_ShouldRaiseUserMergedDomainEvent()
+    public void ConvertFromGuest_ShouldUpgradeUser_AndRaiseUserRegisteredDomainEvent()
     {
         // Arrange
-        var targetUser = User.CreateStandard("target@test.com", "hash");
-        targetUser.ClearDomainEvents();
-        var guestUserId = Guid.NewGuid();
+        var user = User.CreateGuest();
+        user.ClearDomainEvents();
+        user.AddRefreshToken("guest-token-hash", DateTime.UtcNow.AddDays(7));
 
         // Act
-        targetUser.MergeGuest(guestUserId);
+        user.ConvertFromGuest("converted@test.com", "new-password-hash");
 
         // Assert
-        var domainEvents = targetUser.GetDomainEvents();
+        user.IsGuest.Should().BeFalse();
+        user.Status.Should().Be(ShuffleSeries.Identity.Domain.Enums.UserStatus.Active);
+        user.Email.Should().Be("converted@test.com");
+        user.NormalizedEmail.Should().Be("CONVERTED@TEST.COM");
+        user.PasswordHash.Should().Be("new-password-hash");
+        user.RefreshTokens.Should().AllSatisfy(rt => rt.IsRevoked.Should().BeTrue());
+
+        var domainEvents = user.GetDomainEvents();
         domainEvents.Should().ContainSingle()
-            .Which.Should().BeOfType<UserMergedDomainEvent>()
-            .Which.Should().Match<UserMergedDomainEvent>(e => e.TargetUserId == targetUser.Id && e.GuestUserId == guestUserId);
+            .Which.Should().BeOfType<UserRegisteredDomainEvent>()
+            .Which.Should().Match<UserRegisteredDomainEvent>(e => e.UserId == user.Id && e.Email == "converted@test.com" && !e.IsGuest);
     }
 }

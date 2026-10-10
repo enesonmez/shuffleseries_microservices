@@ -31,8 +31,6 @@ internal sealed class UserRepository : IUserRepository
             .AsSplitQuery()
             .Include(u => u.UserRoles)
             .Include(u => u.UserPermissions)
-            .Include(u => u.UserLogins)
-            .Include(u => u.RefreshTokens)
             .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)

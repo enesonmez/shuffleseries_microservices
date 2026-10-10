@@ -2,17 +2,17 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Identity.Api.Contracts.Requests;
+using ShuffleSeries.Identity.Application.Features.Auth.Commands.ChangePassword;
+using ShuffleSeries.Identity.Application.Features.Auth.Commands.ConvertGuest;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.CreateGuestSession;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.DeleteAccount;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Login;
-using ShuffleSeries.Identity.Application.Features.Auth.Commands.MergeGuestAccount;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.RefreshToken;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Register;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.RevokeToken;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.SocialLogin;
 using ShuffleSeries.Identity.Application.Features.Auth.Queries.GetCurrentUser;
 using ShuffleSeries.Identity.Application.Models;
-using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Shared.Core.Web.Extensions;
 
 namespace ShuffleSeries.Identity.Api.Endpoints;
@@ -140,30 +140,46 @@ public static class AuthEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-        // 7. POST: Merge Guest Account
-        group.MapPost("/merge-guest", async (
-                [FromBody] MergeGuestRequest request,
+        // 7. POST: Convert Guest Account to Permanent Account (In-Place Elevation)
+        group.MapPost("/convert-guest", async (
+                [FromBody] ConvertGuestRequest request,
+                ClaimsPrincipal user,
+                HttpContext httpContext,
+                ISender sender,
+                CancellationToken cancellationToken) =>
+            {
+                var ip = GetClientIp(httpContext);
+                var command = new ConvertGuestCommand(user.GetUserId(), request.Email, request.Password, ip);
+                var response = await sender.Send(command, cancellationToken);
+                return Results.Ok(response);
+            })
+            .WithName("ConvertGuest")
+            .WithSummary("Converts an active guest session to a permanent account preserving existing UserId")
+            .RequireAuthorization()
+            .Produces<AuthResponse>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
+        // 8. POST: Change Password
+        group.MapPost("/change-password", async (
+                [FromBody] ChangePasswordRequest request,
                 ClaimsPrincipal user,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
-                var targetUserId = user.TryGetUserId() ?? request.TargetUserId ?? Guid.Empty;
-                if (user.TryGetUserId() is { } authenticatedUserId && request.TargetUserId is not null && request.TargetUserId != Guid.Empty && request.TargetUserId != authenticatedUserId)
-                {
-                    throw new CannotMergeIntoDifferentUserException();
-                }
-
-                var command = new MergeGuestAccountCommand(request.GuestUserId, targetUserId);
+                var command = new ChangePasswordCommand(user.GetUserId(), request.CurrentPassword, request.NewPassword);
                 await sender.Send(command, cancellationToken);
                 return Results.NoContent();
             })
-            .WithName("MergeGuestAccount")
-            .WithSummary("Merges guest telemetry, watchlist, and tickets into permanent account")
+            .WithName("ChangePassword")
+            .WithSummary("Changes the password for the current authenticated user and revokes active sessions")
+            .RequireAuthorization()
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-        // 8. GET: Get current user profile & effective permissions
+        // 9. GET: Get current user profile & effective permissions
         group.MapGet("/me", async (
                 ClaimsPrincipal user,
                 ISender sender,
@@ -178,7 +194,7 @@ public static class AuthEndpoints
             .Produces<CurrentUserResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-        // 9. DELETE: Delete User Account (GDPR / Apple Guideline 5.1.1(v))
+        // 10. DELETE: Delete User Account (GDPR / Apple Guideline 5.1.1(v))
         group.MapDelete("/account", async (
                 ClaimsPrincipal user,
                 ISender sender,

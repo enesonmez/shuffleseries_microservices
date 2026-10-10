@@ -57,7 +57,8 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * POST /api/auth/revoke: Kullanıcı çıkış yaptığında token'ın geçersiz kılınması.
   * POST /api/auth/guest: Misafir kullanıcı oturumu oluşturma (Anonim session ID, Guest JWT ve başlangıç 3 bilet hakkı ile sıfır sürtünmeli başlatma).
   * POST /api/auth/social-login: Apple ve Google SSO (Tek Tıkla Giriş) ID token doğrulaması ve otomatik hesap eşleme.
-  * POST /api/auth/merge-guest: Misafir oturumundaki verilerin (beğenilen/kaydedilen içerikler, kalan biletler ve swipe geçmişi) yeni oluşturulan veya giriş yapılan kalıcı hesaba aktarılması (Data Merge).
+  * POST /api/auth/convert-guest: Misafir oturumunun aynı UserId ile yerinde kalıcı hesaba dönüştürülmesi (In-Place Elevation).
+  * POST /api/auth/change-password: Yetkilendirilmiş kullanıcının parolasını güncellemesi ve aktif oturumları yenilemesi.
   * DELETE /api/auth/account: Kullanıcı hesabını ve tüm kişisel verilerini kalıcı olarak silme (Apple App Store Guideline 5.1.1(v) ve GDPR/KVKK yasal uyumluluk gereksinimi).
 * [x] Task 2.3: Güvenlik ve Token Blacklist Mimarisi
   * Sektörde kullanılan tüm JWT güvenlik mekanizmalarının oluşturulması (`jti`, `iat`, `nbf`, `security_stamp`, katı `ClockSkew = TimeSpan.Zero` tolerans sıfırlaması - OWASP API4).
@@ -68,12 +69,19 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * HashiCorp Vault üzerinden merkezi Redis yapılandırması (`Redis:Host`, `Redis:Port`, `Redis:Password`), fail-open dayanıklılık stratejisi ve 35/35 tam başarılı uçtan uca `curl` test paketi ile doğrulanması.
 * [x] Task 2.4: Outbox Pattern ve Identity Event Choreography
   * Dağıtık sistem tutarlılığı için Transactional Outbox Pattern uygulanması.
-  * Identity Domain Event'lerinin (`UserRegisteredDomainEvent`, `UserMergedDomainEvent`, `UserAccountDeletedDomainEvent`) Bounded Context sınırlarını ihlal etmeden `ShuffleSeries.Shared.Core.Domain.Events` altındaki public Integration Event sözleşmelerine (`UserRegisteredEvent`, `UserMergedEvent`, `UserAccountDeletedEvent`) Anti-Corruption Layer (ACL) prensibiyle dönüştürülmesi.
+  * Identity Domain Event'lerinin (`UserRegisteredDomainEvent`, `UserAccountDeletedDomainEvent`) Bounded Context sınırlarını ihlal etmeden `ShuffleSeries.Shared.Core.Domain.Events` altındaki public Integration Event sözleşmelerine (`UserRegisteredEvent`, `UserAccountDeletedEvent`) Anti-Corruption Layer (ACL) prensibiyle dönüştürülmesi.
   * Outbox mesaj `Id` değerinin Integration Event `Id` alanına atanarak downstream consumer'lar için güvenli InBox Idempotency (deduplication) güvencesi sağlanması.
   * Arka plan Quartz `ProcessOutboxMessagesJob` üzerinde poison message koruması (`MaxRetries = 3`), retry sayacı yönetimi ve `ProcessedOnUtc` takibi.
   * `UserRegisteredEvent` fırlatılması (Tüketenler: Notification Service -> Hoş geldin e-postası, Ticket Economy -> 14 günlük balayı bilet kotası ve streak/XP profilini ilklendirme, Profile Service -> Başlangıç profil kaydı).
-  * `UserMergedEvent` fırlatılması (Tüketenler: User Library -> Misafir watchlist kayıtlarını hesaba aktarma, Ticket Economy -> Kalan biletleri ve streak/XP ilerlemesini aktarma, Profile -> Misafir platform/mood tercihlerini bağlama, History & Analytics -> Telemetriyi bağlama).
   * `UserAccountDeletedEvent` fırlatılması (Tüketenler: Profile, User Library, Ticket Economy, Notification -> Cihaz tokenlarını ve kişisel verileri temizleme).
+* [x] Task 2.5: Identity Sıkılaştırma (Hardening), ConvertFromGuest Mimarisi ve Üretim Hazırlığı
+  * MergeGuestAccount ve UserMergedEvent mimarisinin tamamen kaldırılarak, sektör standardı sürtünmesiz ConvertFromGuest (In-Place Elevation) mimarisine geçilmesi (UserId korunarak veritabanında yerinde dönüşüm, dağıtık mikroservislerde veri taşıma ihtiyacının sıfırlanması).
+  * POST /api/auth/convert-guest: Misafir oturumunun aynı UserId ile kalıcı e-posta/şifre hesabına dönüştürülmesi ve UserRegisteredEvent fırlatılması.
+  * POST /api/auth/change-password: Mevcut şifre doğrulaması, yeni şifre PBKDF2 hashleme ve oturumların iptali ile şifre güncelleme desteği.
+  * Sosyal Giriş Güvenlik Sıkılaştırması: BaseJwtSocialAuthProvider içinde email_verified claim denetimi ile Pre-Account Takeover koruması.
+  * Zamanlama Saldırısı Koruması: LoginCommandHandler içinde kullanıcı bulunamadığında sahte hash (DummyHash) ile sabit zamanlı (constant-time) yanıt eşitliği.
+  * API Gateway Güvenlik Altyapısı: Program.cs içinde UseForwardedHeaders middleware'i ile reverse proxy arkasında gerçek istemci IP çözümlemesi.
+  * Performans & Bellek Optimizasyonu: UserRepository içinde gereksiz RefreshTokens yüklemelerinin arındırılması ve süresi 30 günden eski/iptal edilmiş token'lar için periyodik PurgeExpiredRefreshTokensJob arka plan işi.
 
 # Milestone 3: Catalog Service (The Source of Truth)
 İçeriklerin (film, dizi, antoloji bölümleri), yayın platformlarının ve özgün ruh hali türlerinin CQRS ve Event-Driven prensiplerle inşası.
@@ -155,7 +163,6 @@ Kullanıcının uygulamadaki "kişiliğini" (platformları, his profili ve bildi
   * Outbox Pattern: Profil ve tercihler değiştiğinde RabbitMQ'ya ProfileUpdatedEvent atılarak Shuffle Engine'deki pre-computed önbelleğin temizlenmesi (Cache Invalidation).
   * InBox Consumer'ları:
     * UserRegisteredEvent dinlenerek başlangıç profil kaydı ve varsayılan bildirim ayarlarının oluşturulması.
-    * UserMergedEvent dinlenerek misafir oturumunda seçilen platform ve ruh hali (mood) tercihlerinin kalıcı hesaba aktarılması (Preferences Merge).
     * BadgeUnlockedEvent dinlenerek profil ekranındaki aktif ünvanın (örn: "Antoloji Avcısı") otomatik güncellenmesi.
     * UserAccountDeletedEvent dinlenerek kullanıcı profilinin kalıcı silinmesi/anonimleştirilmesi.
 
@@ -175,7 +182,6 @@ Kullanıcıların "İzleyeceklerim" ve "İzlediklerim" arşivlerini, alt kategor
     * MediaWatchedEvent: İçerik izlendiğinde fırlatılır (Tüketenler: History & Analytics -> İzleme geçmişi zaman çizgisi).
     * MediaRatedEvent: İçerik puanlandığında fırlatılır (Tüketenler: Ticket Economy -> Her 3 oylamada +3 bilet tanımlama, History & Analytics -> Öneri modeli besleme).
   * InBox Consumer'ları:
-    * UserMergedEvent: Misafir kullanıcının geçici watchlist kayıtlarının yeni oluşturulan hesaba aktarılması (Data Merge).
     * UserAccountDeletedEvent: Kullanıcı hesabını sildiğinde kütüphane verilerinin kalıcı olarak temizlenmesi.
   * Shuffle Engine için gRPC Uç Noktası: "Listemden Shuffle" özelliği için kullanıcının watchlist ID listesini ultra-hızlı dönen gRPC metodunun sunulması.
 
@@ -188,7 +194,6 @@ Kullanıcı tutundurma (retention), bilet ekonomisi (Boiling Frog), oyunlaştır
     * UserRegisteredEvent: Yeni kullanıcıya 14 günlük balayı sınırsız bilet hakkı tanımlanması.
     * ShuffleSwipedEvent: Sola kaydırma (Pas) eyleminde bilet bakiyesinden 1 adet düşülmesi.
     * MediaRatedEvent: Her 3 içerik puanlandığında kullanıcıya otomatik "+3 Bilet Ödülü" tanımlanması.
-    * UserMergedEvent: Misafir oturumundaki biletlerin kalıcı hesaba aktarılması.
     * UserAccountDeletedEvent: Kullanıcıya ait bilet verilerinin silinmesi.
   * Outbox: Bilet tükendiğinde TicketBalanceExhaustedEvent fırlatılması (Kıtlık kancası tetikleyici).
   * Arka Plan İşi (Worker): 14 günlük balayı dönemi takibi, sonrasında günlük 15 ücretsiz bilet tanımlama ve her gece yarısı kota yenilemesi.
@@ -199,7 +204,6 @@ Kullanıcı tutundurma (retention), bilet ekonomisi (Boiling Frog), oyunlaştır
   * Outbox: Seviye atlandığında LevelUpEvent, rozet kazanıldığında BadgeUnlockedEvent fırlatılması (Tüketenler: Notification Service -> Tebrik bildirimi, Profile Service -> Ünvan güncelleme).
   * InBox Consumer'ları:
     * UserRegisteredEvent: Yeni kullanıcı için Streak=1 ve Level=1 başlangıç gamification kaydının açılması.
-    * UserMergedEvent: Misafir oturumundaki Streak (🔥) ve XP kazanımlarının kalıcı hesaba aktarılması.
     * UserAccountDeletedEvent: Rozet ve XP verilerinin silinmesi.
   * Günlük giriş ve swipe aksiyonlarında serinin artırılması, 24 saat işlem yapılmadığında serinin sıfırlanması kurgusu.
 * [ ] Task 8.3: Premium Abonelik & In-App Purchase (IAP) Mimarisi
@@ -228,7 +232,6 @@ Kullanıcı telemetrisi ve mobil cihazlarla etkileşim/tutundurma bildirimleri.
     * ShuffleSwipedEvent: Sola/sağa kaydırma telemetrisi ve kartta kalma süresinin kaydedilmesi.
     * MediaAddedToWatchlistEvent ve MediaWatchedEvent: Kullanıcı dönüşüm ve izleme geçmişi zaman çizelgesinin oluşturulması.
     * MediaRatedEvent: 3 durumlu puanlama verisinin yapay zeka öneri modelini beslemek üzere işlenmesi.
-    * UserMergedEvent: Misafir oturumundaki telemetri verilerinin kalıcı hesap ile eşleştirilmesi.
     * UserSubscribedEvent: Premium dönüşüm metriklerinin analitik veri tabanına işlenmesi.
     * UserAccountDeletedEvent: Kullanıcı telemetrisinin KVKK/GDPR "unutulma hakkı" uyarınca anonimleştirilmesi.
   * MongoDB'de telemetri ve analitik verilerinin UserId'ye (Shard Key) göre Sharding kurgusu ile yatayda ölçeklenebilir dağıtılması.

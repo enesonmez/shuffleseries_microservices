@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.Extensions.Options;
 using Moq;
 using ShuffleSeries.Identity.Application.Interfaces;
@@ -106,5 +108,52 @@ public class SocialAuthProviderTests
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GoogleAuthProvider_WhenJwtHasEmailVerifiedFalse_ReturnsNull()
+    {
+        // Arrange
+        var provider = new GoogleAuthProvider(_httpClient, _options);
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateJwtSecurityToken(
+            subject: new ClaimsIdentity(
+            [
+                new Claim("sub", "google_unverified_1"),
+                new Claim("email", "unverified@gmail.com"),
+                new Claim("email_verified", "false")
+            ]));
+        var jwtString = tokenHandler.WriteToken(token);
+
+        // Act
+        var result = await provider.ValidateTokenAsync(jwtString);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GoogleAuthProvider_WhenJwtHasEmailVerifiedTrue_ReturnsValidPrincipal()
+    {
+        // Arrange
+        var provider = new GoogleAuthProvider(_httpClient, _options);
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateJwtSecurityToken(
+            subject: new ClaimsIdentity(
+            [
+                new Claim("sub", "google_verified_1"),
+                new Claim("email", "verified@gmail.com"),
+                new Claim("email_verified", "true")
+            ]));
+        var jwtString = tokenHandler.WriteToken(token);
+
+        // Act
+        var result = await provider.ValidateTokenAsync(jwtString);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Provider.Should().Be("Google");
+        result.SubjectId.Should().Be("google_verified_1");
+        result.Email.Should().Be("verified@gmail.com");
     }
 }
