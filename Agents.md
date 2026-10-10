@@ -10,7 +10,8 @@ Amacın sadece çalışan kod yazmak değil; güvenli, test edilebilir, ölçekl
 *	Veri Tabanları: PostgreSQL (Relational), MongoDB (History/Analytics), Redis (Caching & Shuffle Engine In-Memory Store), Elasticsearch (Search)
 *	Kalite & Güvenlik: SonarQube, JWT/OAuth2 (Identity), Rate Limiting
 *	Gözlemlenebilirlik (Observability): OpenTelemetry, Serilog, Prometheus, Jaeger, Grafana
-* CI/CD: Docker, docker-compose, github actions
+*   CI/CD: Docker, docker-compose, github actions
+*   Testing: Xunit, AwesomeAssertions, Moq, Respawn, Testcontainers, WebApplicationFactory, NetArchTest.Rules
 # Proje Dizin Yapısı ve Çözüm Mimarisi
 Proje, bağımsız modüllerin ve paylaşılan çekirdek yapıların net bir şekilde ayrıldığı bir yapıya sahiptir. Mevcut dizin yapısına kesinlikle uyulmalıdır:
 *	ShuffleSeries.Catalog: Catalog Bounded Context'ini içerir.

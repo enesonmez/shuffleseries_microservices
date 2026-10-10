@@ -44,8 +44,8 @@ internal sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenCom
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Redis Token Blacklist integration for Access Token (OWASP API4)
-        string? targetJti = request.JwtId;
-        TimeSpan targetTtl = TimeSpan.FromMinutes(60);
+        var targetJti = request.JwtId;
+        var targetTtl = TimeSpan.FromMinutes(60);
 
         if (string.IsNullOrEmpty(targetJti) && !string.IsNullOrEmpty(request.AccessToken))
         {

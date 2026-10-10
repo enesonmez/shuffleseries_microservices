@@ -156,4 +156,85 @@ public class SocialAuthProviderTests
         result.SubjectId.Should().Be("google_verified_1");
         result.Email.Should().Be("verified@gmail.com");
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public async Task ValidateTokenAsync_WhenTokenIsNullOrWhitespace_ReturnsNull(string? token)
+    {
+        // Arrange
+        var provider = new GoogleAuthProvider(_httpClient, _options);
+
+        // Act
+        var result = await provider.ValidateTokenAsync(token!);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ValidateTokenAsync_WhenTokenIsUnreadableAndDoesNotStartWithMock_ReturnsNull()
+    {
+        // Arrange
+        var provider = new GoogleAuthProvider(_httpClient, _options);
+
+        // Act
+        var result = await provider.ValidateTokenAsync("random_unreadable_token_not_mock");
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ValidateTokenAsync_WhenMockTokenHasNoColon_ReturnsPrincipalWithDefaultEmail()
+    {
+        // Arrange
+        var provider = new GoogleAuthProvider(_httpClient, _options);
+
+        // Act
+        var result = await provider.ValidateTokenAsync("mock_subject_without_email");
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Provider.Should().Be("Google");
+        result.SubjectId.Should().Be("subject_without_email");
+        result.Email.Should().Be("subject_without_email@google.com");
+    }
+
+    [Fact]
+    public async Task ValidateTokenAsync_WhenMockTokenHasThreeParts_ReturnsPrincipalWithParsedEmail()
+    {
+        // Arrange
+        var provider = new GoogleAuthProvider(_httpClient, _options);
+
+        // Act
+        var result = await provider.ValidateTokenAsync("mock:custom_sub_123:custom@google.com");
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Provider.Should().Be("Google");
+        result.SubjectId.Should().Be("custom_sub_123");
+        result.Email.Should().Be("custom@google.com");
+    }
+
+    [Fact]
+    public async Task ValidateTokenAsync_WhenReadableJwtLacksSubClaim_ReturnsNull()
+    {
+        // Arrange
+        var provider = new GoogleAuthProvider(_httpClient, _options);
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var token = tokenHandler.CreateJwtSecurityToken(
+            subject: new ClaimsIdentity(
+            [
+                new Claim("email", "nosub@gmail.com")
+            ]));
+        var jwtString = tokenHandler.WriteToken(token);
+
+        // Act
+        var result = await provider.ValidateTokenAsync(jwtString);
+
+        // Assert
+        result.Should().BeNull();
+    }
 }

@@ -11,6 +11,7 @@ namespace ShuffleSeries.Shared.Core.Tests.Web.Authorization;
 
 public class ProblemDetailsAuthorizationMiddlewareResultHandlerTests
 {
+    private static readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly ProblemDetailsAuthorizationMiddlewareResultHandler _sut = new();
 
     [Fact]
@@ -49,10 +50,7 @@ public class ProblemDetailsAuthorizationMiddlewareResultHandlerTests
         responseBody.Seek(0, SeekOrigin.Begin);
         using var reader = new StreamReader(responseBody);
         var json = await reader.ReadToEndAsync();
-        var problemDetails = JsonSerializer.Deserialize<ProblemDetails>(json, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        });
+        var problemDetails = JsonSerializer.Deserialize<ProblemDetails>(json, _jsonOptions);
 
         problemDetails.Should().NotBeNull();
         problemDetails!.Status.Should().Be(StatusCodes.Status403Forbidden);

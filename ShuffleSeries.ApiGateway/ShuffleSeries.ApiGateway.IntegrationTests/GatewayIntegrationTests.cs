@@ -24,7 +24,7 @@ public class GatewayIntegrationTests : IClassFixture<WebApplicationFactory<Progr
     {
         var client = _factory.CreateClient();
 
-        for (int i = 0; i < 5; i++)
+        for (var i = 0; i < 5; i++)
         {
             var response = await client.GetAsync("/api/auth/dummy-endpoint");
             response.StatusCode.Should().NotBe(HttpStatusCode.TooManyRequests);

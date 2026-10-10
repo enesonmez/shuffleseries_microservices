@@ -21,49 +21,61 @@ internal sealed class PermissionResolver : IPermissionResolver
     {
         var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
         var roles = await _roleRepository.GetRolesWithPermissionsAsync(roleIds, cancellationToken);
-
         var roleNames = roles.Select(r => r.Name).Distinct().ToList();
 
-        // 1. Gather all permissions granted via Roles
-        var effectivePermissionCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var role in roles)
-        {
-            foreach (var rp in role.RolePermissions)
-            {
-                if (rp.Permission is not null && !string.IsNullOrWhiteSpace(rp.Permission.Code))
-                {
-                    effectivePermissionCodes.Add(rp.Permission.Code);
-                }
-            }
-        }
+        var effectivePermissionCodes = GatherRolePermissions(roles);
 
-        // 2. Fetch custom UserPermission overrides
-        var customPermissionIds = user.UserPermissions.Select(up => up.PermissionId).ToList();
-        if (customPermissionIds.Count != 0)
-        {
-            var customPermissions = await _permissionRepository.GetByIdsAsync(customPermissionIds, cancellationToken);
-            var permissionMap = customPermissions.ToDictionary(p => p.Id, p => p.Code);
-
-            foreach (var up in user.UserPermissions)
-            {
-                if (!permissionMap.TryGetValue(up.PermissionId, out var code))
-                {
-                    continue;
-                }
-
-                if (up.IsGranted)
-                {
-                    // Direct grant beyond roles
-                    effectivePermissionCodes.Add(code);
-                }
-                else
-                {
-                    // Explicit revoke / exclusion
-                    effectivePermissionCodes.Remove(code);
-                }
-            }
-        }
+        await ApplyUserPermissionOverridesAsync(user, effectivePermissionCodes, cancellationToken);
 
         return (roleNames, effectivePermissionCodes.OrderBy(p => p).ToList());
+    }
+
+    private static HashSet<string> GatherRolePermissions(IEnumerable<Role> roles)
+    {
+        var effectiveCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var codes = roles
+            .SelectMany(r => r.RolePermissions)
+            .Where(rp => rp.Permission is not null && !string.IsNullOrWhiteSpace(rp.Permission.Code))
+            .Select(rp => rp.Permission!.Code);
+
+        foreach (var code in codes)
+        {
+            effectiveCodes.Add(code);
+        }
+
+        return effectiveCodes;
+    }
+
+    private async Task ApplyUserPermissionOverridesAsync(
+        User user,
+        HashSet<string> effectivePermissionCodes,
+        CancellationToken cancellationToken)
+    {
+        var customPermissionIds = user.UserPermissions.Select(up => up.PermissionId).ToList();
+        if (customPermissionIds.Count == 0)
+        {
+            return;
+        }
+
+        var customPermissions = await _permissionRepository.GetByIdsAsync(customPermissionIds, cancellationToken);
+        var permissionMap = customPermissions.ToDictionary(p => p.Id, p => p.Code);
+
+        foreach (var up in user.UserPermissions)
+        {
+            if (!permissionMap.TryGetValue(up.PermissionId, out var code))
+            {
+                continue;
+            }
+
+            if (up.IsGranted)
+            {
+                effectivePermissionCodes.Add(code);
+            }
+            else
+            {
+                effectivePermissionCodes.Remove(code);
+            }
+        }
     }
 }

@@ -3,8 +3,6 @@ using Serilog.Events;
 using ShuffleSeries.Shared.Core.Domain.Attributes;
 using ShuffleSeries.Shared.Core.Web.Logging;
 
-#pragma warning disable CA1873 // Avoid unevaluated expensive arguments in test assertions
-
 namespace ShuffleSeries.Shared.Core.Tests.Web.Logging;
 
 public class SensitiveDataDestructuringPolicyTests
@@ -152,5 +150,58 @@ public class SensitiveDataDestructuringPolicyTests
         cardProps["Cvv"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("***MASKED***");
         cardProps["Expiry"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("12/28");
     }
+
+    private sealed class FaultyPropertyClass
+    {
+        private readonly string _state = "initialized";
+
+        public string NormalProperty => _state;
+
+        public string FailingProperty
+        {
+            get
+            {
+                if (_state.Length > 0)
+                {
+                    throw new InvalidOperationException("Property read failed");
+                }
+
+                return string.Empty;
+            }
+        }
+    }
+
+    [Fact]
+    public void TryDestructure_WhenPropertyThrowsExceptionOnGet_ShouldCaptureErrorPlaceholder()
+    {
+        // Arrange
+        var target = new FaultyPropertyClass();
+
+        // Act
+        var success = _policy.TryDestructure(target, _factory, out var result);
+
+        // Assert
+        success.Should().BeTrue();
+        var structure = result.Should().BeOfType<StructureValue>().Subject;
+        var properties = structure.Properties.ToDictionary(p => p.Name, p => p.Value);
+
+        properties["NormalProperty"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("initialized");
+        properties["FailingProperty"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("<error reading property>");
+    }
+
+    [Fact]
+    public void TryDestructure_WhenValueIsUriOrTimeSpanOrDateTimeOffset_ShouldReturnFalse()
+    {
+        _policy.TryDestructure(new Uri("https://example.com"), _factory, out var pv1).Should().BeFalse();
+        _policy.TryDestructure(TimeSpan.FromMinutes(5), _factory, out var pv2).Should().BeFalse();
+        _policy.TryDestructure(DateTimeOffset.UtcNow, _factory, out var pv3).Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryDestructure_WhenValueIsCancellationTokenOrStream_ShouldReturnFalse()
+    {
+        _policy.TryDestructure(CancellationToken.None, _factory, out var pv1).Should().BeFalse();
+        using var stream = new MemoryStream();
+        _policy.TryDestructure(stream, _factory, out var pv2).Should().BeFalse();
+    }
 }
-#pragma warning restore CA1873

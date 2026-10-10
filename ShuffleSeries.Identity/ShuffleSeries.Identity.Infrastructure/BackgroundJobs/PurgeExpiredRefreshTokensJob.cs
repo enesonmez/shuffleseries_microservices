@@ -24,16 +24,18 @@ public sealed class PurgeExpiredRefreshTokensJob : IJob
         _logger = logger;
     }
 
-    public async Task Execute(IJobExecutionContext? context = null)
+    public Task Execute(IJobExecutionContext context) =>
+        ExecuteAsync(context.CancellationToken);
+
+    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        var cancellationToken = context?.CancellationToken ?? CancellationToken.None;
         var cutoff = _timeProvider.GetUtcNow().AddDays(-RetentionDays).UtcDateTime;
 
         var deletedCount = await _dbContext.RefreshTokens
             .Where(rt => rt.ExpiresAtUtc < cutoff || (rt.RevokedAtUtc != null && rt.RevokedAtUtc < cutoff))
             .ExecuteDeleteAsync(cancellationToken);
 
-        if (deletedCount > 0)
+        if (deletedCount > 0 && _logger.IsEnabled(LogLevel.Information))
         {
             _logger.LogInformation("Purged {Count} expired and revoked refresh tokens older than {Cutoff:u}.", deletedCount, cutoff);
         }

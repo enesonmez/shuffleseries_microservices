@@ -56,8 +56,5 @@ public static class DomainEventTypeCache
     /// <summary>
     /// Clears the cached assembly lookups (useful for unit testing).
     /// </summary>
-    public static void Clear()
-    {
-        _cache.Clear();
-    }
+    public static void Clear() => _cache.Clear();
 }

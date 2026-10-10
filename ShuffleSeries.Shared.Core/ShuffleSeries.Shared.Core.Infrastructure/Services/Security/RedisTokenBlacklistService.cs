@@ -39,7 +39,10 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
 
         if (timeToLive <= TimeSpan.Zero)
         {
-            _logger.LogDebug("[RedisTokenBlacklist] Token {Jti} is already expired. Skipping Redis write.", jti);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("[RedisTokenBlacklist] Token {Jti} is already expired. Skipping Redis write.", jti);
+            }
             return;
         }
 
@@ -49,12 +52,20 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
             var key = FormatKey(TokenKeyPrefix + jti);
 
             await db.StringSetAsync(key, reason, timeToLive);
-            _logger.LogInformation("[RedisTokenBlacklist] Token {Jti} blacklisted for {TtlSeconds}s (Reason: {Reason})",
-                jti, (int)timeToLive.TotalSeconds, reason);
+
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                var ttlSeconds = (int)timeToLive.TotalSeconds;
+                _logger.LogInformation("[RedisTokenBlacklist] Token {Jti} blacklisted for {TtlSeconds}s (Reason: {Reason})",
+                    jti, ttlSeconds, reason);
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[RedisTokenBlacklist] Failed to blacklist token {Jti} in Redis.", jti);
+            if (_logger.IsEnabled(LogLevel.Error))
+            {
+                _logger.LogError(ex, "[RedisTokenBlacklist] Failed to blacklist token {Jti} in Redis.", jti);
+            }
         }
     }
 
@@ -71,7 +82,10 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[RedisTokenBlacklist] Redis check failed for token {Jti}. Failing open to preserve availability.", jti);
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(ex, "[RedisTokenBlacklist] Redis check failed for token {Jti}. Failing open to preserve availability.", jti);
+            }
             return false;
         }
     }
@@ -98,12 +112,20 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
             var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
             await db.StringSetAsync(key, nowUnixSeconds.ToString(CultureInfo.InvariantCulture), maxTokenLifetime);
-            _logger.LogInformation("[RedisTokenBlacklist] All tokens for User {UserId} revoked at Unix timestamp {Timestamp} with TTL {TtlSeconds}s",
-                userId, nowUnixSeconds, (int)maxTokenLifetime.TotalSeconds);
+
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                var ttlSeconds = (int)maxTokenLifetime.TotalSeconds;
+                _logger.LogInformation("[RedisTokenBlacklist] All tokens for User {UserId} revoked at Unix timestamp {Timestamp} with TTL {TtlSeconds}s",
+                    userId, nowUnixSeconds, ttlSeconds);
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[RedisTokenBlacklist] Failed to write user revocation timestamp for User {UserId} in Redis.", userId);
+            if (_logger.IsEnabled(LogLevel.Error))
+            {
+                _logger.LogError(ex, "[RedisTokenBlacklist] Failed to write user revocation timestamp for User {UserId} in Redis.", userId);
+            }
         }
     }
 
@@ -133,7 +155,7 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
                 var tokenIssuedAtSeconds = new DateTimeOffset(tokenIssuedAtUtc).ToUnixTimeSeconds();
                 var isRevoked = tokenIssuedAtSeconds <= revokedAtUnixSeconds;
 
-                if (isRevoked)
+                if (isRevoked && _logger.IsEnabled(LogLevel.Warning))
                 {
                     _logger.LogWarning("[RedisTokenBlacklist] Token for User {UserId} issued at {IssuedAt} is revoked by user revocation timestamp {RevokedAt}",
                         userId, tokenIssuedAtSeconds, revokedAtUnixSeconds);
@@ -146,7 +168,10 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[RedisTokenBlacklist] Redis user revocation check failed for User {UserId}. Failing open to preserve availability.", userId);
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(ex, "[RedisTokenBlacklist] Redis user revocation check failed for User {UserId}. Failing open to preserve availability.", userId);
+            }
             return false;
         }
     }

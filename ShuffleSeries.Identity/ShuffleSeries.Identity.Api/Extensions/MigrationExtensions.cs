@@ -57,55 +57,62 @@ public static class MigrationExtensions
         }
     }
 
+    private const string CatalogModule = "Catalog";
+
     private static async Task SeedRolesAndPermissionsAsync(IdentityDbContext context, ILogger logger)
     {
         // 1. Permissions Seed
         var permissions = new List<Permission>
         {
-            Permission.Create(SystemPermissions.CatalogRead, "Catalog", "Allows reading movies, series and episodes"),
-            Permission.Create(SystemPermissions.CatalogCreate, "Catalog", "Allows creating catalog content"),
-            Permission.Create(SystemPermissions.CatalogUpdate, "Catalog", "Allows updating catalog content"),
-            Permission.Create(SystemPermissions.CatalogDelete, "Catalog", "Allows deleting catalog content"),
+            Permission.Create(SystemPermissions.CatalogRead, CatalogModule, "Allows reading movies, series and episodes"),
+            Permission.Create(SystemPermissions.CatalogCreate, CatalogModule, "Allows creating catalog content"),
+            Permission.Create(SystemPermissions.CatalogUpdate, CatalogModule, "Allows updating catalog content"),
+            Permission.Create(SystemPermissions.CatalogDelete, CatalogModule, "Allows deleting catalog content"),
             Permission.Create(SystemPermissions.ShuffleBasic, "Shuffle", "Allows basic random episode shuffle"),
             Permission.Create(SystemPermissions.ShuffleVip, "Shuffle", "Allows VIP curated weekend arena shuffle"),
             Permission.Create(SystemPermissions.AuthManage, "Identity", "Allows managing users and roles")
         };
 
         var existingPermissions = await context.Permissions.ToListAsync();
-        foreach (var permission in permissions)
+        var missingPermissions = permissions
+            .Where(permission => existingPermissions.All(p => p.Code != permission.Code))
+            .ToList();
+
+        foreach (var permission in missingPermissions)
         {
-            if (existingPermissions.All(p => p.Code != permission.Code))
-            {
-                context.Permissions.Add(permission);
-                existingPermissions.Add(permission);
-            }
+            context.Permissions.Add(permission);
+            existingPermissions.Add(permission);
         }
 
         await context.SaveChangesAsync();
 
         // 2. Roles Seed
-        var guestRole = await context.Roles.Include(r => r.RolePermissions).FirstOrDefaultAsync(r => r.NormalizedName == SystemRoles.Guest.ToUpperInvariant());
+        var guestNormalized = SystemRoles.Guest.ToUpperInvariant();
+        var guestRole = await context.Roles.Include(r => r.RolePermissions).FirstOrDefaultAsync(r => r.NormalizedName == guestNormalized);
         if (guestRole is null)
         {
             guestRole = Role.Create(SystemRoles.Guest, "Temporary unregistered guest session", isDefault: false);
             context.Roles.Add(guestRole);
         }
 
-        var standardRole = await context.Roles.Include(r => r.RolePermissions).FirstOrDefaultAsync(r => r.NormalizedName == SystemRoles.Standard.ToUpperInvariant());
+        var standardNormalized = SystemRoles.Standard.ToUpperInvariant();
+        var standardRole = await context.Roles.Include(r => r.RolePermissions).FirstOrDefaultAsync(r => r.NormalizedName == standardNormalized);
         if (standardRole is null)
         {
             standardRole = Role.Create(SystemRoles.Standard, "Registered standard platform user", isDefault: true);
             context.Roles.Add(standardRole);
         }
 
-        var premiumRole = await context.Roles.Include(r => r.RolePermissions).FirstOrDefaultAsync(r => r.NormalizedName == SystemRoles.Premium.ToUpperInvariant());
+        var premiumNormalized = SystemRoles.Premium.ToUpperInvariant();
+        var premiumRole = await context.Roles.Include(r => r.RolePermissions).FirstOrDefaultAsync(r => r.NormalizedName == premiumNormalized);
         if (premiumRole is null)
         {
             premiumRole = Role.Create(SystemRoles.Premium, "Subscribed VIP platform user", isDefault: false);
             context.Roles.Add(premiumRole);
         }
 
-        var adminRole = await context.Roles.Include(r => r.RolePermissions).FirstOrDefaultAsync(r => r.NormalizedName == SystemRoles.Admin.ToUpperInvariant());
+        var adminNormalized = SystemRoles.Admin.ToUpperInvariant();
+        var adminRole = await context.Roles.Include(r => r.RolePermissions).FirstOrDefaultAsync(r => r.NormalizedName == adminNormalized);
         if (adminRole is null)
         {
             adminRole = Role.Create(SystemRoles.Admin, "Full platform administrative access", isDefault: false);

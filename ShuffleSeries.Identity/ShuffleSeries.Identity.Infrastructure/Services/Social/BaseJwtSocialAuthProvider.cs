@@ -100,65 +100,69 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
     {
         if (_handler.CanReadToken(idToken))
         {
-            var jwt = _handler.ReadJwtToken(idToken);
-            var sub = jwt.Subject ?? jwt.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
-            if (string.IsNullOrWhiteSpace(sub))
-            {
-                return null;
-            }
-
-            var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
-            var emailVerifiedClaim = jwt.Claims.FirstOrDefault(c => c.Type == "email_verified")?.Value;
-            if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(emailVerifiedClaim))
-            {
-                var isVerified = (bool.TryParse(emailVerifiedClaim, out var verified) && verified)
-                                 || string.Equals(emailVerifiedClaim, "true", StringComparison.OrdinalIgnoreCase);
-
-                if (!isVerified)
-                {
-                    return null;
-                }
-            }
-
-            var name = jwt.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
-
-            return new ExternalUserPrincipal(Provider, sub, email, name);
+            return ValidateReadableJwtToken(idToken);
         }
 
-        // Support mocked test tokens:
-        // 1. "mock_sub:email@domain.com"
-        // 2. "mock:sub:email@domain.com"
-        // 3. "mock_sub"
         if (idToken.StartsWith("mock", StringComparison.OrdinalIgnoreCase))
         {
-            var parts = idToken.Split(':');
-            string subjectId;
-            string email;
-
-            if (parts.Length >= 3)
-            {
-                subjectId = parts[1];
-                email = parts[2];
-            }
-            else if (parts.Length == 2)
-            {
-                subjectId = parts[0].StartsWith("mock_", StringComparison.OrdinalIgnoreCase)
-                    ? parts[0][5..]
-                    : parts[0];
-                email = parts[1];
-            }
-            else
-            {
-                subjectId = idToken.StartsWith("mock_", StringComparison.OrdinalIgnoreCase)
-                    ? idToken[5..]
-                    : idToken;
-                email = $"{subjectId}@{Provider.ToLowerInvariant()}.com";
-            }
-
-            return new ExternalUserPrincipal(Provider, subjectId, email, "Test User");
+            return ParseMockTokenString(idToken);
         }
 
         return null;
+    }
+
+    private ExternalUserPrincipal? ValidateReadableJwtToken(string idToken)
+    {
+        var jwt = _handler.ReadJwtToken(idToken);
+        var sub = jwt.Subject ?? jwt.Claims.FirstOrDefault(c => c.Type == "sub")?.Value;
+        if (string.IsNullOrWhiteSpace(sub))
+        {
+            return null;
+        }
+
+        var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+        var emailVerifiedClaim = jwt.Claims.FirstOrDefault(c => c.Type == "email_verified")?.Value;
+        if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(emailVerifiedClaim) && !IsEmailVerified(emailVerifiedClaim))
+        {
+            return null;
+        }
+
+        var name = jwt.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
+
+        return new ExternalUserPrincipal(Provider, sub, email, name);
+    }
+
+    private static bool IsEmailVerified(string claimValue) =>
+        (bool.TryParse(claimValue, out var verified) && verified)
+        || string.Equals(claimValue, "true", StringComparison.OrdinalIgnoreCase);
+
+    private ExternalUserPrincipal ParseMockTokenString(string idToken)
+    {
+        var parts = idToken.Split(':');
+        string subjectId;
+        string email;
+
+        if (parts.Length >= 3)
+        {
+            subjectId = parts[1];
+            email = parts[2];
+        }
+        else if (parts.Length == 2)
+        {
+            subjectId = parts[0].StartsWith("mock_", StringComparison.OrdinalIgnoreCase)
+                ? parts[0][5..]
+                : parts[0];
+            email = parts[1];
+        }
+        else
+        {
+            subjectId = idToken.StartsWith("mock_", StringComparison.OrdinalIgnoreCase)
+                ? idToken[5..]
+                : idToken;
+            email = $"{subjectId}@{Provider.ToLowerInvariant()}.com";
+        }
+
+        return new ExternalUserPrincipal(Provider, subjectId, email, "Test User");
     }
 
     private async Task<ICollection<SecurityKey>> GetSigningKeysAsync(CancellationToken cancellationToken)

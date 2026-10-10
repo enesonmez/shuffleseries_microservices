@@ -20,7 +20,7 @@ public class DomainEventTypeCacheTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().Be(typeof(SampleValidDomainEvent));
+        result.Should().Be<SampleValidDomainEvent>();
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class DomainEventTypeCacheTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().Be(typeof(SampleValidDomainEvent));
+        result.Should().Be<SampleValidDomainEvent>();
     }
 
     [Fact]
@@ -114,6 +114,6 @@ public class DomainEventTypeCacheTests
 
         // Assert: Resolving again should repopulate cleanly
         var result = DomainEventTypeCache.Resolve(assembly, nameof(SampleValidDomainEvent));
-        result.Should().Be(typeof(SampleValidDomainEvent));
+        result.Should().Be<SampleValidDomainEvent>();
     }
 }

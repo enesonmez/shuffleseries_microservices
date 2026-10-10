@@ -28,8 +28,5 @@ public class UserLogin : BaseEntity<Guid>
         LinkedAtUtc = linkedAtUtc ?? DateTime.UtcNow;
     }
 
-    public void UpdateRefreshToken(string? refreshToken)
-    {
-        RefreshToken = refreshToken;
-    }
+    public void UpdateRefreshToken(string? refreshToken) => RefreshToken = refreshToken;
 }

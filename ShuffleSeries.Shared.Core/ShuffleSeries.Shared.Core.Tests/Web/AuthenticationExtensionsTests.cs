@@ -41,7 +41,7 @@ public class AuthenticationExtensionsTests
     }
 
     [Fact]
-    public void AddSharedJwtAuthentication_WhenConfigurationIsMissing_ShouldThrowArgumentNullException()
+    public void AddSharedJwtAuthentication_WhenConfigurationIsMissing_ShouldThrowInvalidOperationException()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -51,7 +51,7 @@ public class AuthenticationExtensionsTests
         Action act = () => services.AddSharedJwtAuthentication(configuration);
 
         // Assert
-        act.Should().Throw<ArgumentNullException>().WithMessage("*Jwt:Secret*");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Jwt:Secret*");
     }
 
     [Fact]
