@@ -42,7 +42,7 @@ AI asistanı, kendisine verilen her görevi (task) aşağıdaki protokole göre 
     * Dağıtık transaction'lar (birden fazla mikroservisi ilgilendiren zincirleme işlemler) için merkezi bir orchestrator yerine, mikroservislerin birbirlerinin event'lerini dinlediği Event Choreography modelini kurgula.
 ## Adım 3: Güvenlik İhlali Kontrolleri
 Yazdığın kodlarda "Security by Design" prensibini benimse ve güncel OWASP Web/API Security Top 10 kurallarına harfiyen uy:
-* **Sır Yönetimi (API8):** Hardcoded secret veya API key kullanma. Yapılandırmaları Environment Variables veya Key Vault/Secrets Manager üzerinden oku.
+* **Sır Yönetimi ve Tek Gerçeklik Kaynağı (API8 - SSOT):** Hardcoded secret veya API key kullanma. Tüm dinamik sırlar ve ayarlar kök `.env` dosyasında (Single Source of Truth) toplanmalıdır; `docker-compose.yml`, `init-vault.sh` ve mikroservisler bu değerleri `${VAR:-fallback}` ile tüketmeli, shell script ve compose dosyalarında asla bağımsız/statik şifre tutulmamalıdır.
 * **Yetkilendirme ve IDOR Koruması (API1/API2):** User/Tenant ID'leri request body veya URL'den değil, daima JWT Claims üzerinden çıkar. Kullanıcının talep ettiği kaynağın kendisine ait olduğunu backend'de mutlaka doğrula.
 * **Enjeksiyon ve Veri Manipülasyonu (API3/API4):** SQL/NoSQL sorgularında string birleştirme yapma, EF Core parametrik yapılarını kullan. XSS için kullanıcı metinlerini sanitize et. Mass Assignment riskine karşı Domain entity'lerini dışa açma; sıkı doğrulanmış (FluentValidation) DTO'lar kullan.
 * **Trafik ve Token Güvenliği (API4):** Brute-Force ve DDoS'a karşı YARP üzerinde sıkı Rate Limiting uygula. Çalınma riskine karşı "Refresh Token Rotation" ve revoke edilen token'lar için Redis Blacklist mekanizması kurgula.
