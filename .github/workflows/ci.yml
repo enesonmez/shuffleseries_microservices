@@ -115,5 +115,8 @@ jobs:
       - name: 📦 Build Catalog Service Container Image
         run: docker build -f ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api/Dockerfile -t shuffleseries-catalog:ci .
 
+      - name: 🔐 Build Identity Service Container Image
+        run: docker build -f ShuffleSeries.Identity/ShuffleSeries.Identity.Api/Dockerfile -t shuffleseries-identity:ci .
+
       - name: 🚪 Build API Gateway Container Image
         run: docker build -f ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.Api/Dockerfile -t shuffleseries-apigateway:ci .
