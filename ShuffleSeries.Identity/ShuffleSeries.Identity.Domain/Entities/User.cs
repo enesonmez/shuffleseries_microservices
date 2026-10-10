@@ -188,11 +188,8 @@ public class User : AggregateRoot
 
         RevokeAllRefreshTokens();
         TouchSecurityStamp();
-    }
 
-    public void MergeGuest(Guid guestUserId)
-    {
-        RaiseDomainEvent(new UserMergedDomainEvent(Id, guestUserId));
+        RaiseDomainEvent(new UserRegisteredDomainEvent(Id, Email, IsGuest: false));
     }
 
     public void DeleteAccount()

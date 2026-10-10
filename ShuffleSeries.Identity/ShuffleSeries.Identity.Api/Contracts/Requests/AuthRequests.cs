@@ -31,10 +31,12 @@ public sealed record SocialLoginRequest(
 );
 
 /// <summary>
-/// Request payload for merging an anonymous guest account into a permanent user account.
-/// Target user ID is securely resolved from authenticated claims when present.
+/// Request payload for converting an anonymous guest session into a permanent user account.
 /// </summary>
-public sealed record MergeGuestRequest(
-    Guid GuestUserId,
-    Guid? TargetUserId = null
-);
+public sealed record ConvertGuestRequest(string Email, string Password);
+
+/// <summary>
+/// Request payload for changing the authenticated user's password.
+/// </summary>
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+

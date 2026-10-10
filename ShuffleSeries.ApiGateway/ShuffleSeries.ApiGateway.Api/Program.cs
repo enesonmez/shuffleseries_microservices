@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
 using ShuffleSeries.Shared.Core.Infrastructure.Health;
@@ -40,10 +41,19 @@ builder.Services.AddSharedJwtAuthentication(builder.Configuration);
 // Add Global & Strict Rate Limiters
 builder.Services.AddSharedRateLimiter();
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 app.UseSharedCorrelation();
 

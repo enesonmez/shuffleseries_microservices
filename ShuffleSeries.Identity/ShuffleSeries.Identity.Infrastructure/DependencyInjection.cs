@@ -58,17 +58,27 @@ public static class DependencyInjection
             });
         });
 
-        // Quartz Outbox Processing Job
+        // Quartz Background Jobs
         services.AddQuartz(configure =>
         {
-            var jobKey = new JobKey(nameof(ProcessOutboxMessagesJob));
+            var outboxJobKey = new JobKey(nameof(ProcessOutboxMessagesJob));
 
-            configure.AddJob<ProcessOutboxMessagesJob>(jobKey)
+            configure.AddJob<ProcessOutboxMessagesJob>(outboxJobKey)
                 .AddTrigger(trigger =>
-                    trigger.ForJob(jobKey)
+                    trigger.ForJob(outboxJobKey)
                         .WithIdentity($"{nameof(ProcessOutboxMessagesJob)}-Trigger")
                         .WithSimpleSchedule(schedule =>
                             schedule.WithIntervalInSeconds(10)
+                                .RepeatForever()));
+
+            var purgeTokensJobKey = new JobKey(nameof(PurgeExpiredRefreshTokensJob));
+
+            configure.AddJob<PurgeExpiredRefreshTokensJob>(purgeTokensJobKey)
+                .AddTrigger(trigger =>
+                    trigger.ForJob(purgeTokensJobKey)
+                        .WithIdentity($"{nameof(PurgeExpiredRefreshTokensJob)}-Trigger")
+                        .WithSimpleSchedule(schedule =>
+                            schedule.WithIntervalInHours(24)
                                 .RepeatForever()));
         });
 

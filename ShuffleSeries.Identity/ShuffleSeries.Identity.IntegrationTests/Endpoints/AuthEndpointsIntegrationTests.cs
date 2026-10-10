@@ -3,12 +3,15 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using ShuffleSeries.Identity.Api.Contracts.Requests;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Login;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.RefreshToken;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Register;
 using ShuffleSeries.Identity.Application.Models;
+using ShuffleSeries.Identity.Domain.Entities;
 using ShuffleSeries.Identity.Domain.Events;
+using ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Identity.IntegrationTests.Infrastructure;
 
 namespace ShuffleSeries.Identity.IntegrationTests.Endpoints;
@@ -147,53 +150,85 @@ public class AuthEndpointsIntegrationTests : IdentityIntegrationTestBase
     }
 
     [Fact]
-    public async Task MergeGuest_WithValidPayload_ShouldReturn204_AndPersistUserMergedDomainEvent()
+    public async Task ConvertGuest_WithValidPayload_ShouldReturn200_AndPersistUserRegisteredDomainEvent()
     {
-        // Arrange 1: Create a guest session
+        // Arrange: Create a guest session
         var guestResponse = await Client.PostAsync("api/auth/guest", null);
         guestResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var guestResult = await guestResponse.Content.ReadFromJsonAsync<AuthResponse>();
         guestResult.Should().NotBeNull();
 
-        // Arrange 2: Register a permanent user
-        var registerCommand = new RegisterCommand("permanentuser@shuffleseries.com", "Password123!");
-        var registerResponse = await Client.PostAsJsonAsync("api/auth/register", registerCommand);
-        registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var permanentResult = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
-        permanentResult.Should().NotBeNull();
-
-        // Act: Merge guest into permanent user using Bearer token
-        var mergeRequest = new HttpRequestMessage(HttpMethod.Post, "api/auth/merge-guest")
+        // Act: Convert guest to permanent account using guest Bearer token
+        var convertRequest = new HttpRequestMessage(HttpMethod.Post, "api/auth/convert-guest")
         {
-            Content = JsonContent.Create(new MergeGuestRequest(guestResult!.UserId))
+            Content = JsonContent.Create(new ConvertGuestRequest("converted.guest@shuffleseries.com", "Password123!"))
         };
-        mergeRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", permanentResult!.AccessToken);
-        var mergeResponse = await Client.SendAsync(mergeRequest);
+        convertRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", guestResult!.AccessToken);
+        var convertResponse = await Client.SendAsync(convertRequest);
 
         // Assert
-        mergeResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        convertResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var convertResult = await convertResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        convertResult.Should().NotBeNull();
+        convertResult!.UserId.Should().Be(guestResult.UserId); // UserId is preserved!
+        convertResult.Email.Should().Be("converted.guest@shuffleseries.com");
+        convertResult.IsGuest.Should().BeFalse();
+        convertResult.Roles.Should().Contain(ShuffleSeries.Shared.Core.Domain.Constants.SystemRoles.Standard);
 
         await ExecuteDbContextAsync(async context =>
         {
-            // Verify guest is soft-deleted
-            var guestInDb = await context.Users
-                .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(u => u.Id == guestResult.UserId);
-            guestInDb.Should().NotBeNull();
-            guestInDb!.IsDeleted.Should().BeTrue();
+            // Verify user in DB is upgraded in-place
+            var userInDb = await context.Users.FirstOrDefaultAsync(u => u.Id == guestResult.UserId);
+            userInDb.Should().NotBeNull();
+            userInDb!.IsGuest.Should().BeFalse();
+            userInDb.Email.Should().Be("converted.guest@shuffleseries.com");
+            userInDb.Status.Should().Be(ShuffleSeries.Identity.Domain.Enums.UserStatus.Active);
 
-            // Verify UserMergedDomainEvent outbox message is persisted
+            // Verify UserRegisteredDomainEvent outbox message is persisted with IsGuest: false
             var outboxMessages = await context.OutboxMessages
-                .Where(m => m.Type.Contains("UserMergedDomainEvent"))
+                .Where(m => m.Type.Contains("UserRegisteredDomainEvent"))
                 .ToListAsync();
 
-            var mergeOutbox = outboxMessages.FirstOrDefault(m => m.Content.Contains(guestResult.UserId.ToString()));
-            mergeOutbox.Should().NotBeNull();
-            var domainEvent = JsonSerializer.Deserialize<UserMergedDomainEvent>(mergeOutbox!.Content);
+            var convertOutbox = outboxMessages.FirstOrDefault(m => m.Content.Contains("converted.guest@shuffleseries.com"));
+            convertOutbox.Should().NotBeNull();
+            var domainEvent = JsonSerializer.Deserialize<UserRegisteredDomainEvent>(convertOutbox!.Content);
             domainEvent.Should().NotBeNull();
-            domainEvent!.GuestUserId.Should().Be(guestResult.UserId);
-            domainEvent.TargetUserId.Should().Be(permanentResult.UserId);
+            domainEvent!.UserId.Should().Be(guestResult.UserId);
+            domainEvent.IsGuest.Should().BeFalse();
         });
+    }
+
+    [Fact]
+    public async Task ChangePassword_WithValidCredentials_ShouldReturn204_AndAllowLoginWithNewPassword()
+    {
+        // Arrange: Register standard user
+        var email = "changepassword.test@shuffleseries.com";
+        var oldPassword = "OldPassword123!";
+        var newPassword = "NewPassword123!";
+
+        var registerResponse = await Client.PostAsJsonAsync("api/auth/register", new RegisterRequest(email, oldPassword));
+        registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var registerResult = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        registerResult.Should().NotBeNull();
+
+        // Act: Change password with Bearer token
+        var changeRequest = new HttpRequestMessage(HttpMethod.Post, "api/auth/change-password")
+        {
+            Content = JsonContent.Create(new ChangePasswordRequest(oldPassword, newPassword))
+        };
+        changeRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", registerResult!.AccessToken);
+        var changeResponse = await Client.SendAsync(changeRequest);
+
+        // Assert
+        changeResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Verify login with old password fails
+        var oldLoginResponse = await Client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, oldPassword));
+        oldLoginResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
+        // Verify login with new password succeeds
+        var newLoginResponse = await Client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, newPassword));
+        newLoginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -249,6 +284,42 @@ public class AuthEndpointsIntegrationTests : IdentityIntegrationTestBase
             var outboxMessage = await context.OutboxMessages
                 .FirstOrDefaultAsync(m => m.Type.Contains("UserAccountDeletedDomainEvent"));
             outboxMessage.Should().NotBeNull();
+        });
+    }
+
+    [Fact]
+    public async Task PurgeExpiredRefreshTokensJob_WhenTokensExpiredOrRevokedOlderThan30Days_ShouldPurgeFromDatabase()
+    {
+        // Arrange
+        var user = User.CreateStandard("purgert@shuffleseries.com", "hash");
+        var oldExpiredDate = DateTime.UtcNow.AddDays(-35);
+        var oldRevokedDate = DateTime.UtcNow.AddDays(-32);
+
+        // Add 1 old expired token, 1 old revoked token, and 1 active recent token
+        user.AddRefreshToken("hash_old_expired", oldExpiredDate);
+        var oldRevokedToken = user.AddRefreshToken("hash_old_revoked", DateTime.UtcNow.AddDays(5));
+        oldRevokedToken.Revoke(revokedAtUtc: oldRevokedDate);
+        user.AddRefreshToken("hash_active", DateTime.UtcNow.AddDays(7));
+
+        await ExecuteDbContextAsync(async context =>
+        {
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
+        });
+
+        // Act: Execute PurgeExpiredRefreshTokensJob
+        await ExecuteDbContextAsync(async context =>
+        {
+            var job = new PurgeExpiredRefreshTokensJob(context, TimeProvider.System, NullLogger<PurgeExpiredRefreshTokensJob>.Instance);
+            await job.Execute(null);
+        });
+
+        // Assert: Old tokens purged, active token retained
+        await ExecuteDbContextAsync(async context =>
+        {
+            var tokens = await context.RefreshTokens.Where(rt => rt.UserId == user.Id).ToListAsync();
+            tokens.Should().HaveCount(1);
+            tokens.First().TokenHash.Should().Be("hash_active");
         });
     }
 }

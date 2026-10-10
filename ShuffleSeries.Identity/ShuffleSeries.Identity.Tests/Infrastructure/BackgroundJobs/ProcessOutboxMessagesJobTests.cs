@@ -91,54 +91,6 @@ public class ProcessOutboxMessagesJobTests
         updated.Error.Should().BeNull();
     }
 
-    [Fact]
-    public async Task Execute_WhenUserMergedDomainEvent_ShouldPublishUserMergedIntegrationEventAndMarkProcessed()
-    {
-        // Arrange
-        await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
-        var mockContext = new Mock<IJobExecutionContext>();
-        var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
-        mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
-
-        var targetUserId = Guid.NewGuid();
-        var guestUserId = Guid.NewGuid();
-        var domainEvent = new UserMergedDomainEvent(targetUserId, guestUserId);
-        var outboxMessageId = Guid.NewGuid();
-        var occurredAt = DateTime.UtcNow.AddMinutes(-2);
-
-        var message = new OutboxMessage
-        {
-            Id = outboxMessageId,
-            Type = nameof(UserMergedDomainEvent),
-            Content = JsonSerializer.Serialize(domainEvent),
-            OccurredOnUtc = occurredAt,
-            RetryCount = 0
-        };
-
-        dbContext.OutboxMessages.Add(message);
-        await dbContext.SaveChangesAsync();
-
-        var job = new ProcessOutboxMessagesJob(dbContext, mockPublish.Object, TimeProvider.System, mockLogger.Object);
-
-        // Act
-        await job.Execute(mockContext.Object);
-
-        // Assert
-        mockPublish.Verify(p => p.Publish(
-            It.Is<UserMergedEvent>(e =>
-                e.Id == outboxMessageId &&
-                e.TargetUserId == targetUserId &&
-                e.GuestUserId == guestUserId &&
-                e.OccurredOnUtc == occurredAt),
-            typeof(UserMergedEvent),
-            It.IsAny<CancellationToken>()),
-            Times.Once);
-
-        var updated = await dbContext.OutboxMessages.FirstAsync(m => m.Id == outboxMessageId);
-        updated.ProcessedOnUtc.Should().NotBeNull();
-        updated.Error.Should().BeNull();
-    }
 
     [Fact]
     public async Task Execute_WhenUserAccountDeletedDomainEvent_ShouldPublishUserAccountDeletedIntegrationEventAndMarkProcessed()

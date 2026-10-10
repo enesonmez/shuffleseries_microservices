@@ -81,12 +81,11 @@ flowchart TD
 
     subgraph FLOW_IDENTITY ["1️⃣ Identity & Account Lifecycle Stream"]
         direction LR
-        P_ID["🔑 Identity Service\n(Outbox Publisher)"]:::pub -->|"Publishes"| E_ID["UserRegisteredEvent\nUserMergedEvent\nUserAccountDeletedEvent"]:::evt
+        P_ID["🔑 Identity Service\n(Outbox Publisher)"]:::pub -->|"Publishes"| E_ID["UserRegisteredEvent\nUserAccountDeletedEvent"]:::evt
         E_ID -->|"InBox"| C_ID1["🔔 Notification (Welcome Email)"]:::sub
         E_ID -->|"InBox"| C_ID2["🎟️ Tickets & Gamification (Init 14d Quota)"]:::sub
         E_ID -->|"InBox"| C_ID3["👤 Profile (Create Initial Profile)"]:::sub
-        E_ID -->|"InBox"| C_ID4["📚 User Library (Merge Guest Watchlist)"]:::sub
-        E_ID -->|"InBox"| C_ID5["📊 Analytics (GDPR Anonymization)"]:::sub
+        E_ID -->|"InBox"| C_ID4["📊 Analytics (GDPR Anonymization)"]:::sub
     end
 
     subgraph FLOW_CATALOG ["2️⃣ Content Catalog & Metadata Synchronization Stream"]
@@ -133,7 +132,7 @@ flowchart TD
 
 | Stream / Pipeline | Publisher (Outbox) | Published Domain Events | InBox Consumers (Subscribers) | Architectural Function |
 | :--- | :--- | :--- | :--- | :--- |
-| **1. Identity & Auth** | `Identity Service` | `UserRegisteredEvent`<br>`UserMergedEvent`<br>`UserAccountDeletedEvent` | • `Notification Service`<br>• `Tickets & Gamification`<br>• `Profile Service`<br>• `User Library`<br>• `History & Analytics` | Onboarding lifecycle, welcome emails, 14-day honeymoon quota allocation, guest session data merge, and GDPR right-to-be-forgotten cleanup. |
+| **1. Identity & Auth** | `Identity Service` | `UserRegisteredEvent`<br>`UserAccountDeletedEvent` | • `Notification Service`<br>• `Tickets & Gamification`<br>• `Profile Service`<br>• `History & Analytics` | Onboarding lifecycle, welcome emails, 14-day honeymoon quota allocation, In-Place guest elevation (`ConvertFromGuest`), and GDPR right-to-be-forgotten cleanup. |
 | **2. Catalog & Metadata** | `Catalog Service` | `MediaCreated/Updated/Deleted`<br>`PlatformUpdatedEvent`<br>`MoodUpdatedEvent` | • `Shuffle Engine`<br>• `Search Service`<br>• `Notification Service` | Instant Redis memory-set synchronization, Elasticsearch index updates with platform/mood facets, and push alerts for favorite genres. |
 | **3. Swipe Arena** | `Shuffle Engine` | `ShuffleSwipedEvent` | • `Tickets & Gamification`<br>• `History & Analytics` | Real-time asynchronous ticket deduction on pass/skip without blocking the UI, plus dwell-time telemetry logging. |
 | **4. User Library** | `User Library` | `MediaAddedToWatchlist`<br>`MediaWatchedEvent`<br>`MediaRatedEvent` | • `Tickets & Gamification`<br>• `Search Service`<br>• `History & Analytics` | Awarding +3 tickets on every 3 ratings, updating "Trending Roulettes" daily counts, and chronological watch history tracking. |
@@ -262,7 +261,10 @@ flowchart TD
 - **Hybrid RBAC + PBAC Architecture**: Enterprise authorization where standard roles (`Guest`, `Standard`, `Premium`, `Admin`) bundle granular permissions, while `UserPermission` enables user-specific exception overrides (grant or revoke). Dynamic permission resolution bakes effective permissions into JWT claims (`permissions: ["catalog:read"]`), enabling zero-database-lookup authorization checks at the API Gateway level.
 - **OWASP API4 Refresh Token Rotation (RTR) & Reuse Detection**: Single-use, cryptographically secure refresh tokens stored as SHA-256 hashes. Presentation of an already revoked token triggers automated **Token Family Invalidation**, terminating all active user sessions immediately.
 - **Dedicated External SSO Linking (`UserLogins`)**: Supports Apple & Google SSO without polluting core user profiles. Retains Apple refresh tokens to support automated provider revocation during account deletion per Apple App Store Guideline 5.1.1(v) and GDPR.
-- **Frictionless Guest Sessions & Data Merge**: Instant anonymous session creation (`POST /api/auth/guest`) issuing a guest JWT and initial tickets; upon registration, merges guest history, tickets, and watchlist via `POST /api/auth/merge-guest` and triggers `UserMergedDomainEvent`.
+- **Frictionless Guest Sessions & In-Place Elevation (`ConvertFromGuest`)**: Instant anonymous session creation (`POST /api/auth/guest`) issuing a guest JWT and initial tickets; seamless conversion to a registered account (`POST /api/auth/convert-guest`) preserving the exact `UserId` in-place, eliminating distributed data migrations across downstream microservices and raising `UserRegisteredDomainEvent`.
+- **Password Management & Timing Attack Defense**: Secure password updates (`POST /api/auth/change-password`) revoking active tokens and updating Redis blacklist. Constant-time dummy PBKDF2 hash verification in `LoginCommandHandler` neutralizes user enumeration timing attacks.
+- **Pre-Account Takeover Defense**: Strict `email_verified == "true"` validation on all incoming external social ID tokens (Google, Apple).
+- **Periodic Background Token Purge**: Efficient 30-day retention cleanup of expired/revoked refresh tokens via Quartz `PurgeExpiredRefreshTokensJob` utilizing EF Core `ExecuteDeleteAsync()` for zero-heap-allocation bulk deletion.
 
 ### 11. High-Performance Redis Token Blacklist & Edge Enforcement (`Shared.Core` & `ApiGateway`)
 - **Two-Tier Revocation Strategy (OWASP API4)**:
@@ -274,7 +276,7 @@ flowchart TD
 
 ### 12. Transactional Outbox & Identity Event Choreography (`Shared.Core.Domain.Events` & `Identity.Infrastructure`)
 - **Dual-Write Prevention & Transactional Outbox**: All entity state mutations and event dispatches are committed within a single PostgreSQL ACID transaction via `InsertOutboxMessagesInterceptor`. A resilient Quartz background job (`ProcessOutboxMessagesJob`) polls and publishes integration events to RabbitMQ.
-- **Anti-Corruption Layer (ACL) Domain-to-Integration Translation**: Identity domain events (`UserRegisteredDomainEvent`, `UserMergedDomainEvent`, `UserAccountDeletedDomainEvent`) remain strictly private to the Identity Bounded Context and are translated into standardized public integration event contracts (`UserRegisteredEvent`, `UserMergedEvent`, `UserAccountDeletedEvent`) in `ShuffleSeries.Shared.Core.Domain.Events`.
+- **Anti-Corruption Layer (ACL) Domain-to-Integration Translation**: Identity domain events (`UserRegisteredDomainEvent`, `UserAccountDeletedDomainEvent`) remain strictly private to the Identity Bounded Context and are translated into standardized public integration event contracts (`UserRegisteredEvent`, `UserAccountDeletedEvent`) in `ShuffleSeries.Shared.Core.Domain.Events`.
 - **1-to-1 Outbox to InBox Idempotency Mapping**: The integration event's `Id` directly mirrors `outboxMessage.Id`, providing downstream consumers (`Notification`, `TicketEconomy`, `Profile`, `UserLibrary`, `History`) with deterministic deduplication keys against network duplicates.
 - **Poison Message Quarantine**: Configured with `MaxRetries = 3` and automated failure tracking to prevent corrupted payloads from halting background processing queues.
 

@@ -78,6 +78,18 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
         var email = principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value
                     ?? principal.FindFirst("email")?.Value;
 
+        var emailVerifiedClaim = principal.FindFirst("email_verified")?.Value;
+        if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(emailVerifiedClaim))
+        {
+            var isVerified = (bool.TryParse(emailVerifiedClaim, out var verified) && verified)
+                             || string.Equals(emailVerifiedClaim, "true", StringComparison.OrdinalIgnoreCase);
+
+            if (!isVerified)
+            {
+                return null;
+            }
+        }
+
         var name = principal.FindFirst(JwtRegisteredClaimNames.Name)?.Value
                    ?? principal.FindFirst("name")?.Value;
 
@@ -96,6 +108,18 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
             }
 
             var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
+            var emailVerifiedClaim = jwt.Claims.FirstOrDefault(c => c.Type == "email_verified")?.Value;
+            if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(emailVerifiedClaim))
+            {
+                var isVerified = (bool.TryParse(emailVerifiedClaim, out var verified) && verified)
+                                 || string.Equals(emailVerifiedClaim, "true", StringComparison.OrdinalIgnoreCase);
+
+                if (!isVerified)
+                {
+                    return null;
+                }
+            }
+
             var name = jwt.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
 
             return new ExternalUserPrincipal(Provider, sub, email, name);

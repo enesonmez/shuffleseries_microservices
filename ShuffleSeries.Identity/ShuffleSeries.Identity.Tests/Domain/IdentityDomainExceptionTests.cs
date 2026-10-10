@@ -76,23 +76,13 @@ public class IdentityDomainExceptionTests
     }
 
     [Fact]
-    public void GuestUserNotFoundException_ShouldHaveCorrectDefaults()
+    public void InvalidCurrentPasswordException_ShouldHaveCorrectDefaults()
     {
-        var ex = new GuestUserNotFoundException();
+        var ex = new InvalidCurrentPasswordException();
 
-        ex.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        ex.Code.Should().Be("GUEST_USER_NOT_FOUND");
-        ex.Message.Should().Be("Guest user not found or is already registered.");
-    }
-
-    [Fact]
-    public void TargetUserNotFoundException_ShouldHaveCorrectDefaults()
-    {
-        var ex = new TargetUserNotFoundException();
-
-        ex.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        ex.Code.Should().Be("TARGET_USER_NOT_FOUND");
-        ex.Message.Should().Be("Target user account not found.");
+        ex.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        ex.Code.Should().Be("INVALID_CURRENT_PASSWORD");
+        ex.Message.Should().Be("Current password is incorrect.");
     }
 
     [Fact]
@@ -109,16 +99,6 @@ public class IdentityDomainExceptionTests
         exWithId.StatusCode.Should().Be(HttpStatusCode.NotFound);
         exWithId.Code.Should().Be("USER_NOT_FOUND");
         exWithId.Message.Should().Be($"User with ID '{userId}' was not found.");
-    }
-
-    [Fact]
-    public void CannotMergeIntoDifferentUserException_ShouldHaveCorrectDefaults()
-    {
-        var ex = new CannotMergeIntoDifferentUserException();
-
-        ex.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        ex.Code.Should().Be("FORBIDDEN");
-        ex.Message.Should().Be("Cannot merge guest account into another user's account.");
     }
 
     [Fact]
