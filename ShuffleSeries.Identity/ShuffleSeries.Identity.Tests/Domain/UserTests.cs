@@ -155,4 +155,40 @@ public class UserTests
         user.PasswordHash.Should().Be("newhash");
         user.Status.Should().Be(UserStatus.Active);
     }
+
+    [Fact]
+    public void CreateSocial_ShouldAddUserLogin_AndRaiseUserRegisteredDomainEvent()
+    {
+        // Act
+        var user = User.CreateSocial("social@test.com", "Google", "google-sub-12345");
+
+        // Assert
+        user.Email.Should().Be("social@test.com");
+        user.IsGuest.Should().BeFalse();
+        user.Status.Should().Be(UserStatus.Active);
+        user.UserLogins.Should().ContainSingle(l => l.Provider == "Google" && l.ProviderKey == "google-sub-12345");
+
+        var domainEvents = user.GetDomainEvents();
+        domainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<UserRegisteredDomainEvent>()
+            .Which.IsGuest.Should().BeFalse();
+    }
+
+    [Fact]
+    public void MergeGuest_ShouldRaiseUserMergedDomainEvent()
+    {
+        // Arrange
+        var targetUser = User.CreateStandard("target@test.com", "hash");
+        targetUser.ClearDomainEvents();
+        var guestUserId = Guid.NewGuid();
+
+        // Act
+        targetUser.MergeGuest(guestUserId);
+
+        // Assert
+        var domainEvents = targetUser.GetDomainEvents();
+        domainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<UserMergedDomainEvent>()
+            .Which.Should().Match<UserMergedDomainEvent>(e => e.TargetUserId == targetUser.Id && e.GuestUserId == guestUserId);
+    }
 }

@@ -270,3 +270,39 @@ Accept: application/json
 GET {{Gateway_HostAddress}}/api/auth/me
 Authorization: Bearer {{AccessToken}}
 Accept: application/json
+
+
+###############################################################################
+# 11. SOSYAL KİMLİK DOĞRULAMA (SOCIAL LOGIN - GOOGLE / APPLE SSO)
+###############################################################################
+
+### 🟢 11.1 Google SSO ile Giriş (POST - Happy Path)
+# Beklenen Sonuç: 200 OK -> accessToken, refreshToken, roles, permissions, isGuest: false
+POST {{Identity_HostAddress}}/api/auth/social-login
+Content-Type: application/json
+
+{
+  "provider": "Google",
+  "idToken": "mock_google_id_token:social_user@gmail.com"
+}
+
+### 🟢 11.2 Apple SSO ile Giriş (POST - Happy Path)
+# Beklenen Sonuç: 200 OK -> accessToken, refreshToken, roles, permissions, isGuest: false
+POST {{Identity_HostAddress}}/api/auth/social-login
+Content-Type: application/json
+
+{
+  "provider": "Apple",
+  "idToken": "mock_apple_id_token:apple_user@icloud.com",
+  "appleRefreshToken": "mock_apple_refresh_token_123"
+}
+
+### 🔴 11.3 Desteklenmeyen Sağlayıcı ile Giriş (POST - 400 Bad Request)
+# Beklenen Sonuç: 400 Bad Request -> RFC 7807 Validation Problem Details
+POST {{Identity_HostAddress}}/api/auth/social-login
+Content-Type: application/json
+
+{
+  "provider": "Facebook",
+  "idToken": "mock_facebook_id_token"
+}

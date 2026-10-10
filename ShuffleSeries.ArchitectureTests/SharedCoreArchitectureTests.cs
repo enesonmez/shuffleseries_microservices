@@ -93,4 +93,21 @@ public class SharedCoreArchitectureTests
             .IsAssignableFrom(typeof(ShuffleSeries.Shared.Core.Domain.Repositories.IRepository<>))
             .Should().BeTrue("Generic IRepository<TEntity> arayüzü IRepository marker arayüzünden türemelidir.");
     }
+
+    [Fact]
+    public void IntegrationEvents_In_SharedCoreDomain_ShouldImplement_IIntegrationEvent_AndBeSealed()
+    {
+        var eventTypes = _sharedDomainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.Namespace == "ShuffleSeries.Shared.Core.Domain.Events")
+            .ToList();
+
+        eventTypes.Should().NotBeEmpty("Shared.Core.Domain.Events altında en az bir entegrasyon event'i bulunmalıdır.");
+
+        foreach (var type in eventTypes)
+        {
+            type.IsSealed.Should().BeTrue($"Entegrasyon olayı '{type.Name}' sealed olmalıdır.");
+            typeof(IIntegrationEvent).IsAssignableFrom(type)
+                .Should().BeTrue($"Entegrasyon olayı '{type.Name}' IIntegrationEvent arayüzünü uygulamalıdır.");
+        }
+    }
 }
