@@ -36,6 +36,7 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         using var scope = Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
         await dbContext.Database.MigrateAsync();
+        await CatalogDbSeeder.SeedAsync(dbContext);
 
         // 4. Respawner nesnesini başlat (migration tablosunu sıfırlama dışında tut)
         _respawner = await Respawner.CreateAsync(_dbConnection, new RespawnerOptions

@@ -1,6 +1,7 @@
 using Moq;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 using ShuffleSeries.Catalog.Domain.Entities;
+using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Catalog.Domain.Services;
@@ -20,7 +21,7 @@ public class CreateSeriesCommandHandlerTests
         _seriesRepositoryMock = new Mock<ISeriesRepository>();
         _unitOfWorkMock = new Mock<IUnitOfWork>();
         _seriesDomainService = new SeriesDomainService(_seriesRepositoryMock.Object);
-        _handler = new CreateSeriesCommandHandler(_unitOfWorkMock.Object, _seriesRepositoryMock.Object,
+        _handler = new CreateSeriesCommandHandler(_seriesRepositoryMock.Object, _unitOfWorkMock.Object,
             _seriesDomainService);
     }
 
@@ -28,7 +29,19 @@ public class CreateSeriesCommandHandlerTests
     public async Task Handle_Should_CreateSeriesAndReturnId_When_TitleIsUnique()
     {
         // Arrange
-        var command = new CreateSeriesCommand("Dexter", "Serial killer analyst", false);
+        var command = new CreateSeriesCommand(
+            2006,
+            SeriesType.Standard,
+            "https://example.com/dexter.jpg",
+            "https://example.com/dexter-bg.jpg",
+            "tr",
+            "Dexter",
+            "Serial killer analyst",
+            "America's favorite serial killer",
+            "tt0773262",
+            8.7,
+            750000,
+            8);
 
         _seriesRepositoryMock.Setup(x => x.ExistsByTitleAsync(command.Title, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -39,7 +52,7 @@ public class CreateSeriesCommandHandlerTests
         // Assert
         result.Should().NotBeEmpty();
 
-        _seriesRepositoryMock.Verify(x => x.Add(It.Is<Series>(s => s.Title == command.Title)), Times.Once);
+        _seriesRepositoryMock.Verify(x => x.Add(It.Is<Series>(s => s.Translations.Any(t => t.Title == command.Title))), Times.Once);
 
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -48,7 +61,19 @@ public class CreateSeriesCommandHandlerTests
     public async Task Handle_Should_ThrowSeriesTitleAlreadyExistsException_When_TitleIsNotUnique()
     {
         // Arrange
-        var command = new CreateSeriesCommand("Dexter", "Serial killer analyst", false);
+        var command = new CreateSeriesCommand(
+            2006,
+            SeriesType.Standard,
+            "https://example.com/dexter.jpg",
+            "https://example.com/dexter-bg.jpg",
+            "tr",
+            "Dexter",
+            "Serial killer analyst",
+            "America's favorite serial killer",
+            "tt0773262",
+            8.7,
+            750000,
+            8);
 
         _seriesRepositoryMock.Setup(x => x.ExistsByTitleAsync(command.Title, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -58,6 +83,39 @@ public class CreateSeriesCommandHandlerTests
 
         // Assert
         await action.Should().ThrowAsync<SeriesTitleAlreadyExistsException>();
+
+        _seriesRepositoryMock.Verify(x => x.Add(It.IsAny<Series>()), Times.Never);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_Should_ThrowDuplicateImdbIdException_When_ImdbIdIsNotUnique()
+    {
+        // Arrange
+        var command = new CreateSeriesCommand(
+            2006,
+            SeriesType.Standard,
+            "https://example.com/dexter.jpg",
+            "https://example.com/dexter-bg.jpg",
+            "tr",
+            "Dexter",
+            "Serial killer analyst",
+            "America's favorite serial killer",
+            "tt0773262",
+            8.7,
+            750000,
+            8);
+
+        _seriesRepositoryMock.Setup(x => x.ExistsByTitleAsync(command.Title, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _seriesRepositoryMock.Setup(x => x.ExistsByImdbIdAsync("tt0773262", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        Func<Task> action = async () => await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await action.Should().ThrowAsync<DuplicateImdbIdException>();
 
         _seriesRepositoryMock.Verify(x => x.Add(It.IsAny<Series>()), Times.Never);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);

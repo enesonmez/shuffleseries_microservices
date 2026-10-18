@@ -1,10 +1,11 @@
 using MediatR;
+using ShuffleSeries.Catalog.Application.Features.Series.Responses;
+using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 
-internal sealed class GetSeriesByIdQueryHandler : IRequestHandler<GetSeriesByIdQuery, SeriesResponse?>
+public sealed class GetSeriesByIdQueryHandler : IRequestHandler<GetSeriesByIdQuery, SeriesResponse>
 {
     private readonly ISeriesRepository _seriesRepository;
 
@@ -13,21 +14,25 @@ internal sealed class GetSeriesByIdQueryHandler : IRequestHandler<GetSeriesByIdQ
         _seriesRepository = seriesRepository;
     }
 
-    public async Task<SeriesResponse?> Handle(GetSeriesByIdQuery request, CancellationToken cancellationToken)
+    public async Task<SeriesResponse> Handle(GetSeriesByIdQuery request, CancellationToken cancellationToken)
     {
-        var series = await _seriesRepository.GetByIdAsync(request.Id, cancellationToken);
+        var series = await _seriesRepository.GetByIdWithTranslationsAsync(request.Id, cancellationToken)
+            ?? throw new SeriesNotFoundException(request.Id);
 
-        if (series is null)
-        {
-            throw new NotFoundException($"Series with ID {request.Id} was not found.");
-        }
+        var translations = series.Translations
+            .Select(t => new SeriesTranslationResponse(t.LanguageCode, t.Title, t.Overview, t.Tagline))
+            .ToList();
 
         return new SeriesResponse(
             series.Id,
-            series.Title,
-            series.Description,
-            series.IsIndependentEpisodes,
-            series.CreatedAtUtc
-        );
+            series.ReleaseYear,
+            series.SeriesType,
+            series.TotalSeasons,
+            series.PosterUrl,
+            series.BackdropUrl,
+            series.ImdbId,
+            series.ImdbRating,
+            series.ImdbVotes,
+            translations);
     }
 }

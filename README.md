@@ -141,6 +141,23 @@ flowchart TD
 
 ---
 
+## 🗄️ Database Architecture & Relational Schema Design
+
+ShuffleSeries enforces a strict **Database-per-Service** architecture on PostgreSQL. Direct cross-database SQL queries are strictly prohibited; inter-service communication occurs asynchronously via **RabbitMQ Event Choreography** or synchronously through authenticated gateway routing.
+
+Comprehensive entity-relationship diagrams, table structures, constraints, partial indexes, and architectural rationale (TPH, Entity Translation Pattern, RTR, Hybrid RBAC+PBAC) are documented in the specification below:
+
+👉 **[Complete Database Design Specification & ER Diagrams (docs/db-design.md)](./docs/db-design.md)**
+
+### 📊 Service Database Overview
+
+| Bounded Context | Database Engine | Primary Patterns & Key Structures | Schema Highlights |
+| :--- | :--- | :--- | :--- |
+| **`Identity Service`** | PostgreSQL | • Hybrid RBAC + PBAC<br>• Refresh Token Rotation (RTR)<br>• External Social SSO (`UserLogins`)<br>• Transactional Outbox | `Users`, `Roles`, `Permissions`, `UserRoles`, `RolePermissions`, `UserPermissions`, `RefreshTokens`, `UserLogins`, `OutboxMessages` |
+| **`Catalog Service`** | PostgreSQL | • Table-per-Hierarchy (TPH) for Media<br>• Entity Translation Pattern (i18n)<br>• Standalone Episode Partial Index<br>• Deep Linking (Web & App Schemes)<br>• Multi-Genre & 9-Mood Taxonomy | `Media` (`Movie`, `Series`), `MediaTranslations`, `Seasons`, `Episodes`, `EpisodeTranslations`, `Platforms`, `MediaPlatforms`, `EpisodePlatforms`, `Genres`, `GenreTranslations`, `MediaGenres`, `Moods`, `MoodTranslations`, `MediaMoods`, `OutboxMessages` |
+
+---
+
 ## 🧩 Solution Structure
 
 ```
@@ -170,6 +187,8 @@ flowchart TD
 │   ├── ShuffleSeries.ApiGateway.Api/              # Reverse proxy, Rate Limiting, Centralized Swagger aggregation
 │   └── ShuffleSeries.ApiGateway.IntegrationTests/ # Gateway HTTP pipeline & routing integration tests
 └── docs/                               # Architectural documentation, roadmaps, and task guides
+    ├── db-design.md                    # Database design, ER diagrams & relational schemas (PostgreSQL)
+    ├── prd.md                          # Product Requirements Document (PRD) & business specifications
     ├── roadmap.md                      # Milestone & task tracking
     ├── lessons.md                      # Knowledge base of architectural decisions & lessons learned
     └── tasks/                          # Educational documentation for each milestone task
@@ -280,6 +299,17 @@ flowchart TD
 - **1-to-1 Outbox to InBox Idempotency Mapping**: The integration event's `Id` directly mirrors `outboxMessage.Id`, providing downstream consumers (`Notification`, `TicketEconomy`, `Profile`, `UserLibrary`, `History`) with deterministic deduplication keys against network duplicates.
 - **Poison Message Quarantine**: Configured with `MaxRetries = 3` and automated failure tracking to prevent corrupted payloads from halting background processing queues.
 
+### 13. Content Catalog, Multi-Language & Anthology Modeling (`ShuffleSeries.Catalog`)
+- **Extensible Entity Translation Pattern**: Eliminates hardcoded language columns (`TitleTr`, `TitleEn`) by modeling dedicated `MediaTranslation`, `MoodTranslation`, `GenreTranslation`, and `EpisodeTranslation` entities indexed on composite unique keys `(EntityId, LanguageCode)`. Enables dynamic support for 50+ languages without database migrations or schema alterations.
+- **TPH (Table-per-Hierarchy) Media Modeling**: Concrete `Movie` and `Series` entities inheriting from the abstract `Media` Aggregate Root, featuring OLED-optimized vertical Hero posters, 16:9 backdrops, IMDb ratings, and directors/runtimes.
+- **Anthology Modeling & Episode Roulette**: Rich `Series` -> `Season` -> `Episode` hierarchy supporting `SeriesType` (`Standard`, `EpisodicAnthology`, `SeasonalAnthology`). Standalone episodes (~45 min independent stories from series like *Black Mirror* or *Love, Death & Robots*) are marked with `IsStandalone = true`.
+- **Sub-Millisecond Filtered Partial Index**: PostgreSQL partial index `HasFilter("\"IsStandalone\" = true AND \"IsDeleted\" = false")` reduces index footprint by over 90% and provides microsecond-level query speed for the Shuffle Engine.
+- **Streaming Platforms & Deep Linking**: First-class `Platform` entity with active/inactive SVG logos, base web URLs, and deep link mobile URI schemes (`netflix://`, `primevideo://`).
+- **Standardized Multi-Genre Taxonomy**: Dedicated `Genre` and `MediaGenre` entities covering all standard TMDB genres with multi-language naming for search indexing and recommendation affinity scoring.
+- **PRD 9 Vibe-Centric Moods (3x3 Grid)**: Ambient colors, vector icons, and multi-language descriptors for all 9 launch moods covering 100% of entertainment tastes (`kafa-dagitmalik`, `icini-isitanlar`, `beyin-yakanlar`, `zeka-oyunlari`, `gaza-getirenler`, `gerim-gerim-gerenler`, `dunyadan-uzaklas`, `gozyasi-garantili`, `ufkunu-genislet`).
+- **Cartesian Explosion Prevention (`AsSplitQuery`)**: All repository queries loading multi-level child collections strictly utilize split queries to guarantee linear database I/O and minimal memory allocations.
+- **Idempotent Automated Database Seeder**: Seamlessly initializes 9 launch moods, standard genres, top streaming platforms, and sample media (*Inception*, *Black Mirror*) across startup and integration test lifecycles.
+
 ---
 
 ## 🚀 Getting Started & Testing
@@ -350,7 +380,7 @@ ShuffleSeries enforces a strict, multi-tiered testing strategy:
 - **Real Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`, `ShuffleSeries.Identity.IntegrationTests`, `ShuffleSeries.ApiGateway.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (PostgreSQL), and `Respawn` for lightning-fast sub-second table resets.
 
 ```bash
-# Run all 358 tests across the entire solution
+# Run all 489 tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)
@@ -393,13 +423,13 @@ The platform is fortified with an automated, multi-stage GitHub Actions pipeline
 ```mermaid
 flowchart LR
     A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
-    B --> C["🧪 Automated Tests\n(358 Tests + Real Testcontainers)"]
+    B --> C["🧪 Automated Tests\n(489 Tests + Real Testcontainers)"]
     D --> E["🐳 Docker Integrity Gate\n(Non-Root 'app' Containers)"]
     C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 100% Safe)"]
 ```
 
 - **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
-- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **358 automated tests** (Unit, Architecture, and real PostgreSQL Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **489 automated tests** (Unit, Architecture, and real PostgreSQL Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
 - **SonarQube Quality Gate:** Validates **0 Bugs**, **0 Vulnerabilities**, **0 Code Smells**, and **100% Security Hotspots Reviewed**.
 - **Container Verification:** Validates Docker builds for microservices and API Gateway on every push and pull request, enforcing the non-root `USER app` security standard.
 
@@ -418,6 +448,8 @@ docker compose -f docker-compose.sonarqube.yml down
 ---
 
 ## 🗺️ Roadmap & Progress
-Track current and upcoming milestones in [docs/roadmap.md](./docs/roadmap.md).
-Architectural guidelines and lessons learned are documented in [docs/lessons.md](./docs/lessons.md).
-Task-specific guides and architectural rationale can be found in [docs/tasks/](./docs/tasks/).
+- Track current and upcoming milestones in [docs/roadmap.md](./docs/roadmap.md).
+- Product Requirements Document (PRD) and business specifications are in [docs/prd.md](./docs/prd.md).
+- Database design specifications, ER diagrams, and relational schemas are in [docs/db-design.md](./docs/db-design.md).
+- Architectural guidelines and lessons learned are documented in [docs/lessons.md](./docs/lessons.md).
+- Task-specific guides and architectural rationale can be found in [docs/tasks/](./docs/tasks/).

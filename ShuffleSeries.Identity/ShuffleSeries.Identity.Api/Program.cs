@@ -1,8 +1,9 @@
 using ShuffleSeries.Identity.Api.Endpoints;
-using ShuffleSeries.Identity.Api.Extensions;
 using ShuffleSeries.Identity.Application;
 using ShuffleSeries.Identity.Infrastructure;
+using ShuffleSeries.Identity.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
+using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 using ShuffleSeries.Shared.Core.Web;
 using ShuffleSeries.Shared.Core.Web.Authentication;
 using ShuffleSeries.Shared.Core.Web.Correlation;
@@ -66,11 +67,11 @@ app.MapSharedHealthChecks();
 if (app.Environment.IsDevelopment())
 {
     app.UseSharedSwagger();
+    await app.ApplyDatabaseMigrationsAsync<IdentityDbContext>(
+        (context, _) => IdentityDbSeeder.SeedAsync(context));
 }
 
 app.MapAuthEndpoints();
-
-await app.ApplyMigrationsAsync();
 
 await app.RunAsync();
 

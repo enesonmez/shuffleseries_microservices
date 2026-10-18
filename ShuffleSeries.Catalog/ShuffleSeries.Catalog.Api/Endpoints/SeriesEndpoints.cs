@@ -5,6 +5,7 @@ using ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesList;
+using ShuffleSeries.Catalog.Application.Features.Series.Responses;
 using ShuffleSeries.Shared.Core.Application.Responses;
 using ShuffleSeries.Shared.Core.Exceptions;
 

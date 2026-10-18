@@ -27,6 +27,11 @@ public class DependencyInjectionTests
         services.AddInfrastructure(configuration);
 
         services.Should().Contain(d => d.ServiceType == typeof(ISeriesRepository));
+        services.Should().Contain(d => d.ServiceType == typeof(IMediaRepository));
+        services.Should().Contain(d => d.ServiceType == typeof(IMovieRepository));
+        services.Should().Contain(d => d.ServiceType == typeof(IPlatformRepository));
+        services.Should().Contain(d => d.ServiceType == typeof(IMoodRepository));
+        services.Should().Contain(d => d.ServiceType == typeof(IEpisodeRepository));
         services.Should().Contain(d => d.ServiceType == typeof(IUnitOfWork));
         services.Should().Contain(d => d.ServiceType == typeof(SeriesDomainService));
     }

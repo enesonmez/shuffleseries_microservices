@@ -4,6 +4,7 @@ using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
+using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.ArchitectureTests;
 
@@ -150,6 +151,45 @@ public class CatalogArchitectureTests
 
         testResult.IsSuccessful.Should().BeTrue(
             $"Domain içindeki tüm Entity sınıfları BaseEntity veya AggregateRoot temel sınıflarından türemelidir. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
+    }
+
+    [Fact]
+    public void AggregateRoots_ShouldInheritFrom_AggregateRoot()
+    {
+        var aggregateRootTypes = new[]
+        {
+            typeof(Media),
+            typeof(Series),
+            typeof(Movie),
+            typeof(Platform),
+            typeof(Mood),
+            typeof(Genre)
+        };
+
+        foreach (var type in aggregateRootTypes)
+        {
+            typeof(AggregateRoot).IsAssignableFrom(type)
+                .Should().BeTrue($"Aggregate root '{type.Name}' AggregateRoot sınıfından türemelidir.");
+        }
+    }
+
+    [Fact]
+    public void DomainExceptions_ShouldInheritFromCustomException_AndBeSealed()
+    {
+        var exceptionTypes = _domainAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.Namespace == "ShuffleSeries.Catalog.Domain.Exceptions")
+            .ToList();
+
+        exceptionTypes.Should().NotBeEmpty("Catalog Domain katmanında en az bir domain exception sınıfı bulunmalıdır.");
+
+        foreach (var exceptionType in exceptionTypes)
+        {
+            typeof(CustomException).IsAssignableFrom(exceptionType)
+                .Should().BeTrue($"Domain exception '{exceptionType.Name}' CustomException sınıfından türemelidir.");
+
+            exceptionType.IsSealed
+                .Should().BeTrue($"Domain exception '{exceptionType.Name}' sealed olmalıdır.");
+        }
     }
 
     [Fact]

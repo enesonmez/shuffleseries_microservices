@@ -15,10 +15,21 @@ public abstract class CatalogIntegrationTestBase : IAsyncLifetime
     protected CatalogApiFactory Factory { get; }
     protected HttpClient Client { get; }
 
-    // Her test metodundan önce veritabanı şemasını silmeden tabloları temizle
-    public virtual Task InitializeAsync() => Factory.ResetDatabaseAsync();
+    // Her test metodundan önce veritabanı şemasını silmeden tabloları temizle ve seed verisini tazele
+    public virtual async Task InitializeAsync()
+    {
+        await Factory.ResetDatabaseAsync();
+        await EnsureCatalogDataSeededAsync();
+    }
 
     public virtual Task DisposeAsync() => Task.CompletedTask;
+
+    protected async Task EnsureCatalogDataSeededAsync()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+        await CatalogDbSeeder.SeedAsync(context);
+    }
 
     protected async Task ExecuteDbContextAsync(Func<CatalogDbContext, Task> action)
     {

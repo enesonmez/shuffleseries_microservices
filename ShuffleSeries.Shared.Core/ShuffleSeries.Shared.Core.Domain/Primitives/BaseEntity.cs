@@ -51,10 +51,17 @@ public abstract class BaseEntity<TId> : IAuditableEntity, ISoftDeletable, IHardD
         if (ReferenceEquals(this, obj)) return true;
         if (obj.GetType() != GetType()) return false;
         if (obj is not BaseEntity<TId> other) return false;
+        if (EqualityComparer<TId>.Default.Equals(Id, default) || EqualityComparer<TId>.Default.Equals(other.Id, default))
+            return false;
         return EqualityComparer<TId>.Default.Equals(Id, other.Id);
     }
 
-    public override int GetHashCode() => EqualityComparer<TId>.Default.GetHashCode(Id!);
+    public override int GetHashCode()
+    {
+        if (EqualityComparer<TId>.Default.Equals(Id, default))
+            return base.GetHashCode();
+        return EqualityComparer<TId>.Default.GetHashCode(Id!);
+    }
 }
 
 public abstract class BaseEntity : BaseEntity<Guid>

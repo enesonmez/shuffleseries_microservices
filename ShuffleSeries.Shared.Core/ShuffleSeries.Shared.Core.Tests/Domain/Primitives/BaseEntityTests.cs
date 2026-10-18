@@ -66,6 +66,17 @@ public class BaseEntityTests
     }
 
     [Fact]
+    public void Equals_WithTransientDefaultIds_ShouldReturnFalse_UnlessSameReference()
+    {
+        var entity1 = new TestEntity(Guid.Empty);
+        var entity2 = new TestEntity(Guid.Empty);
+
+        entity1.Equals(entity2).Should().BeFalse();
+        entity1.Equals((object)entity2).Should().BeFalse();
+        entity1.Equals(entity1).Should().BeTrue();
+    }
+
+    [Fact]
     public void Equals_WithDifferentType_ShouldReturnFalse()
     {
         var id = Guid.NewGuid();

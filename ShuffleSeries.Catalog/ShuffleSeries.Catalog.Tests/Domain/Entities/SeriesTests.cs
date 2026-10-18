@@ -1,128 +1,279 @@
 using ShuffleSeries.Catalog.Domain.Entities;
+using ShuffleSeries.Catalog.Domain.Enums;
+using ShuffleSeries.Catalog.Domain.Events;
+using ShuffleSeries.Catalog.Domain.Exceptions;
+using ShuffleSeries.Shared.Core.Domain.ValueObjects;
 
 namespace ShuffleSeries.Catalog.Tests.Domain.Entities;
 
 public class SeriesTests
 {
     [Fact]
-    public void Create_Should_CreareSeries_When_ValidParameters()
+    public void Create_Should_CreateSeriesAndRaiseDomainEvent_When_ValidParameters()
     {
-        // Arrange
-        var title = "Breaking Bad";
-        var description = "A high school chemistry teacher turned meth kingpin.";
-        var isIndependent = false;
-
         // Act
-        var series = Series.Create(title, description, isIndependent);
+        var series = Series.Create(
+            releaseYear: 2011,
+            seriesType: SeriesType.EpisodicAnthology,
+            posterUrl: "https://example.com/black-mirror.jpg",
+            backdropUrl: "https://example.com/bm-backdrop.jpg",
+            imdbId: "tt2085059",
+            imdbRating: 8.7,
+            imdbVotes: 600000,
+            totalSeasons: 6);
 
         // Assert
         series.Should().NotBeNull();
         series.Id.Should().NotBeEmpty();
-        series.Title.Should().Be(title);
-        series.Description.Should().Be(description);
-        series.IsIndependentEpisodes.Should().BeFalse();
-        series.CreatedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-    }
+        series.MediaType.Should().Be(MediaType.Series);
+        series.SeriesType.Should().Be(SeriesType.EpisodicAnthology);
+        series.ReleaseYear.Should().Be(2011);
+        series.PosterUrl.Should().Be("https://example.com/black-mirror.jpg");
+        series.BackdropUrl.Should().Be("https://example.com/bm-backdrop.jpg");
+        series.ImdbId.Should().Be("tt2085059");
+        series.ImdbRating.Should().Be(8.7);
+        series.ImdbVotes.Should().Be(600000);
+        series.TotalSeasons.Should().Be(6);
+        series.CreatedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(2));
 
-    [Theory]
-    [InlineData("", "Valid Description")]
-    [InlineData(" ", "Valid Description")]
-    [InlineData(null, "Valid Description")]
-    public void Create_Should_ThrowArgumentException_When_TitleIsNullOrWhiteSpace(string? invalidTitle,
-        string description)
-    {
-        // Act
-        Action action = () => Series.Create(invalidTitle!, description, false);
-
-        // Assert
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Title cannot be empty");
-    }
-
-    [Theory]
-    [InlineData("Valid Title", "")]
-    [InlineData("Valid Title", " ")]
-    [InlineData("Valid Title", null)]
-    public void Create_Should_ThrowArgumentException_When_DescriptionIsNullOrWhiteSpace(string title, string? invalidDescription)
-    {
-        // Act
-        Action action = () => Series.Create(title, invalidDescription!, false);
-
-        // Assert
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Description cannot be empty");
+        // Domain event assertion
+        series.GetDomainEvents().Should().ContainSingle(e => e is MediaCreatedDomainEvent);
+        var domainEvent = series.GetDomainEvents().OfType<MediaCreatedDomainEvent>().First();
+        domainEvent.MediaId.Should().Be(series.Id);
+        domainEvent.MediaType.Should().Be(MediaType.Series);
     }
 
     [Fact]
-    public void Update_Should_UpdateProperties_When_ValidParameters()
+    public void UpdateDetails_Should_UpdatePropertiesAndRaiseDomainEvent()
     {
         // Arrange
-        var series = Series.Create("Old Title", "Old Description", false);
-        const string newTitle = "New Title";
-        const string newDescription = "New Description";
-        const bool newIsIndependent = true;
+        var series = Series.Create(2010, SeriesType.Standard, "https://example.com/poster.jpg");
+        series.ClearDomainEvents();
 
         // Act
-        series.Update(newTitle, newDescription, newIsIndependent);
+        series.UpdateDetails(
+            releaseYear: 2011,
+            seriesType: SeriesType.SeasonalAnthology,
+            totalSeasons: 4,
+            imdbId: "tt9999999",
+            imdbRating: 9.1,
+            imdbVotes: 100000);
 
         // Assert
-        series.Title.Should().Be(newTitle);
-        series.Description.Should().Be(newDescription);
-        series.IsIndependentEpisodes.Should().BeTrue();
-        series.ModifiedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-    }
+        series.ReleaseYear.Should().Be(2011);
+        series.SeriesType.Should().Be(SeriesType.SeasonalAnthology);
+        series.TotalSeasons.Should().Be(4);
+        series.ImdbId.Should().Be("tt9999999");
+        series.ImdbRating.Should().Be(9.1);
+        series.ImdbVotes.Should().Be(100000);
+        series.ModifiedAtUtc.Should().NotBeNull();
 
-    [Theory]
-    [InlineData("", "Valid Description")]
-    [InlineData(" ", "Valid Description")]
-    [InlineData(null, "Valid Description")]
-    public void Update_Should_ThrowArgumentException_When_TitleIsNullOrWhiteSpace(string? invalidTitle, string description)
-    {
-        // Arrange
-        var series = Series.Create("Valid Title", "Valid Description", false);
-
-        // Act
-        var action = () => series.Update(invalidTitle!, description, false);
-
-        // Assert
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Title cannot be empty");
-    }
-
-    [Theory]
-    [InlineData("Valid Title", "")]
-    [InlineData("Valid Title", " ")]
-    [InlineData("Valid Title", null)]
-    public void Update_Should_ThrowArgumentException_When_DescriptionIsNullOrWhiteSpace(string title, string? invalidDescription)
-    {
-        // Arrange
-        var series = Series.Create("Valid Title", "Valid Description", false);
-
-        // Act
-        var action = () => series.Update(title!, invalidDescription!, false);
-
-        // Assert
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Description cannot be empty");
+        series.GetDomainEvents().Should().ContainSingle(e => e is MediaUpdatedDomainEvent);
     }
 
     [Fact]
-    public void Delete_Should_MarkAsSoftDeleted_AndRaiseDomainEvent()
+    public void AddSeason_Should_AddSeasonToSeries_And_UpdateTotalSeasonsIfHigher()
     {
         // Arrange
-        var series = Series.Create("Title", "Description", false);
-        const string deletedBy = "content-manager";
+        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg", totalSeasons: 1);
 
         // Act
-        series.Delete(deletedBy);
+        var season = series.AddSeason(2, "Season 2");
+
+        // Assert
+        season.Should().NotBeNull();
+        season.SeasonNumber.Should().Be(2);
+        season.Title.Should().Be("Season 2");
+        series.Seasons.Should().Contain(season);
+        series.TotalSeasons.Should().Be(2);
+    }
+
+    [Fact]
+    public void AddSeason_WhenSeasonAlreadyExists_ShouldReturnExistingSeason()
+    {
+        // Arrange
+        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var season1 = series.AddSeason(1, "Season 1");
+
+        // Act
+        var duplicateSeason = series.AddSeason(1, "Duplicate");
+
+        // Assert
+        duplicateSeason.Should().BeSameAs(season1);
+        series.Seasons.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void AddEpisode_InEpisodicAnthology_ShouldDefaultIsStandaloneToTrue()
+    {
+        // Arrange
+        var series = Series.Create(2011, SeriesType.EpisodicAnthology, "https://example.com/bm.jpg");
+
+        // Act
+        var episode = series.AddEpisode(
+            seasonNumber: 1,
+            episodeNumber: 1,
+            isStandalone: null,
+            runtimeMinutes: 44,
+            imdbRating: 8.0,
+            thumbnailUrl: "https://example.com/ep1.jpg");
+
+        // Assert
+        episode.Should().NotBeNull();
+        episode.EpisodeNumber.Should().Be(1);
+        episode.IsStandalone.Should().BeTrue();
+        episode.RuntimeMinutes.Should().Be(44);
+        episode.ImdbRating.Should().Be(8.0);
+    }
+
+    [Fact]
+    public void AddEpisode_InStandardSeries_ShouldDefaultIsStandaloneToFalse()
+    {
+        // Arrange
+        var series = Series.Create(2008, SeriesType.Standard, "https://example.com/bb.jpg");
+
+        // Act
+        var episode = series.AddEpisode(
+            seasonNumber: 1,
+            episodeNumber: 1,
+            isStandalone: null);
+
+        // Assert
+        episode.IsStandalone.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AddOrUpdateTranslation_Should_AddTranslationNormalizedAndAllowUpdate()
+    {
+        // Arrange
+        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+
+        // Act 1: Add TR
+        var tr = series.AddOrUpdateTranslation("TR", "Başlık", "Özet", "Etiket");
+
+        // Assert 1
+        tr.LanguageCode.Should().Be(LanguageCode.Turkish);
+        tr.Title.Should().Be("Başlık");
+        series.Translations.Should().HaveCount(1);
+
+        // Act 2: Update TR
+        var updatedTr = series.AddOrUpdateTranslation("tr", "Yeni Başlık", "Yeni Özet", "Yeni Etiket");
+
+        // Assert 2
+        updatedTr.Title.Should().Be("Yeni Başlık");
+        series.Translations.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public void AddPlatform_Should_AddPlatformOrThrowIfDuplicate()
+    {
+        // Arrange
+        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var platformId = Guid.NewGuid();
+
+        // Act
+        var mediaPlatform = series.AddPlatform(platformId, "https://netflix.com/title/123", "netflix://title/123");
+
+        // Assert
+        mediaPlatform.PlatformId.Should().Be(platformId);
+        series.MediaPlatforms.Should().Contain(mediaPlatform);
+
+        // Duplicate
+        var action = () => series.AddPlatform(platformId, "https://netflix.com/other");
+        action.Should().Throw<DuplicateMediaPlatformException>();
+    }
+
+    [Fact]
+    public void AddMood_Should_AddMoodOrThrowIfDuplicate()
+    {
+        // Arrange
+        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var moodId = Guid.NewGuid();
+
+        // Act
+        var mediaMood = series.AddMood(moodId);
+
+        // Assert
+        mediaMood.MoodId.Should().Be(moodId);
+        series.MediaMoods.Should().Contain(mediaMood);
+
+        // Duplicate
+        var action = () => series.AddMood(moodId);
+        action.Should().Throw<DuplicateMediaMoodException>();
+    }
+
+    [Fact]
+    public void Delete_Should_SoftDeleteAndRaiseDomainEvent()
+    {
+        // Arrange
+        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        series.ClearDomainEvents();
+
+        // Act
+        series.Delete("admin");
 
         // Assert
         series.IsDeleted.Should().BeTrue();
+        series.DeletedBy.Should().Be("admin");
         series.DeletedAtUtc.Should().NotBeNull();
-        series.DeletedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-        series.DeletedBy.Should().Be(deletedBy);
+        series.GetDomainEvents().Should().ContainSingle(e => e is MediaDeletedDomainEvent);
+    }
 
-        var domainEvents = series.GetDomainEvents();
-        domainEvents.Should().Contain(x => x is ShuffleSeries.Catalog.Domain.Events.SeriesDeletedDomainEvent);
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_Should_ThrowArgumentException_When_PosterUrlIsEmpty(string invalidPosterUrl)
+    {
+        var action = () => Series.Create(2020, SeriesType.Standard, invalidPosterUrl);
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(1800)]
+    [InlineData(2101)]
+    public void Create_Should_ThrowArgumentOutOfRangeException_When_ReleaseYearIsOutOfBounds(int invalidYear)
+    {
+        var action = () => Series.Create(invalidYear, SeriesType.Standard, "https://example.com/poster.jpg");
+        action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void AddEpisode_WhenDuplicateEpisodeNumberInSameSeason_ShouldThrowDuplicateEpisodeException()
+    {
+        // Arrange
+        var series = Series.Create(2011, SeriesType.EpisodicAnthology, "https://example.com/bm.jpg");
+        series.AddEpisode(1, 1);
+
+        // Act
+        var action = () => series.AddEpisode(1, 1);
+
+        // Assert
+        action.Should().Throw<DuplicateEpisodeException>();
+    }
+
+    [Fact]
+    public void RemoveChildCollections_Should_MarkRemovedItemsForHardDelete()
+    {
+        // Arrange
+        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var translation = series.AddOrUpdateTranslation("tr", "Başlık", "Özet");
+        var platformId = Guid.NewGuid();
+        var mediaPlatform = series.AddPlatform(platformId, "https://netflix.com/title/1");
+        var moodId = Guid.NewGuid();
+        var mediaMood = series.AddMood(moodId);
+        var genreId = Guid.NewGuid();
+        var mediaGenre = series.AddGenre(genreId);
+
+        // Act
+        series.RemoveTranslation("tr");
+        series.RemovePlatform(platformId);
+        series.RemoveMood(moodId);
+        series.RemoveGenre(genreId);
+
+        // Assert
+        translation.IsHardDeleteRequested.Should().BeTrue();
+        mediaPlatform.IsHardDeleteRequested.Should().BeTrue();
+        mediaMood.IsHardDeleteRequested.Should().BeTrue();
+        mediaGenre.IsHardDeleteRequested.Should().BeTrue();
     }
 }

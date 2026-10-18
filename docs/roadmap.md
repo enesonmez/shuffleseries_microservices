@@ -84,28 +84,34 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * Performans & Bellek Optimizasyonu: UserRepository içinde gereksiz RefreshTokens yüklemelerinin arındırılması ve süresi 30 günden eski/iptal edilmiş token'lar için periyodik PurgeExpiredRefreshTokensJob arka plan işi.
 
 # Milestone 3: Catalog Service (The Source of Truth)
-İçeriklerin (film, dizi, antoloji bölümleri), yayın platformlarının ve özgün ruh hali türlerinin CQRS ve Event-Driven prensiplerle inşası.
-* [ ] Task 3.1: Catalog CRUD ve Detay İşlemleri (Read & Write)
-  * POST / PUT / DELETE /api/catalog/movies: Film yönetimi.
-  * GET /api/catalog/movies/{id}: Film detay sayfası (özet, afiş, süre, IMDb puanı, yönetmen/oyuncu kadrosu, platform deep link'leri ve his etiketleri).
-  * POST / PUT / DELETE /api/catalog/series: Dizi yönetimi.
-  * GET /api/catalog/series/{id}: Dizi detay sayfası, sezon ve bölüm hiyerarşisi.
-  * POST / PUT / DELETE /api/catalog/series/{seriesId}/episodes: Diziye bölüm ekleme/çıkarma.
-  * GET /api/catalog/episodes/{id}: Bağımsız ve antoloji bölüm detay sayfası (Bölüm Ruleti kart detayları için).
-  * Antoloji serileri ("Black Mirror", "Love Death & Robots" vb.) için dizi ve bölüm seviyesinde IsStandalone flag'i, süre (runtime ~45 dk) ve bölüm thumbnail/afiş desteği.
-  * Dijital Yayın Platformları Desteği:
-    * GET /api/catalog/platforms: Desteklenen dijital yayın platformları (Netflix, Prime Video, Disney+ vb. ID, ad, logo URL, temel şema URL).
-    * POST / PUT / DELETE /api/catalog/platforms: Platform tanımlama ve yönetimi.
-    * Medya içeriklerine platform atama ve "Platformda Aç / Hemen İzle" deep link URL'lerinin (appSchemeUrl / webUrl) kaydedilmesi.
-  * Özgün Ruh Hali / Mood Türleri Desteği (FRD Kısıtlamaları):
-    * GET /api/catalog/moods: Özgün ruh hali listesi ("Kafa Dağıtmalık", "Beyin Yakanlar", "Gerim Gerim Gerenler", "Gözyaşı Garantili", "Dünyadan Uzaklaş", "Gaza Getirenler"), alt açıklamaları, vibe etiketleri ve ambient blur renk kodları.
-    * POST / PUT / DELETE /api/catalog/moods: Mood tanımlama ve yönetimi.
-    * POST / PUT /api/catalog/media/{id}/moods: İçeriklerin bu özgün ruh hali türleriyle ilişkilendirilmesi.
-  * Mood Türleri ve Platform dataları yvaş değişen değerler olduğu için cache'leme mekanizması get servisi için kullanılmalı.
-  * Silme işlemlerinde Milestone 1'de kurulan Soft Delete altyapısının kullanılması.
-* [ ] Task 3.2: Outbox Pattern ve RabbitMQ Entegrasyonu
-  * Dağıtık sistem tutarsızlığını önlemek için veritabanı yazma işlemi ile event fırlatma işlemini tek transaction'da garantiye alacak Outbox Pattern'in kurulması.
-  * Veri eklendiğinde/güncellendiğinde/silindiğinde MediaCreatedEvent, MediaUpdatedEvent, MediaDeletedEvent, PlatformCreated/UpdatedEvent ve MoodCreated/UpdatedEvent mesajlarının RabbitMQ'ya atılması.
+İçeriklerin (film, dizi, antoloji bölümleri), yayın platformlarının ve özgün ruh hali türlerinin çok dilli, CQRS, gRPC ve Event-Driven mimaride inşası.
+* [x] Task 3.1: Çok Dilli Domain Modellemesi, Veritabanı ve Seed Altyapısı
+  * Çoklu Dil Mimarisi: Genişletilebilir Entity Translation Pattern (`MediaTranslation`, `MoodTranslation`, `GenreTranslation` ile TR, EN ve geleceğe hazır ISO dil desteği).
+  * Zengin Medya & Antoloji Modellemesi: `Movie`, `Series`, `Season`, `Episode` entity'leri; dizi seviyesinde `SeriesType` (Standard, EpisodicAnthology, SeasonalAnthology) ve bölüm seviyesinde `IsStandalone` flag'i (~45 dk bağımsız bölümler).
+  * Varlık & Platform Standartları: OLED dikey Hero poster, 16:9 yatay backdrop ve antoloji thumbnail desteği; dijital yayın platformları (aktif/pasif logo) ve "Hemen İzle" deep link URL eşlemeleri.
+  * PRD 6 Özgün Ruh Hali: Kafa Dağıtmalık, Beyin Yakanlar, Gerim Gerim Gerenler, Gözyaşı Garantili, Dünyadan Uzaklaş, Gaza Getirenler türleri ve dinamik ambient blur hex renkleri.
+  * Platform-Bağımsız Tür Taksonomisi (Dual-Taxonomy): `Genre` ve `MediaGenre` çoka-çok ilişkisi, 19 TMDB evrensel türünün referans kodlarıyla TR/EN tohumlanması (`CatalogDbSeeder`).
+  * Soft Delete, PostgreSQL kısmi indeksleri, `DatabaseMigrationExtensions` ile resilient migration döngüsü.
+* [ ] Task 3.2: CQRS ve Minimal API Geliştirmeleri (Read & Write)
+  * Content Negotiation: `Accept-Language` ve `?lang=` üzerinden dinamik dil çözümleme (Graceful Fallback).
+  * Write Minimal API'leri (Admin / Yönetim):
+    * POST / PUT / DELETE /api/catalog/movies: Çok dilli film yönetimi.
+    * POST / PUT / DELETE /api/catalog/series & /episodes: Dizi, sezon ve bağımsız bölüm yönetimi.
+    * POST / PUT / DELETE /api/catalog/platforms, /moods & /genres: Platform, ruh hali ve klasik tür yönetimi.
+    * POST / PUT /api/catalog/media/{id}/platforms, /moods & /genres: Platform, mood ve tür ilişkilendirmeleri.
+  * Read Minimal API'leri (İstemci & Detay Odaklı):
+    * GET /api/catalog/platforms, /moods & /genres: Metadata listeleri (`IMemoryCache` / Redis Read-Through Caching).
+    * GET /api/catalog/movies/{id}: Film zengin detay sayfası.
+    * GET /api/catalog/series/{id}: Dizi detay sayfası (sezon ve bölüm hiyerarşisi ile).
+    * GET /api/catalog/episodes/{id}: Antoloji bölümü bağımsız detay sayfası.
+    * GET /api/catalog/admin/media: CMS/Backoffice için sayfalı ve filtreli yönetim listesi (Admin rolüne özel).
+* [ ] Task 3.3: gRPC İletişim Uç Noktası (Shuffle Engine Entegrasyonu)
+  * Shuffle Engine Redis Cold Start / Cache Warming ve Bölüm Ruleti beslemesi için `CatalogGrpcService` geliştirilmesi (`GetBulkMediaForShuffle`, `GetStandaloneEpisodesForRoulette`, `GetMediaById`).
+  * gRPC sözleşmesinde çok dilli içerik sözlüklerinin (`map<string, LocalizedMediaPayload>`) taşınması.
+* [ ] Task 3.4: Transactional Outbox Pattern ve RabbitMQ Entegrasyonu
+  * Dağıtık veri tutarlılığı için Transactional Outbox Pattern uygulanması.
+  * Çok dilli `MediaCreated/Updated/DeletedEvent`, `PlatformCreated/UpdatedEvent`, `MoodCreated/UpdatedEvent` ve `GenreCreated/Updated/DeletedEvent` mesajlarının RabbitMQ'ya asenkron fırlatılması (Search ve Shuffle servisleri beslemesi).
+  * Poison message korumalı (`MaxRetries = 3`) Quartz `ProcessOutboxMessagesJob` entegrasyonu.
 
 # Milestone 4: Shuffle Engine Service (The Core Engine)
 Sistemin en çok trafik alacak ana damarının performans, esneklik ve oyunlaştırma odaklı geliştirilmesi.
@@ -113,19 +119,27 @@ Sistemin en çok trafik alacak ana damarının performans, esneklik ve oyunlaşt
   * RabbitMQ üzerinden fırlatılan medya, platform ve mood event'lerinin dinlenerek Redis Sorted Sets, Hash ve Set yapılarının anlık güncellenmesi.
   * InBox Pattern kullanılarak aynı event'in iki kez işlenmesinin (Idempotency) önüne geçilmesi.
   * UserSubscribedEvent ve UserSubscriptionCancelledEvent mesajlarının dinlenerek kullanıcının Redis üzerindeki Premium statüsünün ve yetkilerinin milisaniyede güncellenmesi.
+  * Kullanıcı için 24 Saatlik Cooldown Seti (`cooldown:user:{userId}`) ve Kullanıcı İlgi Vektörü (Feature Vector) yapılarının Redis'te kurgulanması.
+  * Yeni ve misafir kullanıcılar için IMDb > 7.5 "Güvenli Başyapıtlar Havuzu" (Safety Net Pool) önbelleği.
   * Redis'in boş olması (Cold Start) durumunda, Shuffle Engine'in gRPC üzerinden Catalog servisine bağlanarak başlangıç verisini (Bulk) çekmesi ve Redis'i doldurması (Cache Warming).
-* [ ] Task 4.2: Shuffle Endpoint'leri ve Swipe Arenası Entegrasyonu
-  * GET /api/shuffle/movies?moodId={moodId}&platformIds={platformIds}&year={year}&minRating={minRating}: Film Gecesi modu için rastgele film getirme.
-  * GET /api/shuffle/series?moodId={moodId}&platformIds={platformIds}&minRating={minRating}: Dizi Keşfet modu için rastgele dizi getirme.
-  * GET /api/shuffle/episodes/roulette?moodId={moodId}&platformIds={platformIds}&minRating={minRating}: Bölüm Ruleti modu (Tek bir diziye bağlı kalmaksızın tüm antoloji dizilerinin bağımsız bölümlerinden oluşan ortak havuzdan 45 dakikalık çerezlik rastgele bölüm getirme).
-  * GET /api/shuffle/series/{seriesId}/episodes: Arama kartından veya dizi detayından tetiklenen "Sadece Bu Diziyi Shuffle Yap" modu (Örn: Yalnızca Black Mirror bölümleri arasında rulet).
-  * GET /api/shuffle/similar/{mediaId}: Detay sayfası ve Akıllı Köprü (Smart Bridge) için benzer ruh halindeki (mood) yapımlardan rulet formatında öneri getirme (Örn: Inception benzeri "Beyin Yakanlar" ruleti veya kullanıcının platformunda olmayan içeriğin benzerleri).
-  * GET /api/shuffle/vip-weekend: "Hafta Sonu Garantili Başyapıtlar" VIP arenası (Yalnızca Premium kullanıcılara özel küratör onaylı başyapıt havuzundan rulet çevirme).
-  * POST /api/shuffle/my-list?type={movie|series|episode}: "Listemden Shuffle Yap" (Yalnızca kullanıcının "İzleyeceklerim" listesindeki içeriklerden rulet çevirme; Premium yetki kontrolü zorunludur).
+* [ ] Task 4.2: Shuffle Endpoint'leri, 3 Aşamalı Öneri Motoru ve Swipe Arenası
+  * GET /api/shuffle/movies?moodId={moodId}&platformIds={platformIds}&year={year}&minRating={minRating}: Film Gecesi modu için rulet.
+  * GET /api/shuffle/series?moodId={moodId}&platformIds={platformIds}&minRating={minRating}: Dizi Keşfet modu için rulet.
+  * GET /api/shuffle/episodes/roulette?moodId={moodId}&platformIds={platformIds}&minRating={minRating}: Bölüm Ruleti modu (Antoloji serileri ve durum komedisi bağımsız bölümlerinden - IsStandalone - 20-45 dakikalık çerezlik rastgele bölüm getirme).
+  * GET /api/shuffle/series/{seriesId}/episodes: "Sadece Bu Diziyi Shuffle Yap" modu (Örn: Yalnızca Black Mirror bölümleri arasında rulet).
+  * GET /api/shuffle/similar/{mediaId}: Detay sayfası ve Akıllı Köprü (Smart Bridge) için benzer ruh halindeki yapımlardan rulet formatında öneri getirme.
+  * GET /api/shuffle/vip-weekend: "Hafta Sonu Garantili Başyapıtlar" VIP arenası (Yalnızca Premium kullanıcılara özel).
+  * POST /api/shuffle/my-list?type={movie|series|episode}: "Listemden Shuffle Yap" (Kullanıcının listesinde en az 3 içerik kontrolü zorunludur; Premium kurgusu).
+  * 3 Aşamalı Akıllı Öneri Boru Hattı:
+    * 1. Sert Filtreleme: Platform, mod, mood eşleşmesi; kütüphanedekilerin kalıcı muafiyeti ve 24 saatlik Cooldown seti kontrolü.
+    * 2. Uygunluk Skorlaması: Temel Kalite (IMDb x 0.5 + Popülerlik x 0.3 + Yenilik x 0.2) x Kullanıcı Afinite Artışı (+%30 Çift Başparmak, +%15 Onboarding) x Ceza Katsayısı (-%50 Beğenmedim).
+    * 3. Ağırlıklı Rastgele Seçim (Rulet Çarkı / Softmax): %70-80 yüksek skorlu başyapıt, %20-30 sürpriz keşif (hidden gem) dengesi.
+  * Sıfır Sonuç Durumu (Zero-Result Fallback): Aday havuzu tükendiğinde en yakın moddan veya genişletilmiş platformlardan akıllı öneri sunumu.
+  * Mobil Prefetch Tamponu: İstemcinin sıfır gecikmeli (0 ms) kaydırma yapabilmesi için arka planda 3-5 kartlık önbellek desteği.
   * POST /api/shuffle/swipe-action: Swipe Arenası aksiyon yönetimi:
-    * Sola kaydırma (Pas Geç): Bilet bakiyesinden 1 adet düşer ve kesintisiz sıradaki öneri kartını döner (Bilet sıfırsa kıtlık kancası yanıtı üretir).
-    * Sağa kaydırma (Listeme Ekle): Bilet düşürmez; kütüphaneye ekleme tetikler ve ekranda platforma giden "Hemen İzle" butonunu aktif eder.
-    * Her swipe eyleminde asenkron olarak ShuffleSwipedEvent fırlatılması (Tüketenler: Ticket Economy -> Bilet düşümü doğrulaması, History & Analytics -> Arka plan telemetri kaydı).
+    * Çarka ilk basışta ve sola kaydırmada (yeni kart talebi) 1 bilet düşüşü; pas geçilen içeriğin 24 saatlik Cooldown'a alınması (Bilet sıfırsa kıtlık kancası yanıtı).
+    * Sağa kaydırmada (Listeme Ekle) bilet düşmemesi (0 bilet); içeriğin rulet havuzundan kalıcı çıkarılması ve platform derin bağlantılı ("Hemen İzle" Deep Link) yanıt dönülmesi.
+    * Her swipe eyleminde asenkron olarak ShuffleSwipedEvent fırlatılması (Tüketenler: Ticket Economy, History & Analytics).
   * Çark çevrilmeden önce kullanıcının bilet bakiyesinin (veya Premium sınırsızlık durumunun) doğrulanması.
 * [ ] Task 4.3: Performans (Heap Allocation Minimizasyonu)
   * Performanslı array ve bellek manipülasyonları için C#'ın Span<T>, Memory<T> ve ArrayPool<T> yapılarının kullanılması (GC yükünün minimize edilmesi).
@@ -136,7 +150,7 @@ Sistemin en çok trafik alacak ana damarının performans, esneklik ve oyunlaşt
 # Milestone 5: Search Service
 Elasticsearch kullanarak hızlı ve Event-Driven metin arama sisteminin kurulması.
 * [ ] Task 5.1: Elasticsearch Entegrasyonu ve Arama/Keşif Endpoint'leri
-  * GET /api/search?q={text}&type={all|series|movies|episodes}&platformId={platformId}&moodId={moodId}&page=&pageSize=: Canlı arama ve filtreleme sonuçları (Debounce desteği, 16:9 yatay kart formatı, kullanıcının platformunda bulunma durumunu bildiren isAvailableOnUserPlatforms alanı ve Akıllı Köprü yönlendirme desteği).
+  * GET /api/search?q={text}&type={all|series|movies|episodes}&genreId={genreId}&platformId={platformId}&moodId={moodId}&page=&pageSize=: Dual-Taxonomy (klasik tür ve ruh hali) çoklu facet canlı arama ve filtreleme sonuçları (Debounce desteği, 16:9 yatay kart formatı, kullanıcının platformunda bulunma durumunu bildiren isAvailableOnUserPlatforms alanı ve Akıllı Köprü yönlendirme desteği).
   * GET /api/search/suggest?q={text}: Otomatik tamamlama (Edge N-Gram tokenizers kullanımı).
   * GET /api/search/trending-roulettes: Günün Popüler Ruletleri (Boş arama ekranında diğer kullanıcıların o gün en çok listesine eklediği 3-4 trend yapım mini kartları).
   * GET /api/search/recent: Kullanıcının son arama geçmişi (Arama ekranı boş durumundaki silinebilir çipler; yapılan aramalar otomatik olarak bu listeye işlenir).
@@ -146,6 +160,7 @@ Elasticsearch kullanarak hızlı ve Event-Driven metin arama sisteminin kurulmas
   * RabbitMQ Consumer'larının InBox Pattern (Idempotency) ile kurgulanması:
     * MediaCreatedEvent, MediaUpdatedEvent ve MediaDeletedEvent dinlenerek Elasticsearch doküman indeksinin güncellenmesi (Nihai Tutarlılık).
     * PlatformUpdatedEvent ve MoodUpdatedEvent dinlenerek indeksteki denormalize platform/ruh hali metadata alanlarının yenilenmesi.
+    * GenreCreatedEvent, GenreUpdatedEvent ve GenreDeletedEvent dinlenerek indeksteki klasik tür facet alanlarının güncellenmesi.
     * MediaAddedToWatchlistEvent dinlenerek "Günün Popüler Ruletleri" (Trending) sayaçlarının ve arama popülerlik skorlarının güncellenmesi.
 
 # Milestone 6: Profile & Preferences Service
@@ -156,8 +171,8 @@ Kullanıcının uygulamadaki "kişiliğini" (platformları, his profili ve bildi
   * GET /api/profile/me: Profil detayları (Avatar, ünvan, genel ayarlar).
   * PUT /api/profile/me: Profil bilgilerini güncelleme.
   * GET / PUT /api/profile/preferences/platforms: Kullanıcının abone olduğu yayın platformlarının yönetimi ("Platformlarım" ekranı).
-  * GET / PUT /api/profile/preferences/moods: Kullanıcının favori ruh hali profili ("Tür Profilim" ekranı).
-  * GET / PUT /api/profile/preferences/notifications: Bildirim tercihleri (Favori tür bildirimleri, Seri hatırlatıcı 🔥, Hafta sonu sürprizi açma/kapatma).
+  * GET / PUT /api/profile/preferences/moods: Kullanıcının favori ruh hali tercihlerinin yönetimi ("Ruh Hali Profilim" ekranı).
+  * GET / PUT /api/profile/preferences/notifications: Bildirim tercihleri (Favori ruh hali bildirimleri, Seri hatırlatıcı 🔥, Hafta sonu sürprizi açma/kapatma).
 * [ ] Task 6.3: Shuffle Engine İletişimi (gRPC / Redis) ve Event Choreography
   * Shuffle Engine'in tercihleri milisaniyeler içinde okuyabilmesi için gRPC entegrasyonu veya ortak Redis kümesi üzerinden (Asenkron) tercih senkronizasyonunun yapılması.
   * Outbox Pattern: Profil ve tercihler değiştiğinde RabbitMQ'ya ProfileUpdatedEvent atılarak Shuffle Engine'deki pre-computed önbelleğin temizlenmesi (Cache Invalidation).
@@ -169,18 +184,19 @@ Kullanıcının uygulamadaki "kişiliğini" (platformları, his profili ve bildi
 # Milestone 7: User Library ("Listem") Service
 Kullanıcıların "İzleyeceklerim" ve "İzlediklerim" arşivlerini, alt kategori filtrelerini ve 3 durumlu oylama mekanizmasını yöneten bağımsız Bounded Context.
 * [ ] Task 7.1: İzleyeceklerim (Watchlist) ve İzlediklerim Yönetimi
-  * GET /api/library/watchlist?type={all|movies|series|episodes}&page=&pageSize=: "İzleyeceklerim" sekmesi (16:9 yatay afiş kartı, platform logosu, eklenme sebebi his etiketi, sayfalı liste).
+  * GET /api/library/watchlist?type={all|movies|series|episodes}&page=&pageSize=: "İzleyeceklerim" sekmesi (16:9 yatay afiş kartı, platform logosu, klasik tür ve eklenme sebebi ruh hali modu etiketi, sayfalı liste).
   * POST /api/library/watchlist: Listeye içerik ekleme (Swipe Arenası sağa kaydırma eyleminden veya detay sayfasından tetiklenir).
   * DELETE /api/library/watchlist/{mediaId}: Listeden içerik silme (Liste içi sola kaydırma eylemi).
   * POST /api/library/watched: İçeriği "İzlediklerim" sekmesine taşıma (Liste içi sağa kaydırma eylemi) veya doğrudan izlendi olarak kaydetme.
   * DELETE /api/library/watched/{mediaId}: İçeriği "İzlediklerim" sekmesinden çıkarma / silme.
   * GET /api/library/watched?type={all|movies|series|episodes}&page=&pageSize=: "İzlediklerim" sekmesi listesi.
+  * "Listemden Shuffle" (FAB) tetiklenmeden önce listede minimum 3 içerik kontrolü ve 3'ten az ise boş durum rehberliği.
 * [ ] Task 7.2: 3 Durumlu Oylama Sistemi ve Event-Driven Entegrasyon
   * POST /api/library/watched/{mediaId}/rate: "İzlediklerim" sekmesindeki içeriği oylama ("Çift Başparmak / Beğendim / Beğenmedim" formatında 3 durumlu puanlama).
   * Outbox Pattern ile Event Fırlatma:
     * MediaAddedToWatchlistEvent: İçerik listeye eklendiğinde fırlatılır (Tüketenler: Search Service -> Günün Popüler Ruletleri sayaç artırımı, History & Analytics -> Kaydetme telemetrisi).
     * MediaWatchedEvent: İçerik izlendiğinde fırlatılır (Tüketenler: History & Analytics -> İzleme geçmişi zaman çizgisi).
-    * MediaRatedEvent: İçerik puanlandığında fırlatılır (Tüketenler: Ticket Economy -> Her 3 oylamada +3 bilet tanımlama, History & Analytics -> Öneri modeli besleme).
+    * MediaRatedEvent: İçerik puanlandığında fırlatılır ("Çift Başparmak" +%30, "Beğendim" +%10, "Beğenmedim" -%50 katsayıları ile; Tüketenler: Ticket Economy -> Her 3 oylamada +3 bilet tanımlama, Shuffle Engine -> Kullanıcı afinite ilgi vektörünü güncelleme, History & Analytics -> Öneri modeli besleme).
   * InBox Consumer'ları:
     * UserAccountDeletedEvent: Kullanıcı hesabını sildiğinde kütüphane verilerinin kalıcı olarak temizlenmesi.
   * Shuffle Engine için gRPC Uç Noktası: "Listemden Shuffle" özelliği için kullanıcının watchlist ID listesini ultra-hızlı dönen gRPC metodunun sunulması.

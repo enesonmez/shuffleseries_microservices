@@ -1,5 +1,6 @@
 using FluentValidation.TestHelper;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
+using ShuffleSeries.Catalog.Domain.Enums;
 
 namespace ShuffleSeries.Catalog.Tests.Application.Features.UpdateSeries;
 
@@ -10,7 +11,7 @@ public class UpdateSeriesCommandValidatorTests
     [Fact]
     public void Validate_WithValidCommand_ShouldNotHaveAnyValidationErrors()
     {
-        var command = new UpdateSeriesCommand(Guid.NewGuid(), "Better Call Saul", "Legal drama spin-off.", false);
+        var command = new UpdateSeriesCommand(Guid.NewGuid(), 2015, SeriesType.Standard, 6);
 
         var result = _validator.TestValidate(command);
 
@@ -20,63 +21,81 @@ public class UpdateSeriesCommandValidatorTests
     [Fact]
     public void Validate_WithEmptyId_ShouldHaveValidationError()
     {
-        var command = new UpdateSeriesCommand(Guid.Empty, "Valid Title", "Valid Description", false);
+        var command = new UpdateSeriesCommand(Guid.Empty, 2015, SeriesType.Standard, 6);
 
         var result = _validator.TestValidate(command);
 
         result.ShouldHaveValidationErrorFor(x => x.Id)
-              .WithErrorMessage("Id is required.");
+              .WithErrorMessage("Dizi ID boş olamaz.");
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData(" ")]
-    [InlineData(null)]
-    public void Validate_WithEmptyOrNullTitle_ShouldHaveValidationError(string? title)
+    [InlineData(1899)]
+    [InlineData(2101)]
+    public void Validate_WithInvalidReleaseYear_ShouldHaveValidationError(int invalidYear)
     {
-        var command = new UpdateSeriesCommand(Guid.NewGuid(), title!, "Valid Description", false);
+        var command = new UpdateSeriesCommand(Guid.NewGuid(), invalidYear, SeriesType.Standard, 6);
 
         var result = _validator.TestValidate(command);
 
-        result.ShouldHaveValidationErrorFor(x => x.Title)
-              .WithErrorMessage("Title is required.");
+        result.ShouldHaveValidationErrorFor(x => x.ReleaseYear)
+              .WithErrorMessage("Çıkış yılı geçerli bir yıl olmalıdır.");
     }
 
     [Fact]
-    public void Validate_WithTitleExceeding150Characters_ShouldHaveValidationError()
+    public void Validate_WithInvalidSeriesType_ShouldHaveValidationError()
     {
-        var longTitle = new string('T', 151);
-        var command = new UpdateSeriesCommand(Guid.NewGuid(), longTitle, "Valid Description", false);
+        var command = new UpdateSeriesCommand(Guid.NewGuid(), 2015, (SeriesType)999, 6);
 
         var result = _validator.TestValidate(command);
 
-        result.ShouldHaveValidationErrorFor(x => x.Title)
-              .WithErrorMessage("Title cannot exceed 150 characters.");
+        result.ShouldHaveValidationErrorFor(x => x.SeriesType)
+              .WithErrorMessage("Geçersiz dizi türü.");
+    }
+
+    [Fact]
+    public void Validate_WithNegativeTotalSeasons_ShouldHaveValidationError()
+    {
+        var command = new UpdateSeriesCommand(Guid.NewGuid(), 2015, SeriesType.Standard, -1);
+
+        var result = _validator.TestValidate(command);
+
+        result.ShouldHaveValidationErrorFor(x => x.TotalSeasons)
+              .WithErrorMessage("Toplam sezon sayısı negatif olamaz.");
+    }
+
+    [Fact]
+    public void Validate_WithImdbIdExceeding20Chars_ShouldHaveValidationError()
+    {
+        var command = new UpdateSeriesCommand(Guid.NewGuid(), 2015, SeriesType.Standard, 6, ImdbId: new string('A', 21));
+
+        var result = _validator.TestValidate(command);
+
+        result.ShouldHaveValidationErrorFor(x => x.ImdbId)
+              .WithErrorMessage("IMDb ID en fazla 20 karakter olabilir.");
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData(" ")]
-    [InlineData(null)]
-    public void Validate_WithEmptyOrNullDescription_ShouldHaveValidationError(string? description)
+    [InlineData(-0.5)]
+    [InlineData(10.5)]
+    public void Validate_WithInvalidImdbRating_ShouldHaveValidationError(double invalidRating)
     {
-        var command = new UpdateSeriesCommand(Guid.NewGuid(), "Valid Title", description!, false);
+        var command = new UpdateSeriesCommand(Guid.NewGuid(), 2015, SeriesType.Standard, 6, ImdbRating: invalidRating);
 
         var result = _validator.TestValidate(command);
 
-        result.ShouldHaveValidationErrorFor(x => x.Description)
-              .WithErrorMessage("Description is required.");
+        result.ShouldHaveValidationErrorFor(x => x.ImdbRating)
+              .WithErrorMessage("IMDb puanı 0 ile 10 arasında olmalıdır.");
     }
 
     [Fact]
-    public void Validate_WithDescriptionExceeding1000Characters_ShouldHaveValidationError()
+    public void Validate_WithNegativeImdbVotes_ShouldHaveValidationError()
     {
-        var longDesc = new string('D', 1001);
-        var command = new UpdateSeriesCommand(Guid.NewGuid(), "Valid Title", longDesc, false);
+        var command = new UpdateSeriesCommand(Guid.NewGuid(), 2015, SeriesType.Standard, 6, ImdbVotes: -10);
 
         var result = _validator.TestValidate(command);
 
-        result.ShouldHaveValidationErrorFor(x => x.Description)
-              .WithErrorMessage("Description cannot exceed 1000 characters.");
+        result.ShouldHaveValidationErrorFor(x => x.ImdbVotes)
+              .WithErrorMessage("IMDb oy sayısı 0 veya daha büyük olmalıdır.");
     }
 }

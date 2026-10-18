@@ -1,4 +1,5 @@
 using MediatR;
+using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Shared.Core.Application.Requests;
 using ShuffleSeries.Shared.Core.Application.Responses;
 
@@ -15,7 +16,9 @@ public record GetSeriesListQuery : PaginationRequest, IRequest<PaginatedList<Ser
 public record SeriesListItemResponse(
     Guid Id,
     string Title,
-    string Description,
-    bool IsIndependentEpisodes,
+    int ReleaseYear,
+    SeriesType SeriesType,
+    int TotalSeasons,
+    string PosterUrl,
     DateTime CreatedAtUtc
 );

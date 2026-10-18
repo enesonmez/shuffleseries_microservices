@@ -1,8 +1,9 @@
 using ShuffleSeries.Catalog.Api.Endpoints;
-using ShuffleSeries.Catalog.Api.Extensions;
 using ShuffleSeries.Catalog.Application;
 using ShuffleSeries.Catalog.Infrastructure;
+using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
+using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 using ShuffleSeries.Shared.Core.Web;
 using ShuffleSeries.Shared.Core.Web.Correlation;
 using ShuffleSeries.Shared.Core.Web.Cors;
@@ -59,11 +60,11 @@ app.MapSharedHealthChecks();
 if (app.Environment.IsDevelopment())
 {
     app.UseSharedSwagger();
+    await app.ApplyDatabaseMigrationsAsync<CatalogDbContext>(
+        (context, _) => CatalogDbSeeder.SeedAsync(context));
 }
 
 app.MapSeriesEndpoints();
-
-await app.ApplyMigrationsAsync();
 
 await app.RunAsync();
 
