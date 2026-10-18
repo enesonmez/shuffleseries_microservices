@@ -19,4 +19,16 @@ public sealed class SeriesDomainService
         if (exists)
             throw new SeriesTitleAlreadyExistsException(title);
     }
+
+    public async Task EnsureImdbIdIsUniqueAsync(string? imdbId, Guid? excludeId = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(imdbId))
+            return;
+
+        var normalized = imdbId.Trim();
+        var exists = await _seriesRepository.ExistsByImdbIdAsync(normalized, excludeId, cancellationToken);
+
+        if (exists)
+            throw new DuplicateImdbIdException(normalized);
+    }
 }

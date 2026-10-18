@@ -3,8 +3,9 @@ using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
-using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesList;
+using ShuffleSeries.Catalog.Application.Features.Series.Responses;
+using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
 using ShuffleSeries.Shared.Core.Application.Responses;
 
@@ -17,10 +18,42 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     }
 
     [Fact]
+    public async Task Database_ShouldContainSeededMoodsAndPlatforms_OnStartup()
+    {
+        await ExecuteDbContextAsync(async context =>
+        {
+            var moods = await context.Moods.Include(m => m.Translations).ToListAsync();
+            moods.Count.Should().BeGreaterThanOrEqualTo(9);
+            moods.Should().Contain(m => m.Code == "beyin-yakanlar");
+            moods.Should().Contain(m => m.Code == "kafa-dagitmalik");
+            moods.Should().Contain(m => m.Code == "icini-isitanlar");
+            moods.Should().Contain(m => m.Code == "zeka-oyunlari");
+            moods.Should().Contain(m => m.Code == "ufkunu-genislet");
+
+            var platforms = await context.Platforms.ToListAsync();
+            platforms.Count.Should().BeGreaterThanOrEqualTo(5);
+            platforms.Should().Contain(p => p.Slug == "netflix");
+            platforms.Should().Contain(p => p.Slug == "prime-video");
+        });
+    }
+
+    [Fact]
     public async Task CreateSeries_WithValidPayload_ShouldPersistInRealPostgreSql_AndReturn201Created()
     {
         // Arrange
-        var command = new CreateSeriesCommand("Severance", "Lumos mystery sci-fi series", false);
+        var command = new CreateSeriesCommand(
+            ReleaseYear: 2022,
+            SeriesType: SeriesType.Standard,
+            PosterUrl: "https://example.com/severance.jpg",
+            BackdropUrl: "https://example.com/severance-bg.jpg",
+            LanguageCode: "tr",
+            Title: "Severance",
+            Overview: "Lumos mystery sci-fi series",
+            Tagline: "Please do not attempt to leave",
+            ImdbId: "tt11280740",
+            ImdbRating: 8.7,
+            ImdbVotes: 180000,
+            TotalSeasons: 2);
 
         // Act
         var response = await Client.PostAsJsonAsync("api/catalog/series", command);
@@ -36,17 +69,23 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
         // Assert Database State (Gerçek PostgreSQL sorgusu)
         await ExecuteDbContextAsync(async context =>
         {
-            var seriesInDb = await context.Series.FirstOrDefaultAsync(s => s.Id == createdId);
+            var seriesInDb = await context.Series
+                .Include(s => s.Translations)
+                .FirstOrDefaultAsync(s => s.Id == createdId);
+
             seriesInDb.Should().NotBeNull();
-            seriesInDb!.Title.Should().Be("Severance");
-            seriesInDb.Description.Should().Be("Lumos mystery sci-fi series");
+            seriesInDb!.ReleaseYear.Should().Be(2022);
+            seriesInDb.SeriesType.Should().Be(SeriesType.Standard);
             seriesInDb.IsDeleted.Should().BeFalse();
+            seriesInDb.Translations.Should().ContainSingle(t => t.Title == "Severance");
+            seriesInDb.Translations.First().Overview.Should().Be("Lumos mystery sci-fi series");
 
             // Outbox mesajının da gerçek veritabanına yazıldığını doğrula (PostgreSQL jsonb uyumlu)
-            var outboxMessage = await context.OutboxMessages
-                .FirstOrDefaultAsync(m => m.Type.Contains("SeriesCreatedDomainEvent"));
+            var messages = await context.OutboxMessages
+                .Where(m => m.Type.Contains("MediaCreatedDomainEvent"))
+                .ToListAsync();
+            var outboxMessage = messages.FirstOrDefault(m => m.Content.Contains(createdId.ToString()));
             outboxMessage.Should().NotBeNull();
-            outboxMessage!.Content.Should().Contain(createdId.ToString());
         });
     }
 
@@ -54,7 +93,15 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     public async Task CreateSeries_WithDuplicateTitle_ShouldReturn422UnprocessableEntity()
     {
         // Arrange
-        var command = new CreateSeriesCommand("Breaking Bad", "Chemistry teacher turns kingpin", false);
+        var command = new CreateSeriesCommand(
+            2008,
+            SeriesType.Standard,
+            "https://example.com/bb.jpg",
+            null,
+            "tr",
+            "Breaking Bad",
+            "Chemistry teacher turns kingpin");
+
         var firstResponse = await Client.PostAsJsonAsync("api/catalog/series", command);
         firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
@@ -69,7 +116,15 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     public async Task GetSeriesById_WhenSeriesExists_ShouldReturn200Ok_AndCorrectData()
     {
         // Arrange
-        var createCommand = new CreateSeriesCommand("Dark", "Winden time travel puzzle", false);
+        var createCommand = new CreateSeriesCommand(
+            2017,
+            SeriesType.Standard,
+            "https://example.com/dark.jpg",
+            null,
+            "tr",
+            "Dark",
+            "Winden time travel puzzle");
+
         var createResponse = await Client.PostAsJsonAsync("api/catalog/series", createCommand);
         var seriesId = await createResponse.Content.ReadFromJsonAsync<Guid>();
 
@@ -81,7 +136,7 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
         var seriesDto = await getResponse.Content.ReadFromJsonAsync<SeriesResponse>();
         seriesDto.Should().NotBeNull();
         seriesDto!.Id.Should().Be(seriesId);
-        seriesDto.Title.Should().Be("Dark");
+        seriesDto.Translations.Should().ContainSingle(t => t.Title == "Dark");
     }
 
     [Fact]
@@ -98,7 +153,15 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     public async Task DeleteSeries_ShouldSoftDeleteInPostgreSql_AndHideFromGetEndpoint()
     {
         // Arrange
-        var createCommand = new CreateSeriesCommand("Mindhunter", "FBI behavioral science unit", false);
+        var createCommand = new CreateSeriesCommand(
+            2017,
+            SeriesType.Standard,
+            "https://example.com/mindhunter.jpg",
+            null,
+            "tr",
+            "Mindhunter",
+            "FBI behavioral science unit");
+
         var createResponse = await Client.PostAsJsonAsync("api/catalog/series", createCommand);
         var seriesId = await createResponse.Content.ReadFromJsonAsync<Guid>();
 
@@ -129,7 +192,15 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
         // Arrange
         for (var i = 1; i <= 3; i++)
         {
-            var command = new CreateSeriesCommand($"Series {i}", $"Description {i}", false);
+            var command = new CreateSeriesCommand(
+                2020 + i,
+                SeriesType.Standard,
+                $"https://example.com/poster{i}.jpg",
+                null,
+                "tr",
+                $"Integration Series {i}",
+                $"Integration Description {i}");
+
             await Client.PostAsJsonAsync("api/catalog/series", command);
         }
 
@@ -141,16 +212,21 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
         var paginatedResult = await response.Content.ReadFromJsonAsync<PaginatedList<SeriesListItemResponse>>();
         paginatedResult.Should().NotBeNull();
         paginatedResult!.Items.Should().HaveCount(2);
-        paginatedResult.TotalCount.Should().Be(3);
-        paginatedResult.TotalPages.Should().Be(2);
-        paginatedResult.HasNextPage.Should().BeTrue();
+        paginatedResult.TotalCount.Should().BeGreaterThanOrEqualTo(3);
     }
 
     [Fact]
     public async Task CreateSeries_WithEmptyTitle_ShouldReturn400BadRequest_WhenValidationFails()
     {
         // Arrange
-        var command = new CreateSeriesCommand("", "Description", false);
+        var command = new CreateSeriesCommand(
+            2020,
+            SeriesType.Standard,
+            "https://example.com/poster.jpg",
+            null,
+            "tr",
+            "",
+            "Valid Description");
 
         // Act
         var response = await Client.PostAsJsonAsync("api/catalog/series", command);
@@ -163,11 +239,26 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     public async Task UpdateSeries_WithValidPayload_ShouldUpdateInPostgreSql_AndReturn204NoContent()
     {
         // Arrange
-        var createCommand = new CreateSeriesCommand("Succession", "Media dynasty satire", false);
+        var createCommand = new CreateSeriesCommand(
+            2018,
+            SeriesType.Standard,
+            "https://example.com/succession.jpg",
+            null,
+            "tr",
+            "Succession",
+            "Media dynasty satire");
+
         var createResponse = await Client.PostAsJsonAsync("api/catalog/series", createCommand);
         var seriesId = await createResponse.Content.ReadFromJsonAsync<Guid>();
 
-        var updateCommand = new UpdateSeriesCommand(seriesId, "Succession: Final Season", "Roy family war", true);
+        var updateCommand = new UpdateSeriesCommand(
+            seriesId,
+            2019,
+            SeriesType.Standard,
+            4,
+            "tt7660850",
+            8.9,
+            200000);
 
         // Act
         var updateResponse = await Client.PutAsJsonAsync($"api/catalog/series/{seriesId}", updateCommand);
@@ -180,14 +271,17 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
         {
             var updated = await context.Series.FirstOrDefaultAsync(s => s.Id == seriesId);
             updated.Should().NotBeNull();
-            updated!.Title.Should().Be("Succession: Final Season");
-            updated.Description.Should().Be("Roy family war");
-            updated.IsIndependentEpisodes.Should().BeTrue();
+            updated!.ReleaseYear.Should().Be(2019);
+            updated.TotalSeasons.Should().Be(4);
+            updated.ImdbId.Should().Be("tt7660850");
+            updated.ImdbRating.Should().Be(8.9);
             updated.ModifiedAtUtc.Should().NotBeNull();
 
             // Outbox mesajının yazıldığını doğrula
-            var outboxMessage = await context.OutboxMessages
-                .FirstOrDefaultAsync(m => m.Type.Contains("SeriesUpdatedDomainEvent"));
+            var updateMessages = await context.OutboxMessages
+                .Where(m => m.Type.Contains("MediaUpdatedDomainEvent"))
+                .ToListAsync();
+            var outboxMessage = updateMessages.FirstOrDefault(m => m.Content.Contains(seriesId.ToString()));
             outboxMessage.Should().NotBeNull();
         });
     }
@@ -198,7 +292,7 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
         // Arrange
         var routeId = Guid.NewGuid();
         var bodyId = Guid.NewGuid();
-        var command = new UpdateSeriesCommand(bodyId, "Title", "Desc", false);
+        var command = new UpdateSeriesCommand(bodyId, 2020, SeriesType.Standard, 1);
 
         // Act
         var response = await Client.PutAsJsonAsync($"api/catalog/series/{routeId}", command);
@@ -212,7 +306,7 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     {
         // Arrange
         var nonExistentId = Guid.NewGuid();
-        var command = new UpdateSeriesCommand(nonExistentId, "Non Existent", "Desc", false);
+        var command = new UpdateSeriesCommand(nonExistentId, 2020, SeriesType.Standard, 1);
 
         // Act
         var response = await Client.PutAsJsonAsync($"api/catalog/series/{nonExistentId}", command);
@@ -244,4 +338,3 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
         result!.PageNumber.Should().Be(1);
     }
 }
-

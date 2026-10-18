@@ -3,6 +3,7 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using Quartz;
+using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Events;
 using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
@@ -45,11 +46,11 @@ public class ProcessOutboxMessagesJobTests
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
         var seriesId = Guid.NewGuid();
-        var domainEvent = new SeriesCreatedDomainEvent(seriesId);
+        var domainEvent = new MediaCreatedDomainEvent(seriesId, MediaType.Series);
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            Type = nameof(SeriesCreatedDomainEvent),
+            Type = nameof(MediaCreatedDomainEvent),
             Content = JsonSerializer.Serialize(domainEvent),
             OccurredOnUtc = DateTime.UtcNow
         };
@@ -61,7 +62,7 @@ public class ProcessOutboxMessagesJobTests
 
         await job.Execute(mockContext.Object);
 
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.Is<Type>(t => t == typeof(SeriesCreatedDomainEvent)), It.IsAny<CancellationToken>()), Times.Once);
+        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.Is<Type>(t => t == typeof(MediaCreatedDomainEvent)), It.IsAny<CancellationToken>()), Times.Once);
 
         var processed = await dbContext.OutboxMessages.FirstAsync(m => m.Id == message.Id);
         processed.ProcessedOnUtc.Should().NotBeNull();
@@ -108,11 +109,11 @@ public class ProcessOutboxMessagesJobTests
             .ThrowsAsync(new InvalidOperationException("RabbitMQ connection refused"));
 
         var seriesId = Guid.NewGuid();
-        var domainEvent = new SeriesCreatedDomainEvent(seriesId);
+        var domainEvent = new MediaCreatedDomainEvent(seriesId, MediaType.Series);
         var message = new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            Type = nameof(SeriesCreatedDomainEvent),
+            Type = nameof(MediaCreatedDomainEvent),
             Content = JsonSerializer.Serialize(domainEvent),
             OccurredOnUtc = DateTime.UtcNow
         };
@@ -149,11 +150,11 @@ public class ProcessOutboxMessagesJobTests
         };
 
         var seriesId = Guid.NewGuid();
-        var domainEvent = new SeriesCreatedDomainEvent(seriesId);
+        var domainEvent = new MediaCreatedDomainEvent(seriesId, MediaType.Series);
         var validMessage = new OutboxMessage
         {
             Id = Guid.NewGuid(),
-            Type = nameof(SeriesCreatedDomainEvent),
+            Type = nameof(MediaCreatedDomainEvent),
             Content = JsonSerializer.Serialize(domainEvent),
             OccurredOnUtc = DateTime.UtcNow,
             RetryCount = 0
@@ -167,7 +168,7 @@ public class ProcessOutboxMessagesJobTests
         await job.Execute(mockContext.Object);
 
         // The poison message should not be attempted again
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.Is<Type>(t => t == typeof(SeriesCreatedDomainEvent)), It.IsAny<CancellationToken>()), Times.Once);
+        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.Is<Type>(t => t == typeof(MediaCreatedDomainEvent)), It.IsAny<CancellationToken>()), Times.Once);
 
         var poisonResult = await dbContext.OutboxMessages.FirstAsync(m => m.Id == poisonMessage.Id);
         poisonResult.RetryCount.Should().Be(3);

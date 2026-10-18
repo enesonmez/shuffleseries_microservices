@@ -1,6 +1,7 @@
 using Moq;
 using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesList;
 using ShuffleSeries.Catalog.Domain.Entities;
+using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Tests.Application.Features.GetSeriesList;
@@ -21,11 +22,13 @@ public class GetSeriesListQueryHandlerTests
     {
         // Arrange
         var query = new GetSeriesListQuery(1, 10);
-        var seriesList = new List<Series>
-        {
-            Series.Create("Series 1", "Desc 1", false),
-            Series.Create("Series 2", "Desc 2", true)
-        };
+        var series1 = Series.Create(2021, SeriesType.Standard, "https://example.com/poster1.jpg");
+        series1.AddOrUpdateTranslation("tr", "Series 1", "Desc 1");
+
+        var series2 = Series.Create(2022, SeriesType.EpisodicAnthology, "https://example.com/poster2.jpg");
+        series2.AddOrUpdateTranslation("tr", "Series 2", "Desc 2");
+
+        var seriesList = new List<Series> { series1, series2 };
 
         _seriesRepositoryMock.Setup(x => x.GetPagedListAsync(query.Page, query.PageSize, It.IsAny<CancellationToken>()))
             .ReturnsAsync((seriesList, seriesList.Count));

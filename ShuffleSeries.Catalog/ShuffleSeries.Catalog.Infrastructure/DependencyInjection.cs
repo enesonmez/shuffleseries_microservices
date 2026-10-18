@@ -78,7 +78,13 @@ public static class DependencyInjection
 
         // Interface - Somut Sınıf eşleşmeleri
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<CatalogDbContext>());
+        services.AddScoped<IMediaRepository, MediaRepository>();
+        services.AddScoped<IMovieRepository, MovieRepository>();
         services.AddScoped<ISeriesRepository, SeriesRepository>();
+        services.AddScoped<IPlatformRepository, PlatformRepository>();
+        services.AddScoped<IMoodRepository, MoodRepository>();
+        services.AddScoped<IGenreRepository, GenreRepository>();
+        services.AddScoped<IEpisodeRepository, EpisodeRepository>();
 
         services.AddScoped<SeriesDomainService>();
     }

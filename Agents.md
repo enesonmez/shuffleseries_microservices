@@ -23,11 +23,11 @@ Yeni bir mikroservis (örn. ShuffleSeries.ShuffleEngine) eklendiğinde, Catalog 
 # Geliştirme Yaşam Döngüsü ve AI Görev Protokolü (Task Protocol)
 AI asistanı, kendisine verilen her görevi (task) aşağıdaki protokole göre uygulamalıdır:
 ## Adım 1: Görev Öncesi Analiz ve Planlama (Pre-Task)
-1. Göreve başlamadan önce ilgili roadmap maddesini [docs/roadmap.md](./docs/roadmap.md) içinde bul ve görevi isterlerini detaylı bir şekilde anla.
+1. Göreve başlamadan önce ilgili roadmap maddesini [docs/roadmap.md](./docs/roadmap.md) içinde bul, ürün gereksinimlerini ve iş kurallarını [docs/prd.md](./docs/prd.md) üzerinden doğrula ve görev isterlerini detaylı bir şekilde anla.
 2.	Domain Analizi: İstenen özelliğin hangi Bounded Context'e ait olduğunu belirle.
 3.	Bağımlılık Kontrolü: Shared.Core içerisinde tekrar kullanılabilecek bir yapı (örn. BaseEntity, CustomException) olup olmadığını kontrol et.
 4.	Mimari Karar Beyanı: Kodu yazmaya başlamadan önce, uygulayacağın pattern'leri (örn. Outbox, InBox, Circuit Breaker) ve nedenlerini kısaca özetle.
-5. Her session başında docs/lessons.md dosyasını gözden geçir.
+5. Her session başında [docs/lessons.md](./docs/lessons.md) dosyasını gözden geçir.
 6. Basit olmayan her görev için plan moduna gir. (3+ adım veya mimari kararlar)
 7. Basit işlerde over-engineering yapma.
 8. Basit olmayan değişikliklerde dur ve sor: "Daha iyi bir yöntem var mı?"

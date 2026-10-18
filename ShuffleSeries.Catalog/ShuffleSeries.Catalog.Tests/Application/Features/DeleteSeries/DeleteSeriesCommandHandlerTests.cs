@@ -1,9 +1,9 @@
 using Moq;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;
 using ShuffleSeries.Catalog.Domain.Entities;
+using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.Catalog.Tests.Application.Features.DeleteSeries;
 
@@ -34,8 +34,8 @@ public class DeleteSeriesCommandHandlerTests
         Func<Task> action = async () => await _handler.Handle(command, CancellationToken.None);
 
         // Assert
-        await action.Should().ThrowAsync<NotFoundException>()
-            .WithMessage($"Series with ID {command.Id} was not found.");
+        await action.Should().ThrowAsync<SeriesNotFoundException>()
+            .WithMessage($"Series with id '{command.Id}' was not found.");
 
         _seriesRepositoryMock.Verify(x => x.Delete(It.IsAny<Series>()), Times.Never);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -45,7 +45,7 @@ public class DeleteSeriesCommandHandlerTests
     public async Task Handle_Should_CallDeleteAndSaveChanges_When_SeriesExists()
     {
         // Arrange
-        var existingSeries = Series.Create("Title to Delete", "Description", false);
+        var existingSeries = Series.Create(2020, ShuffleSeries.Catalog.Domain.Enums.SeriesType.Standard, "https://example.com/poster.jpg");
         var command = new DeleteSeriesCommand(existingSeries.Id);
 
         _seriesRepositoryMock.Setup(x => x.GetByIdAsync(command.Id, It.IsAny<CancellationToken>()))

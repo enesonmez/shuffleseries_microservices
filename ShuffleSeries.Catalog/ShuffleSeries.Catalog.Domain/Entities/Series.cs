@@ -1,62 +1,125 @@
+using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Events;
-using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Catalog.Domain.Entities;
 
-public class Series : AggregateRoot
+public class Series : Media
 {
-    public string Title { get; private set; } = string.Empty;
-    public string Description { get; private set; } = string.Empty;
-    public bool IsIndependentEpisodes { get; private set; }
+    private readonly List<Season> _seasons = [];
 
-    private Series() { }
+    public SeriesType SeriesType { get; private set; }
+    public int TotalSeasons { get; private set; }
 
-    private Series(Guid id, string title, string description, bool isIndependentEpisodes) : base(id)
+    public IReadOnlyCollection<Season> Seasons => _seasons.AsReadOnly();
+
+    private Series() : base()
     {
-        Title = title;
-        Description = description;
-        IsIndependentEpisodes = isIndependentEpisodes;
+        MediaType = MediaType.Series;
     }
 
-    public static Series Create(string title, string description, bool isIndependentEpisodes)
+    private Series(
+        Guid id,
+        string? imdbId,
+        double? imdbRating,
+        int? imdbVotes,
+        int releaseYear,
+        SeriesType seriesType,
+        int totalSeasons,
+        string posterUrl,
+        string? backdropUrl)
+        : base(id, MediaType.Series, imdbId, imdbRating, imdbVotes, releaseYear, posterUrl, backdropUrl)
     {
-        if (string.IsNullOrWhiteSpace(title))
-            throw new ArgumentException("Title cannot be empty");
+        SeriesType = seriesType;
+        TotalSeasons = totalSeasons >= 0 ? totalSeasons : 0;
+    }
 
-        if (string.IsNullOrWhiteSpace(description))
-            throw new ArgumentException("Description cannot be empty");
-
+    public static Series Create(
+        int releaseYear,
+        SeriesType seriesType,
+        string posterUrl,
+        string? backdropUrl = null,
+        string? imdbId = null,
+        double? imdbRating = null,
+        int? imdbVotes = null,
+        int totalSeasons = 0)
+    {
         var series = new Series(
             Guid.NewGuid(),
-            title,
-            description,
-            isIndependentEpisodes
-        );
+            imdbId,
+            imdbRating,
+            imdbVotes,
+            releaseYear,
+            seriesType,
+            totalSeasons,
+            posterUrl,
+            backdropUrl);
 
-        series.RaiseDomainEvent(new SeriesCreatedDomainEvent(series.Id));
+        series.RaiseDomainEvent(new MediaCreatedDomainEvent(series.Id, MediaType.Series));
 
         return series;
     }
 
-    public void Update(string title, string description, bool isIndependentEpisodes)
+    public void UpdateDetails(
+        int releaseYear,
+        SeriesType seriesType,
+        int totalSeasons,
+        string? imdbId,
+        double? imdbRating,
+        int? imdbVotes)
     {
-        if (string.IsNullOrWhiteSpace(title))
-            throw new ArgumentException("Title cannot be empty");
+        ValidateReleaseYear(releaseYear);
+        ValidateRatings(imdbRating, imdbVotes);
 
-        if (string.IsNullOrWhiteSpace(description))
-            throw new ArgumentException("Description cannot be empty");
-
-        Title = title;
-        Description = description;
-        IsIndependentEpisodes = isIndependentEpisodes;
+        ReleaseYear = releaseYear;
+        SeriesType = seriesType;
+        TotalSeasons = totalSeasons >= 0 ? totalSeasons : 0;
+        ImdbId = string.IsNullOrWhiteSpace(imdbId) ? null : imdbId.Trim();
+        ImdbRating = imdbRating;
+        ImdbVotes = imdbVotes;
         ModifiedAtUtc = DateTime.UtcNow;
 
-        RaiseDomainEvent(new SeriesUpdatedDomainEvent(Id));
+        RaiseUpdatedEvent();
     }
 
-    public void Delete(string? deletedBy = null)
+    public Season AddSeason(int seasonNumber, string? title = null)
     {
-        SoftDelete(deletedBy);
-        RaiseDomainEvent(new SeriesDeletedDomainEvent(Id));
+        var existing = _seasons.FirstOrDefault(s => s.SeasonNumber == seasonNumber);
+        if (existing is not null)
+            return existing;
+
+        var season = new Season(Id, seasonNumber, title);
+        _seasons.Add(season);
+
+        if (seasonNumber > TotalSeasons)
+            TotalSeasons = seasonNumber;
+
+        ModifiedAtUtc = DateTime.UtcNow;
+        RaiseUpdatedEvent();
+        return season;
+    }
+
+    public Episode AddEpisode(
+        int seasonNumber,
+        int episodeNumber,
+        bool? isStandalone = null,
+        int? runtimeMinutes = null,
+        double? imdbRating = null,
+        string? thumbnailUrl = null)
+    {
+        var season = AddSeason(seasonNumber);
+
+        // Eğer isStandalone açıkça verilmediyse, EpisodicAnthology dizilerinde otomatik true, diğerlerinde false
+        var standaloneFlag = isStandalone ?? (SeriesType == SeriesType.EpisodicAnthology);
+
+        var episode = season.AddEpisode(
+            episodeNumber,
+            standaloneFlag,
+            runtimeMinutes,
+            imdbRating,
+            thumbnailUrl);
+
+        ModifiedAtUtc = DateTime.UtcNow;
+        RaiseUpdatedEvent();
+        return episode;
     }
 }

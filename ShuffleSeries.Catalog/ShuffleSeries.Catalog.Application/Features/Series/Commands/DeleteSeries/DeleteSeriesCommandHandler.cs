@@ -1,7 +1,7 @@
 using MediatR;
+using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;
 
@@ -18,10 +18,8 @@ internal sealed class DeleteSeriesCommandHandler : IRequestHandler<DeleteSeriesC
 
     public async Task Handle(DeleteSeriesCommand request, CancellationToken cancellationToken)
     {
-        var series = await _seriesRepository.GetByIdAsync(request.Id, cancellationToken);
-
-        if (series is null)
-            throw new NotFoundException($"Series with ID {request.Id} was not found.");
+        var series = await _seriesRepository.GetByIdAsync(request.Id, cancellationToken)
+            ?? throw new SeriesNotFoundException(request.Id);
 
         series.Delete();
         _seriesRepository.Delete(series);

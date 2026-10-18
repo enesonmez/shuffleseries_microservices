@@ -13,7 +13,7 @@ namespace ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 [DisallowConcurrentExecution]
 public sealed class ProcessOutboxMessagesJob : IJob
 {
-    private static readonly Assembly _catalogDomainAssembly = typeof(SeriesCreatedDomainEvent).Assembly;
+    private static readonly Assembly _catalogDomainAssembly = typeof(MediaCreatedDomainEvent).Assembly;
 
     private readonly CatalogDbContext _dbContext;
     private readonly IPublishEndpoint _publishEndpoint;
