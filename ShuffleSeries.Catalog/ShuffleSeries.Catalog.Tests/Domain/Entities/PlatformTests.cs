@@ -51,9 +51,42 @@ public class PlatformTests
         platform.BaseWebUrl.Should().Be("https://netflix.com/tr");
         platform.BaseAppSchemeUrl.Should().Be("nflx://");
         platform.DisplayOrder.Should().Be(2);
-        platform.ModifiedAtUtc.Should().NotBeNull();
 
         platform.GetDomainEvents().Should().ContainSingle(e => e is PlatformUpdatedDomainEvent);
+    }
+
+    [Fact]
+    public void Delete_Should_SoftDeleteAndRaisePlatformDeletedDomainEvent()
+    {
+        // Arrange
+        var platform = Platform.Create("Netflix", "netflix", "logo1", "inact1", "https://netflix.com", "netflix://", 1);
+        platform.ClearDomainEvents();
+
+        // Act
+        platform.Delete();
+
+        // Assert
+        platform.IsDeleted.Should().BeTrue();
+        platform.DeletedAtUtc.Should().NotBeNull();
+        platform.DeletedBy.Should().BeNull();
+        platform.GetDomainEvents().Should().ContainSingle(e => e is PlatformDeletedDomainEvent && ((PlatformDeletedDomainEvent)e).PlatformId == platform.Id);
+    }
+
+    [Fact]
+    public void Delete_WithDeletedBy_ShouldSetDeletedByProperty()
+    {
+        // Arrange
+        var platform = Platform.Create("Netflix", "netflix", "logo1", "inact1", "https://netflix.com", "netflix://", 1);
+        platform.ClearDomainEvents();
+
+        // Act
+        platform.Delete("admin-user-id");
+
+        // Assert
+        platform.IsDeleted.Should().BeTrue();
+        platform.DeletedAtUtc.Should().NotBeNull();
+        platform.DeletedBy.Should().Be("admin-user-id");
+        platform.GetDomainEvents().Should().ContainSingle(e => e is PlatformDeletedDomainEvent);
     }
 
     [Theory]
@@ -62,6 +95,24 @@ public class PlatformTests
     public void Create_ShouldThrowArgumentException_WhenRequiredFieldIsEmpty(string name, string slug)
     {
         var action = () => Platform.Create(name, slug, "logo", "inact", "https://web.com", "scheme://", 1);
+        action.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData("", "slug", "logo", "inact", "https://web.com")]
+    [InlineData("Name", "", "logo", "inact", "https://web.com")]
+    [InlineData("Name", "slug", "", "inact", "https://web.com")]
+    [InlineData("Name", "slug", "logo", "", "https://web.com")]
+    [InlineData("Name", "slug", "logo", "inact", "")]
+    public void Update_ShouldThrowArgumentException_WhenRequiredFieldIsEmpty(
+        string name,
+        string slug,
+        string logo,
+        string inact,
+        string web)
+    {
+        var platform = Platform.Create("Netflix", "netflix", "logo1", "inact1", "https://netflix.com", "netflix://", 1);
+        var action = () => platform.Update(name, slug, logo, inact, web);
         action.Should().Throw<ArgumentException>();
     }
 }

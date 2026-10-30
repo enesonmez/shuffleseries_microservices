@@ -49,7 +49,6 @@ public class Genre : AggregateRoot
     {
         Code = NormalizeCode(code);
         DisplayOrder = displayOrder;
-        ModifiedAtUtc = DateTime.UtcNow;
 
         RaiseUpdatedEvent();
     }
@@ -69,14 +68,12 @@ public class Genre : AggregateRoot
         if (existing is not null)
         {
             existing.Update(name, description);
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
             return existing;
         }
 
         var translation = new GenreTranslation(Id, languageCode, name, description);
         _translations.Add(translation);
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
 
         return translation;
@@ -103,7 +100,6 @@ public class Genre : AggregateRoot
         var removed = _translations.RemoveAll(t => t.LanguageCode == languageCode);
         if (removed > 0)
         {
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
         }
     }
@@ -117,16 +113,13 @@ public class Genre : AggregateRoot
             RemoveTranslation(parsed);
     }
 
-    public void ToggleActive(bool isActive)
-    {
-        IsActive = isActive;
-        ModifiedAtUtc = DateTime.UtcNow;
-        RaiseUpdatedEvent();
-    }
-
     public void Delete(string? deletedBy = null)
     {
         SoftDelete(deletedBy);
+        foreach (var translation in _translations)
+        {
+            translation.SoftDelete(deletedBy);
+        }
         RaiseDomainEvent(new GenreDeletedDomainEvent(Id));
     }
 

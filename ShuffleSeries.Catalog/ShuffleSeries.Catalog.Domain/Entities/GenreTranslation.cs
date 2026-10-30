@@ -33,6 +33,5 @@ public class GenreTranslation : BaseEntity
     {
         Name = name.Trim();
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-        ModifiedAtUtc = DateTime.UtcNow;
     }
 }

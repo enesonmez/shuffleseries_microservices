@@ -35,13 +35,12 @@ public class MediaTranslationConfiguration : IEntityTypeConfiguration<MediaTrans
             .IsUnique()
             .HasFilter("\"IsDeleted\" = false");
 
-        builder.HasIndex(x => x.LanguageCode);
-        builder.HasIndex(x => x.Title);
+        builder.HasIndex(x => x.Title)
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops");
 
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
     }
 }

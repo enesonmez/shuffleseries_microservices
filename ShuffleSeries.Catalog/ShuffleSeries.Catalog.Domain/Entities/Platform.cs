@@ -109,15 +109,7 @@ public class Platform : AggregateRoot
         BaseWebUrl = baseWebUrl.Trim();
         BaseAppSchemeUrl = string.IsNullOrWhiteSpace(baseAppSchemeUrl) ? null : baseAppSchemeUrl.Trim();
         DisplayOrder = displayOrder;
-        ModifiedAtUtc = DateTime.UtcNow;
 
-        RaiseUpdatedEvent();
-    }
-
-    public void ToggleActive(bool isActive)
-    {
-        IsActive = isActive;
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
     }
 

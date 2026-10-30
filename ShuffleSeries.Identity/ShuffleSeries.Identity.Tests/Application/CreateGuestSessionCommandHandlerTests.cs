@@ -4,7 +4,6 @@ using ShuffleSeries.Identity.Application.Interfaces;
 using ShuffleSeries.Identity.Application.Models;
 using ShuffleSeries.Identity.Domain.Entities;
 using ShuffleSeries.Identity.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Tests.Application;
@@ -42,7 +41,7 @@ public class CreateGuestSessionCommandHandlerTests
         _tokenServiceMock.Setup(t => t.HashToken(It.IsAny<string>()))
             .Returns("hashed_guest_refresh_token");
         _permissionResolverMock.Setup(p => p.ResolveEffectivePermissionsAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(([SystemRoles.Guest], ["catalog:read"]));
+            .ReturnsAsync(([SystemRoles.Guest], [SystemPermissions.Catalog.MoviesRead]));
         _tokenServiceMock.Setup(t => t.GenerateTokensAsync(It.IsAny<User>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TokenResponse("guest_jwt_token", "raw_guest_refresh_token", 3600));
 

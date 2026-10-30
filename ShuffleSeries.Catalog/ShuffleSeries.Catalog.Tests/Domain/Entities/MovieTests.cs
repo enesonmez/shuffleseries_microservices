@@ -11,11 +11,12 @@ public class MovieTests
     {
         // Act
         var movie = Movie.Create(
+            tmdbId: 27205,
+            imdbId: "tt1375666",
             releaseYear: 2010,
             runtimeMinutes: 148,
             posterUrl: "https://example.com/inception.jpg",
             backdropUrl: "https://example.com/inception-bg.jpg",
-            imdbId: "tt1375666",
             imdbRating: 8.8,
             imdbVotes: 2500000,
             director: "Christopher Nolan");
@@ -24,12 +25,13 @@ public class MovieTests
         movie.Should().NotBeNull();
         movie.Id.Should().NotBeEmpty();
         movie.MediaType.Should().Be(MediaType.Movie);
+        movie.TmdbId.Should().Be(27205);
+        movie.ImdbId.Should().Be("tt1375666");
         movie.ReleaseYear.Should().Be(2010);
         movie.RuntimeMinutes.Should().Be(148);
         movie.Director.Should().Be("Christopher Nolan");
         movie.PosterUrl.Should().Be("https://example.com/inception.jpg");
         movie.BackdropUrl.Should().Be("https://example.com/inception-bg.jpg");
-        movie.ImdbId.Should().Be("tt1375666");
         movie.ImdbRating.Should().Be(8.8);
         movie.ImdbVotes.Should().Be(2500000);
 
@@ -40,7 +42,7 @@ public class MovieTests
     public void Create_Should_ThrowArgumentOutOfRangeException_When_RuntimeIsZeroOrNegative()
     {
         // Act
-        var action = () => Movie.Create(2020, 0, "https://example.com/poster.jpg");
+        var action = () => Movie.Create(27205, "tt1375666", 2020, 0, "https://example.com/poster.jpg");
 
         // Assert
         action.Should().Throw<ArgumentOutOfRangeException>()
@@ -48,22 +50,36 @@ public class MovieTests
     }
 
     [Fact]
+    public void Create_Should_ThrowArgumentException_When_ImdbIdIsEmpty()
+    {
+        // Act
+        var action = () => Movie.Create(27205, "", 2020, 120, "https://example.com/poster.jpg");
+
+        // Assert
+        action.Should().Throw<ArgumentException>()
+            .WithMessage("*IMDb ID cannot be empty*");
+    }
+
+    [Fact]
     public void UpdateDetails_Should_UpdatePropertiesAndRaiseDomainEvent()
     {
         // Arrange
-        var movie = Movie.Create(2010, 148, "https://example.com/poster.jpg");
+        var movie = Movie.Create(27205, "tt1375666", 2010, 148, "https://example.com/poster.jpg");
         movie.ClearDomainEvents();
 
         // Act
-        movie.UpdateDetails(2011, 150, "C. Nolan", "tt1375666", 8.9, 2600000);
+        movie.UpdateDetails(27205, "tt1375666", 2011, 150, "C. Nolan", 8.9, 2600000, "https://example.com/new-poster.jpg", "https://example.com/new-backdrop.jpg");
 
         // Assert
+        movie.TmdbId.Should().Be(27205);
+        movie.ImdbId.Should().Be("tt1375666");
         movie.ReleaseYear.Should().Be(2011);
         movie.RuntimeMinutes.Should().Be(150);
         movie.Director.Should().Be("C. Nolan");
         movie.ImdbRating.Should().Be(8.9);
         movie.ImdbVotes.Should().Be(2600000);
-        movie.ModifiedAtUtc.Should().NotBeNull();
+        movie.PosterUrl.Should().Be("https://example.com/new-poster.jpg");
+        movie.BackdropUrl.Should().Be("https://example.com/new-backdrop.jpg");
 
         movie.GetDomainEvents().Should().ContainSingle(e => e is MediaUpdatedDomainEvent);
     }
@@ -72,10 +88,10 @@ public class MovieTests
     public void UpdateDetails_Should_ThrowArgumentOutOfRangeException_When_RuntimeIsZeroOrNegative()
     {
         // Arrange
-        var movie = Movie.Create(2010, 148, "https://example.com/poster.jpg");
+        var movie = Movie.Create(27205, "tt1375666", 2010, 148, "https://example.com/poster.jpg");
 
         // Act
-        var action = () => movie.UpdateDetails(2010, -5, null, null, null, null);
+        var action = () => movie.UpdateDetails(27205, "tt1375666", 2010, -5, null, null, null);
 
         // Assert
         action.Should().Throw<ArgumentOutOfRangeException>();

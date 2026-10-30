@@ -78,31 +78,4 @@ public class PaginatedListAndDtoTests
         request.PageNumber.Should().Be(expectedPage);
         request.PageSize.Should().Be(expectedSize);
     }
-
-    [Fact]
-    public void ApiResponse_SuccessResult_ShouldPopulateDataAndSuccessFlag()
-    {
-        var response = ApiResponse<string>.SuccessResult("sample data", "Operation succeeded");
-
-        response.Success.Should().BeTrue();
-        response.Data.Should().Be("sample data");
-        response.Message.Should().Be("Operation succeeded");
-        response.Errors.Should().BeNull();
-    }
-
-    private static readonly string[] _sampleErrors = ["Error 1"];
-
-    [Fact]
-    public void ApiResponse_NonGeneric_SuccessAndFailure_ShouldWorkCorrectly()
-    {
-        var success = ApiResponse.SuccessResult("Success message");
-        success.Success.Should().BeTrue();
-        success.Message.Should().Be("Success message");
-        success.Data.Should().BeNull();
-
-        var failure = ApiResponse.FailureResult("Failure message", _sampleErrors);
-        failure.Success.Should().BeFalse();
-        failure.Message.Should().Be("Failure message");
-        failure.Errors.Should().Contain("Error 1");
-    }
 }

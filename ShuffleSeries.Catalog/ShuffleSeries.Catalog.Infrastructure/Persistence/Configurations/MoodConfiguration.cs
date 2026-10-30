@@ -31,14 +31,9 @@ public class MoodConfiguration : IEntityTypeConfiguration<Mood>
             .IsRequired()
             .HasDefaultValue(true);
 
-        builder.HasIndex(x => x.IsActive);
-        builder.HasIndex(x => x.DisplayOrder);
-
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
 
         builder.HasMany(x => x.Translations)
             .WithOne()

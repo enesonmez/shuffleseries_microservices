@@ -15,7 +15,8 @@ public class Movie : Media
 
     private Movie(
         Guid id,
-        string? imdbId,
+        int tmdbId,
+        string imdbId,
         double? imdbRating,
         int? imdbVotes,
         int releaseYear,
@@ -23,7 +24,7 @@ public class Movie : Media
         string? director,
         string posterUrl,
         string? backdropUrl)
-        : base(id, MediaType.Movie, imdbId, imdbRating, imdbVotes, releaseYear, posterUrl, backdropUrl)
+        : base(id, MediaType.Movie, tmdbId, imdbId, imdbRating, imdbVotes, releaseYear, posterUrl, backdropUrl)
     {
         if (runtimeMinutes <= 0)
             throw new ArgumentOutOfRangeException(nameof(runtimeMinutes), "Runtime minutes must be greater than zero.");
@@ -33,17 +34,19 @@ public class Movie : Media
     }
 
     public static Movie Create(
+        int tmdbId,
+        string imdbId,
         int releaseYear,
         int runtimeMinutes,
         string posterUrl,
         string? backdropUrl = null,
-        string? imdbId = null,
         double? imdbRating = null,
         int? imdbVotes = null,
         string? director = null)
     {
         var movie = new Movie(
             Guid.NewGuid(),
+            tmdbId,
             imdbId,
             imdbRating,
             imdbVotes,
@@ -59,26 +62,41 @@ public class Movie : Media
     }
 
     public void UpdateDetails(
+        int tmdbId,
+        string imdbId,
         int releaseYear,
         int runtimeMinutes,
         string? director,
-        string? imdbId,
         double? imdbRating,
-        int? imdbVotes)
+        int? imdbVotes,
+        string? posterUrl = null,
+        string? backdropUrl = null)
     {
+        if (tmdbId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(tmdbId), "TMDb ID must be greater than zero.");
+
+        if (string.IsNullOrWhiteSpace(imdbId))
+            throw new ArgumentException("IMDb ID cannot be empty.", nameof(imdbId));
+
         if (runtimeMinutes <= 0)
             throw new ArgumentOutOfRangeException(nameof(runtimeMinutes), "Runtime minutes must be greater than zero.");
 
         ValidateReleaseYear(releaseYear);
         ValidateRatings(imdbRating, imdbVotes);
 
+        TmdbId = tmdbId;
+        ImdbId = imdbId.Trim();
         ReleaseYear = releaseYear;
         RuntimeMinutes = runtimeMinutes;
         Director = string.IsNullOrWhiteSpace(director) ? null : director.Trim();
-        ImdbId = string.IsNullOrWhiteSpace(imdbId) ? null : imdbId.Trim();
         ImdbRating = imdbRating;
         ImdbVotes = imdbVotes;
-        ModifiedAtUtc = DateTime.UtcNow;
+
+        if (!string.IsNullOrWhiteSpace(posterUrl))
+            PosterUrl = posterUrl.Trim();
+
+        if (backdropUrl is not null)
+            BackdropUrl = string.IsNullOrWhiteSpace(backdropUrl) ? null : backdropUrl.Trim();
 
         RaiseUpdatedEvent();
     }

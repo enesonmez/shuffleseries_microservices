@@ -38,7 +38,5 @@ public class MoodTranslationConfiguration : IEntityTypeConfiguration<MoodTransla
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
     }
 }

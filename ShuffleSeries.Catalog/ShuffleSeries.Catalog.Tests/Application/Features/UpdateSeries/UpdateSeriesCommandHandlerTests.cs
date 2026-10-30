@@ -28,7 +28,7 @@ public class UpdateSeriesCommandHandlerTests
     public async Task Handle_Should_ThrowSeriesNotFoundException_When_SeriesDoesNotExist()
     {
         // Arrange
-        var command = new UpdateSeriesCommand(Guid.NewGuid(), 2020, SeriesType.Standard, 3);
+        var command = new UpdateSeriesCommand(Guid.NewGuid(), 1405, "tt0773262", 2020, SeriesType.Standard, 3);
 
         _seriesRepositoryMock.Setup(x => x.GetByIdAsync(command.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Series?)null);
@@ -43,21 +43,55 @@ public class UpdateSeriesCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_Should_UpdateDetailsAndSaveChanges_When_SeriesExists()
+    public async Task Handle_Should_ThrowDuplicateTmdbIdException_When_TmdbIdBelongsToAnotherMedia()
     {
         // Arrange
-        var existingSeries = Series.Create(2015, SeriesType.Standard, "https://example.com/poster.jpg");
+        var existingSeries = Series.Create(1405, "tt0773262", 2015, SeriesType.Standard, "https://example.com/poster.jpg");
         var command = new UpdateSeriesCommand(
             existingSeries.Id,
+            99999,
+            "tt0773262",
             2016,
             SeriesType.EpisodicAnthology,
             5,
-            "tt1234567",
             8.9,
             120000);
 
         _seriesRepositoryMock.Setup(x => x.GetByIdAsync(command.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingSeries);
+        _seriesRepositoryMock.Setup(x => x.ExistsByTmdbIdAsync(99999, existingSeries.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        // Act
+        Func<Task> action = async () => await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await action.Should().ThrowAsync<DuplicateTmdbIdException>();
+        _seriesRepositoryMock.Verify(x => x.Update(It.IsAny<Series>()), Times.Never);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_Should_UpdateDetailsAndSaveChanges_When_SeriesExists()
+    {
+        // Arrange
+        var existingSeries = Series.Create(1405, "tt0773262", 2015, SeriesType.Standard, "https://example.com/poster.jpg");
+        var command = new UpdateSeriesCommand(
+            existingSeries.Id,
+            1405,
+            "tt1234567",
+            2016,
+            SeriesType.EpisodicAnthology,
+            5,
+            8.9,
+            120000);
+
+        _seriesRepositoryMock.Setup(x => x.GetByIdAsync(command.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingSeries);
+        _seriesRepositoryMock.Setup(x => x.ExistsByTmdbIdAsync(1405, existingSeries.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _seriesRepositoryMock.Setup(x => x.ExistsByImdbIdAsync("tt1234567", existingSeries.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
         // Act
         await _handler.Handle(command, CancellationToken.None);
@@ -78,18 +112,21 @@ public class UpdateSeriesCommandHandlerTests
     public async Task Handle_Should_ThrowDuplicateImdbIdException_When_ImdbIdBelongsToAnotherMedia()
     {
         // Arrange
-        var existingSeries = Series.Create(2015, SeriesType.Standard, "https://example.com/poster.jpg");
+        var existingSeries = Series.Create(1405, "tt0773262", 2015, SeriesType.Standard, "https://example.com/poster.jpg");
         var command = new UpdateSeriesCommand(
             existingSeries.Id,
+            1405,
+            "tt1375666",
             2016,
             SeriesType.EpisodicAnthology,
             5,
-            "tt1375666",
             8.9,
             120000);
 
         _seriesRepositoryMock.Setup(x => x.GetByIdAsync(command.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingSeries);
+        _seriesRepositoryMock.Setup(x => x.ExistsByTmdbIdAsync(1405, existingSeries.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
         _seriesRepositoryMock.Setup(x => x.ExistsByImdbIdAsync("tt1375666", existingSeries.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 

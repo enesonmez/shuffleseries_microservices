@@ -5,7 +5,6 @@ using ShuffleSeries.Identity.Application.Models;
 using ShuffleSeries.Identity.Domain.Entities;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Tests.Application;
@@ -107,7 +106,7 @@ public class LoginCommandHandlerTests
         _tokenServiceMock.Setup(t => t.HashToken(It.IsAny<string>()))
             .Returns("hashed_refresh_token");
         _permissionResolverMock.Setup(p => p.ResolveEffectivePermissionsAsync(user, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(([SystemRoles.Standard], ["catalog:read"]));
+            .ReturnsAsync(([SystemRoles.Standard], [SystemPermissions.Catalog.MoviesRead]));
         _tokenServiceMock.Setup(t => t.GenerateTokensAsync(user, It.IsAny<IReadOnlyList<string>>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TokenResponse("access_jwt_token", "raw_refresh_token", 3600));
 

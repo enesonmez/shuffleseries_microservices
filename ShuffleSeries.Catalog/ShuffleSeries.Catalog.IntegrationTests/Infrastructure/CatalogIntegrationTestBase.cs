@@ -1,5 +1,7 @@
+using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
+using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
 
@@ -10,10 +12,27 @@ public abstract class CatalogIntegrationTestBase : IAsyncLifetime
     {
         Factory = factory;
         Client = factory.CreateClient();
+        var defaultToken = TestJwtGenerator.GenerateToken();
+        Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", defaultToken);
     }
 
     protected CatalogApiFactory Factory { get; }
     protected HttpClient Client { get; }
+
+    protected HttpClient CreateUnauthorizedClient()
+    {
+        return Factory.CreateClient();
+    }
+
+    protected HttpClient CreateAuthorizedClient(
+        string role = SystemRoles.Admin,
+        IEnumerable<string>? permissions = null)
+    {
+        var client = Factory.CreateClient();
+        var token = TestJwtGenerator.GenerateToken(role: role, permissions: permissions);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
 
     // Her test metodundan önce veritabanı şemasını silmeden tabloları temizle ve seed verisini tazele
     public virtual async Task InitializeAsync()

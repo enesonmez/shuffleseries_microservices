@@ -39,7 +39,7 @@ public class AuthEndpointsIntegrationTests : IdentityIntegrationTestBase
         authResult.Should().NotBeNull();
         authResult!.Email.Should().Be("newuser@shuffleseries.com");
         authResult.Roles.Should().Contain("Standard");
-        authResult.Permissions.Should().Contain("catalog:read");
+        authResult.Permissions.Should().Contain(SystemPermissions.Catalog.MoviesRead);
         authResult.AccessToken.Should().NotBeNullOrWhiteSpace();
         authResult.RefreshToken.Should().NotBeNullOrWhiteSpace();
 

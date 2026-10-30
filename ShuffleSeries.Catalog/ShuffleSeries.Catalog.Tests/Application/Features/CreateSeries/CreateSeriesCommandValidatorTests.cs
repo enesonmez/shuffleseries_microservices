@@ -9,6 +9,8 @@ public class CreateSeriesCommandValidatorTests
     private readonly CreateSeriesCommandValidator _validator = new();
 
     private static CreateSeriesCommand CreateValidCommand() => new(
+        TmdbId: 1396,
+        ImdbId: "tt0903747",
         ReleaseYear: 2008,
         SeriesType: SeriesType.Standard,
         PosterUrl: "https://example.com/breaking-bad.jpg",
@@ -17,7 +19,6 @@ public class CreateSeriesCommandValidatorTests
         Title: "Breaking Bad",
         Overview: "A high school chemistry teacher turned methamphetamine producer.",
         Tagline: "Remember my name",
-        ImdbId: "tt0903747",
         ImdbRating: 9.5,
         ImdbVotes: 2000000,
         TotalSeasons: 5);
@@ -30,6 +31,30 @@ public class CreateSeriesCommandValidatorTests
         var result = _validator.TestValidate(command);
 
         result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void Validate_WithZeroOrNegativeTmdbId_ShouldHaveValidationError()
+    {
+        var command = CreateValidCommand() with { TmdbId = 0 };
+
+        var result = _validator.TestValidate(command);
+
+        result.ShouldHaveValidationErrorFor(x => x.TmdbId)
+              .WithErrorMessage("TMDb ID 0'dan büyük olmalıdır.");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("invalid-imdb")]
+    public void Validate_WithInvalidImdbId_ShouldHaveValidationError(string imdbId)
+    {
+        var command = CreateValidCommand() with { ImdbId = imdbId };
+
+        var result = _validator.TestValidate(command);
+
+        result.ShouldHaveValidationErrorFor(x => x.ImdbId);
     }
 
     [Theory]

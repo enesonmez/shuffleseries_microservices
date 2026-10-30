@@ -117,6 +117,68 @@ public class CatalogArchitectureTests
             $"FluentValidation sınıfları 'Validator' soneki ile bitmelidir. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
     }
 
+    [Fact]
+    public void Commands_ShouldHaveNameEndingWith_Command()
+    {
+        var commandTypes = _applicationAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !t.Name.Contains("<>")
+                && t.GetInterfaces().Any(i => i == typeof(MediatR.IRequest) || (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>)))
+                && t.Namespace != null && t.Namespace.Contains(".Commands."))
+            .ToList();
+
+        commandTypes.Should().NotBeEmpty("Catalog Application katmanında en az bir command bulunmalıdır.");
+
+        foreach (var type in commandTypes)
+        {
+            type.Name.Should().EndWith("Command", $"'{type.FullName}' sınıfı 'Command' ile bitmelidir.");
+        }
+    }
+
+    [Fact]
+    public void Queries_ShouldHaveNameEndingWith_Query()
+    {
+        var queryTypes = _applicationAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !t.Name.Contains("<>")
+                && t.GetInterfaces().Any(i => i == typeof(MediatR.IRequest) || (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>)))
+                && t.Namespace != null && t.Namespace.Contains(".Queries."))
+            .ToList();
+
+        queryTypes.Should().NotBeEmpty("Catalog Application katmanında en az bir query bulunmalıdır.");
+
+        foreach (var type in queryTypes)
+        {
+            type.Name.Should().EndWith("Query", $"'{type.FullName}' sınıfı 'Query' ile bitmelidir.");
+        }
+    }
+
+    [Fact]
+    public void Commands_ShouldHave_CorrespondingValidator()
+    {
+        var commandTypes = _applicationAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !t.Name.Contains("<>")
+                && t.GetInterfaces().Any(i => i == typeof(MediatR.IRequest) || (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>)))
+                && t.Namespace != null && t.Namespace.Contains(".Commands."))
+            .ToList();
+
+        var validatorTypes = _applicationAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.BaseType is { IsGenericType: true } && t.BaseType.GetGenericTypeDefinition() == typeof(FluentValidation.AbstractValidator<>))
+            .ToList();
+
+        var missingValidators = new List<string>();
+
+        foreach (var commandType in commandTypes)
+        {
+            var hasValidator = validatorTypes.Any(v => v.BaseType!.GetGenericArguments()[0] == commandType);
+            if (!hasValidator)
+            {
+                missingValidators.Add(commandType.FullName ?? commandType.Name);
+            }
+        }
+
+        missingValidators.Should().BeEmpty(
+            $"Her CQRS Command için bir FluentValidation Validator sınıfı bulunmalıdır. Validator'ı eksik olan komutlar: {string.Join(", ", missingValidators)}");
+    }
+
     #endregion
 
     #region Domain & DDD Rules
@@ -171,6 +233,56 @@ public class CatalogArchitectureTests
             typeof(AggregateRoot).IsAssignableFrom(type)
                 .Should().BeTrue($"Aggregate root '{type.Name}' AggregateRoot sınıfından türemelidir.");
         }
+    }
+
+    [Fact]
+    public void Entities_OtherThanAggregateRoots_ShouldNotInheritFrom_AggregateRoot()
+    {
+        var childEntities = new[]
+        {
+            typeof(Episode),
+            typeof(Season),
+            typeof(EpisodePlatform),
+            typeof(EpisodeTranslation),
+            typeof(MediaPlatform),
+            typeof(MediaMood),
+            typeof(MediaGenre),
+            typeof(MediaTranslation)
+        };
+
+        foreach (var entity in childEntities)
+        {
+            typeof(AggregateRoot).IsAssignableFrom(entity)
+                .Should().BeFalse($"Child entity '{entity.Name}' bir AggregateRoot olamaz; BaseEntity olmalıdır.");
+        }
+    }
+
+    [Fact]
+    public void RepositoryMethods_ShouldHave_CancellationTokenAsLastParameter()
+    {
+        var repoInterfaces = _domainAssembly.GetTypes()
+            .Where(t => t.IsInterface && t.Namespace == "ShuffleSeries.Catalog.Domain.Repositories" && typeof(ShuffleSeries.Shared.Core.Domain.Repositories.IRepository).IsAssignableFrom(t))
+            .ToList();
+
+        var violatingMethods = new List<string>();
+
+        foreach (var repoInterface in repoInterfaces)
+        {
+            var methods = repoInterface.GetMethods()
+                .Where(m => typeof(Task).IsAssignableFrom(m.ReturnType));
+
+            foreach (var method in methods)
+            {
+                var parameters = method.GetParameters();
+                if (parameters.Length == 0 || parameters[^1].ParameterType != typeof(CancellationToken))
+                {
+                    violatingMethods.Add($"{repoInterface.Name}.{method.Name}");
+                }
+            }
+        }
+
+        violatingMethods.Should().BeEmpty(
+            $"Tüm asenkron repository metotlarının son parametresi CancellationToken olmalıdır (.NET 10 CLR & ThreadPool Güvenliği). İhlal eden metotlar: {string.Join(", ", violatingMethods)}");
     }
 
     [Fact]
@@ -256,6 +368,39 @@ public class CatalogArchitectureTests
     #endregion
 
     #region Background Jobs Rules
+
+    [Fact]
+    public void Repositories_InInfrastructure_ShouldHaveNameEndingWith_Repository_And_BeInternalSealed()
+    {
+        var repoTypes = _infrastructureAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !t.IsNested && !t.Name.Contains("<") && t.Namespace == "ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories")
+            .ToList();
+
+        repoTypes.Should().NotBeEmpty("Altyapıda en az bir repository implementasyonu bulunmalıdır.");
+
+        foreach (var type in repoTypes)
+        {
+            type.Name.Should().EndWith("Repository", $"Repository sınıfı '{type.Name}' 'Repository' soneki ile bitmelidir.");
+            type.IsSealed.Should().BeTrue($"Repository sınıfı '{type.Name}' sealed olmalıdır.");
+            type.IsNotPublic.Should().BeTrue($"Repository sınıfı '{type.Name}' internal (not public) olmalıdır.");
+        }
+    }
+
+    [Fact]
+    public void EntityTypeConfigurations_ShouldHaveNameEndingWith_Configuration_And_BeInConfigurationsNamespace()
+    {
+        var configTypes = _infrastructureAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(Microsoft.EntityFrameworkCore.IEntityTypeConfiguration<>)))
+            .ToList();
+
+        configTypes.Should().NotBeEmpty("Altyapıda en az bir EF Core EntityTypeConfiguration bulunmalıdır.");
+
+        foreach (var type in configTypes)
+        {
+            type.Name.Should().EndWith("Configuration", $"Configuration sınıfı '{type.Name}' 'Configuration' ile bitmelidir.");
+            type.Namespace.Should().Be("ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations");
+        }
+    }
 
     [Fact]
     public void BackgroundJobs_Implementing_IJob_ShouldBeSealed_And_HaveDisallowConcurrentExecution()

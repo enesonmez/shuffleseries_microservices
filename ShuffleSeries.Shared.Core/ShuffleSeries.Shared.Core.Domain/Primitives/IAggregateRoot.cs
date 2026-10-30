@@ -4,8 +4,6 @@ namespace ShuffleSeries.Shared.Core.Domain.Primitives;
 /// Domain-Driven Design (DDD) Aggregate Root sözleşmesi.
 /// Domain event'lerin toplanması ve temizlenmesi işlevlerini soyutlar.
 /// </summary>
-public interface IAggregateRoot
+public interface IAggregateRoot : IHaveDomainEvents
 {
-    IReadOnlyCollection<IDomainEvent> GetDomainEvents();
-    void ClearDomainEvents();
 }

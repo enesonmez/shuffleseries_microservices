@@ -18,6 +18,7 @@ CHECKLIST.md
 Library/
 scratch/
 .dotnet/
+graphify-out/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

@@ -18,7 +18,7 @@ internal sealed class DeleteSeriesCommandHandler : IRequestHandler<DeleteSeriesC
 
     public async Task Handle(DeleteSeriesCommand request, CancellationToken cancellationToken)
     {
-        var series = await _seriesRepository.GetByIdAsync(request.Id, cancellationToken)
+        var series = await _seriesRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken)
             ?? throw new SeriesNotFoundException(request.Id);
 
         series.Delete();

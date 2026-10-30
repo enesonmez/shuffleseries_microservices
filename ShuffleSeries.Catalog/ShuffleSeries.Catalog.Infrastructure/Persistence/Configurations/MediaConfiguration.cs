@@ -17,12 +17,20 @@ public class MediaConfiguration : IEntityTypeConfiguration<Media>
             .HasValue<Movie>(MediaType.Movie)
             .HasValue<Series>(MediaType.Series);
 
+        builder.Property(x => x.TmdbId)
+            .IsRequired();
+
+        builder.HasIndex(x => x.TmdbId)
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
+
         builder.Property(x => x.ImdbId)
+            .IsRequired()
             .HasMaxLength(20);
 
         builder.HasIndex(x => x.ImdbId)
             .IsUnique()
-            .HasFilter("\"IsDeleted\" = false AND \"ImdbId\" IS NOT NULL");
+            .HasFilter("\"IsDeleted\" = false");
 
         builder.Property(x => x.PosterUrl)
             .IsRequired()
@@ -39,8 +47,6 @@ public class MediaConfiguration : IEntityTypeConfiguration<Media>
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
 
         builder.HasIndex(x => new { x.MediaType, x.CreatedAtUtc })
             .HasFilter("\"IsDeleted\" = false");

@@ -32,6 +32,7 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.HasPostgresExtension("pg_trgm");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
         modelBuilder.ApplySoftDeleteQueryFilters();
     }

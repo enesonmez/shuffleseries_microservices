@@ -86,25 +86,29 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
 # Milestone 3: Catalog Service (The Source of Truth)
 İçeriklerin (film, dizi, antoloji bölümleri), yayın platformlarının ve özgün ruh hali türlerinin çok dilli, CQRS, gRPC ve Event-Driven mimaride inşası.
 * [x] Task 3.1: Çok Dilli Domain Modellemesi, Veritabanı ve Seed Altyapısı
-  * Çoklu Dil Mimarisi: Genişletilebilir Entity Translation Pattern (`MediaTranslation`, `MoodTranslation`, `GenreTranslation` ile TR, EN ve geleceğe hazır ISO dil desteği).
-  * Zengin Medya & Antoloji Modellemesi: `Movie`, `Series`, `Season`, `Episode` entity'leri; dizi seviyesinde `SeriesType` (Standard, EpisodicAnthology, SeasonalAnthology) ve bölüm seviyesinde `IsStandalone` flag'i (~45 dk bağımsız bölümler).
-  * Varlık & Platform Standartları: OLED dikey Hero poster, 16:9 yatay backdrop ve antoloji thumbnail desteği; dijital yayın platformları (aktif/pasif logo) ve "Hemen İzle" deep link URL eşlemeleri.
-  * PRD 6 Özgün Ruh Hali: Kafa Dağıtmalık, Beyin Yakanlar, Gerim Gerim Gerenler, Gözyaşı Garantili, Dünyadan Uzaklaş, Gaza Getirenler türleri ve dinamik ambient blur hex renkleri.
-  * Platform-Bağımsız Tür Taksonomisi (Dual-Taxonomy): `Genre` ve `MediaGenre` çoka-çok ilişkisi, 19 TMDB evrensel türünün referans kodlarıyla TR/EN tohumlanması (`CatalogDbSeeder`).
-  * Soft Delete, PostgreSQL kısmi indeksleri, `DatabaseMigrationExtensions` ile resilient migration döngüsü.
-* [ ] Task 3.2: CQRS ve Minimal API Geliştirmeleri (Read & Write)
-  * Content Negotiation: `Accept-Language` ve `?lang=` üzerinden dinamik dil çözümleme (Graceful Fallback).
+  * Çoklu Dil Mimarisi: Genişletilebilir Entity Translation Pattern (`MediaTranslation`, `MoodTranslation`, `GenreTranslation` ile ISO dil desteği).
+  * Zengin Medya & Antoloji Modellemesi: Film, dizi, sezon ve bağımsız bölüm hiyerarşisi; antoloji ve bağımsız bölümler için Bölüm Ruleti altyapısı.
+  * Taksonomi ve Varlık Standartları: Dijital yayın platformları (deep link entegrasyonu), PRD 6 özgün ruh hali ve platform-bağımsız tür taksonomisi.
+  * Veritabanı Altyapısı: PostgreSQL ilişkisel şeması, soft-delete mekanizması, kısmi indeksler ve otomatik veritabanı tohumlama (CatalogDbSeeder).
+* [x] Task 3.2: CQRS ve Minimal API Geliştirmeleri (Read & Write)
+  * Dinamik Çoklu Dil ve İçerik Yönetimi: `Accept-Language` ve `?lang=` üzerinden dinamik dil çözümleme (Graceful Fallback).
   * Write Minimal API'leri (Admin / Yönetim):
     * POST / PUT / DELETE /api/catalog/movies: Çok dilli film yönetimi.
     * POST / PUT / DELETE /api/catalog/series & /episodes: Dizi, sezon ve bağımsız bölüm yönetimi.
     * POST / PUT / DELETE /api/catalog/platforms, /moods & /genres: Platform, ruh hali ve klasik tür yönetimi.
+    * POST / DELETE /api/catalog/moods/{id}/translations & /genres/{id}/translations: Taksonomi granüler dil ve çeviri yönetimi (Simetrik REST).
     * POST / PUT /api/catalog/media/{id}/platforms, /moods & /genres: Platform, mood ve tür ilişkilendirmeleri.
+    * POST / DELETE /api/catalog/episodes/{id}/platforms & /translations: Antoloji bölümü platform deep link ve dil yönetimi.
   * Read Minimal API'leri (İstemci & Detay Odaklı):
     * GET /api/catalog/platforms, /moods & /genres: Metadata listeleri (`IMemoryCache` / Redis Read-Through Caching).
+    * GET /api/catalog/platforms/{id}, /moods/{id} & /genres/{id}: Taksonomi tekil detay sorguları (`Location` header simetrisi & `GetByIdForDetailAsync`).
     * GET /api/catalog/movies/{id}: Film zengin detay sayfası.
     * GET /api/catalog/series/{id}: Dizi detay sayfası (sezon ve bölüm hiyerarşisi ile).
     * GET /api/catalog/episodes/{id}: Antoloji bölümü bağımsız detay sayfası.
     * GET /api/catalog/admin/media: CMS/Backoffice için sayfalı ve filtreli yönetim listesi (Admin rolüne özel).
+  * Granüler PBAC ve API Güvenliği: Kaynak bazlı izinler (PBAC) ve OWASP API standartlarına dayalı penetrasyon testi doğrulaması.
+  * Performans, Dayanıklılık ve Veritabanı Optimizasyonları: PostgreSQL GIN trigram indeksleme, Cache Stampede koruması, Cartesian split query ve bellek izolasyonu.
+  * Kapsamlı Test ve Mimari Doğrulama: xUnit birim testleri, Onion Architecture mimari testleri, Testcontainers (PostgreSQL) entegrasyon testleri ve API Gateway üzerinden uçtan uca (E2E) test otomasyonu.
 * [ ] Task 3.3: gRPC İletişim Uç Noktası (Shuffle Engine Entegrasyonu)
   * Shuffle Engine Redis Cold Start / Cache Warming ve Bölüm Ruleti beslemesi için `CatalogGrpcService` geliştirilmesi (`GetBulkMediaForShuffle`, `GetStandaloneEpisodesForRoulette`, `GetMediaById`).
   * gRPC sözleşmesinde çok dilli içerik sözlüklerinin (`map<string, LocalizedMediaPayload>`) taşınması.

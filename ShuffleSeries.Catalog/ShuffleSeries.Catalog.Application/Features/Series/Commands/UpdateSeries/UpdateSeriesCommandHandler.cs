@@ -23,22 +23,26 @@ public sealed class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesCom
         var series = await _seriesRepository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new SeriesNotFoundException(request.Id);
 
-        if (!string.IsNullOrWhiteSpace(request.ImdbId))
+        if (await _seriesRepository.ExistsByTmdbIdAsync(request.TmdbId, series.Id, cancellationToken))
         {
-            var normalizedImdbId = request.ImdbId.Trim();
-            if (await _seriesRepository.ExistsByImdbIdAsync(normalizedImdbId, series.Id, cancellationToken))
-            {
-                throw new DuplicateImdbIdException(normalizedImdbId);
-            }
+            throw new DuplicateTmdbIdException(request.TmdbId);
+        }
+
+        if (await _seriesRepository.ExistsByImdbIdAsync(request.ImdbId, series.Id, cancellationToken))
+        {
+            throw new DuplicateImdbIdException(request.ImdbId);
         }
 
         series.UpdateDetails(
+            request.TmdbId,
+            request.ImdbId,
             request.ReleaseYear,
             request.SeriesType,
             request.TotalSeasons,
-            request.ImdbId,
             request.ImdbRating,
-            request.ImdbVotes);
+            request.ImdbVotes,
+            request.PosterUrl,
+            request.BackdropUrl);
 
         _seriesRepository.Update(series);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

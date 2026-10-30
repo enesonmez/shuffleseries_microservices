@@ -56,15 +56,79 @@ public static class AuthenticationExtensions
         authBuilder.AddPolicy(SystemPolicies.RequirePremiumRole, policy => policy.RequireRole(SystemRoles.Premium));
         authBuilder.AddPolicy(SystemPolicies.RequireAdminRole, policy => policy.RequireRole(SystemRoles.Admin));
 
-        // İnce ayarlı izin tabanlı politikalar (Single Source of Truth: SystemPermissions)
-        authBuilder.AddPolicy(SystemPolicies.CanReadCatalog, policy => policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.Read));
-        authBuilder.AddPolicy(SystemPolicies.CanCreateCatalog, policy => policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.Create));
-        authBuilder.AddPolicy(SystemPolicies.CanUpdateCatalog, policy => policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.Update));
-        authBuilder.AddPolicy(SystemPolicies.CanDeleteCatalog, policy => policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.Delete));
+        // Granüler Movies Politikaları
+        authBuilder.AddPolicy(SystemPolicies.CanReadCatalogMovies, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.MoviesRead));
+        authBuilder.AddPolicy(SystemPolicies.CanCreateCatalogMovies, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.MoviesCreate));
+        authBuilder.AddPolicy(SystemPolicies.CanUpdateCatalogMovies, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.MoviesUpdate));
+        authBuilder.AddPolicy(SystemPolicies.CanDeleteCatalogMovies, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.MoviesDelete));
 
+        // Granüler Series Politikaları
+        authBuilder.AddPolicy(SystemPolicies.CanReadCatalogSeries, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.SeriesRead));
+        authBuilder.AddPolicy(SystemPolicies.CanCreateCatalogSeries, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.SeriesCreate));
+        authBuilder.AddPolicy(SystemPolicies.CanUpdateCatalogSeries, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.SeriesUpdate));
+        authBuilder.AddPolicy(SystemPolicies.CanDeleteCatalogSeries, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.SeriesDelete));
+
+        // Granüler Episodes Politikaları
+        authBuilder.AddPolicy(SystemPolicies.CanReadCatalogEpisodes, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.EpisodesRead));
+        authBuilder.AddPolicy(SystemPolicies.CanCreateCatalogEpisodes, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.EpisodesCreate));
+        authBuilder.AddPolicy(SystemPolicies.CanUpdateCatalogEpisodes, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.EpisodesUpdate));
+        authBuilder.AddPolicy(SystemPolicies.CanDeleteCatalogEpisodes, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.EpisodesDelete));
+
+        // Granüler Platforms Politikaları
+        authBuilder.AddPolicy(SystemPolicies.CanReadCatalogPlatforms, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.PlatformsRead));
+        authBuilder.AddPolicy(SystemPolicies.CanCreateCatalogPlatforms, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.PlatformsCreate));
+        authBuilder.AddPolicy(SystemPolicies.CanUpdateCatalogPlatforms, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.PlatformsUpdate));
+        authBuilder.AddPolicy(SystemPolicies.CanDeleteCatalogPlatforms, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.PlatformsDelete));
+
+        // Granüler Moods Politikaları
+        authBuilder.AddPolicy(SystemPolicies.CanReadCatalogMoods, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.MoodsRead));
+        authBuilder.AddPolicy(SystemPolicies.CanCreateCatalogMoods, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.MoodsCreate));
+        authBuilder.AddPolicy(SystemPolicies.CanUpdateCatalogMoods, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.MoodsUpdate));
+        authBuilder.AddPolicy(SystemPolicies.CanDeleteCatalogMoods, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.MoodsDelete));
+
+        // Granüler Genres Politikaları
+        authBuilder.AddPolicy(SystemPolicies.CanReadCatalogGenres, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.GenresRead));
+        authBuilder.AddPolicy(SystemPolicies.CanCreateCatalogGenres, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.GenresCreate));
+        authBuilder.AddPolicy(SystemPolicies.CanUpdateCatalogGenres, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.GenresUpdate));
+        authBuilder.AddPolicy(SystemPolicies.CanDeleteCatalogGenres, policy =>
+            policy.RequireClaim(PermissionClaimType, SystemPermissions.Catalog.GenresDelete));
+
+        // Granüler Media & Episode Associations & Translations Politikası (Admin rolü veya catalog:associations:manage izni)
+        authBuilder.AddPolicy(SystemPolicies.CanManageCatalogAssociations, policy =>
+            policy.RequireAssertion(ctx => ctx.User.IsInRole(SystemRoles.Admin) || ctx.User.HasClaim(PermissionClaimType, SystemPermissions.Catalog.AssociationsManage)));
+
+        // Admin Media CMS Politikası (Admin rolü veya catalog:admin:read izni)
+        authBuilder.AddPolicy(SystemPolicies.CanReadAdminMedia, policy =>
+            policy.RequireAssertion(ctx => ctx.User.IsInRole(SystemRoles.Admin) || ctx.User.HasClaim(PermissionClaimType, SystemPermissions.Catalog.AdminMediaRead)));
+
+        // Shuffle Politikaları
         authBuilder.AddPolicy(SystemPolicies.CanExecuteBasicShuffle, policy => policy.RequireClaim(PermissionClaimType, SystemPermissions.Shuffle.Basic));
         authBuilder.AddPolicy(SystemPolicies.CanExecuteVipShuffle, policy => policy.RequireClaim(PermissionClaimType, SystemPermissions.Shuffle.Vip));
 
+        // Auth Politikaları
         authBuilder.AddPolicy(SystemPolicies.CanManageAuth, policy => policy.RequireClaim(PermissionClaimType, SystemPermissions.Auth.Manage));
 
         return services;

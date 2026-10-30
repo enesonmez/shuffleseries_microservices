@@ -9,6 +9,13 @@ public sealed class UpdateSeriesCommandValidator : AbstractValidator<UpdateSerie
         RuleFor(x => x.Id)
             .NotEmpty().WithMessage("Dizi ID boş olamaz.");
 
+        RuleFor(x => x.TmdbId)
+            .GreaterThan(0).WithMessage("TMDb ID 0'dan büyük olmalıdır.");
+
+        RuleFor(x => x.ImdbId)
+            .NotEmpty().WithMessage("IMDb ID boş olamaz.")
+            .Matches(@"^tt\d{7,10}$").WithMessage("IMDb ID geçerli formatta olmalıdır (örn. 'tt0111161').");
+
         RuleFor(x => x.ReleaseYear)
             .InclusiveBetween(1900, 2100).WithMessage("Çıkış yılı geçerli bir yıl olmalıdır.");
 
@@ -17,9 +24,6 @@ public sealed class UpdateSeriesCommandValidator : AbstractValidator<UpdateSerie
 
         RuleFor(x => x.TotalSeasons)
             .GreaterThanOrEqualTo(0).WithMessage("Toplam sezon sayısı negatif olamaz.");
-
-        RuleFor(x => x.ImdbId)
-            .MaximumLength(20).WithMessage("IMDb ID en fazla 20 karakter olabilir.");
 
         RuleFor(x => x.ImdbRating)
             .InclusiveBetween(0.0, 10.0).When(x => x.ImdbRating.HasValue)

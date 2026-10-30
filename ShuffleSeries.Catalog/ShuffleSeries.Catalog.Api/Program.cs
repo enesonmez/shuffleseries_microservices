@@ -5,9 +5,11 @@ using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
 using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 using ShuffleSeries.Shared.Core.Web;
+using ShuffleSeries.Shared.Core.Web.Authentication;
 using ShuffleSeries.Shared.Core.Web.Correlation;
 using ShuffleSeries.Shared.Core.Web.Cors;
 using ShuffleSeries.Shared.Core.Web.Health;
+using ShuffleSeries.Shared.Core.Web.Localization;
 using ShuffleSeries.Shared.Core.Web.Logging;
 using ShuffleSeries.Shared.Core.Web.Observability;
 using ShuffleSeries.Shared.Core.Web.Swagger;
@@ -38,6 +40,9 @@ builder.Services.AddSharedSwagger(options =>
     options.IncludeJwtSecurity = true;
 });
 
+// Add Shared JWT Authentication & Authorization (Resolves Jwt:Secret, Jwt:Issuer, Jwt:Audience from Vault/Configuration)
+builder.Services.AddSharedJwtAuthentication(builder.Configuration);
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -46,6 +51,8 @@ builder.Services.AddSharedCors(builder.Configuration);
 
 builder.Services.AddSharedExceptionHandling();
 
+builder.Services.AddSharedLocalization();
+
 var app = builder.Build();
 
 app.UseSharedCorrelation();
@@ -53,6 +60,9 @@ app.UseSharedCorrelation();
 app.UseSharedExceptionHandling();
 
 app.UseSharedCors();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapSharedHealthChecks();
 
@@ -64,7 +74,14 @@ if (app.Environment.IsDevelopment())
         (context, _) => CatalogDbSeeder.SeedAsync(context));
 }
 
+app.MapMovieEndpoints();
 app.MapSeriesEndpoints();
+app.MapEpisodeEndpoints();
+app.MapPlatformEndpoints();
+app.MapMoodEndpoints();
+app.MapGenreEndpoints();
+app.MapMediaAssociationEndpoints();
+app.MapAdminMediaEndpoints();
 
 await app.RunAsync();
 

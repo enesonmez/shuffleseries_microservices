@@ -19,7 +19,8 @@ public class Series : Media
 
     private Series(
         Guid id,
-        string? imdbId,
+        int tmdbId,
+        string imdbId,
         double? imdbRating,
         int? imdbVotes,
         int releaseYear,
@@ -27,24 +28,26 @@ public class Series : Media
         int totalSeasons,
         string posterUrl,
         string? backdropUrl)
-        : base(id, MediaType.Series, imdbId, imdbRating, imdbVotes, releaseYear, posterUrl, backdropUrl)
+        : base(id, MediaType.Series, tmdbId, imdbId, imdbRating, imdbVotes, releaseYear, posterUrl, backdropUrl)
     {
         SeriesType = seriesType;
         TotalSeasons = totalSeasons >= 0 ? totalSeasons : 0;
     }
 
     public static Series Create(
+        int tmdbId,
+        string imdbId,
         int releaseYear,
         SeriesType seriesType,
         string posterUrl,
         string? backdropUrl = null,
-        string? imdbId = null,
         double? imdbRating = null,
         int? imdbVotes = null,
         int totalSeasons = 0)
     {
         var series = new Series(
             Guid.NewGuid(),
+            tmdbId,
             imdbId,
             imdbRating,
             imdbVotes,
@@ -60,23 +63,38 @@ public class Series : Media
     }
 
     public void UpdateDetails(
+        int tmdbId,
+        string imdbId,
         int releaseYear,
         SeriesType seriesType,
         int totalSeasons,
-        string? imdbId,
         double? imdbRating,
-        int? imdbVotes)
+        int? imdbVotes,
+        string? posterUrl = null,
+        string? backdropUrl = null)
     {
+        if (tmdbId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(tmdbId), "TMDb ID must be greater than zero.");
+
+        if (string.IsNullOrWhiteSpace(imdbId))
+            throw new ArgumentException("IMDb ID cannot be empty.", nameof(imdbId));
+
         ValidateReleaseYear(releaseYear);
         ValidateRatings(imdbRating, imdbVotes);
 
+        TmdbId = tmdbId;
+        ImdbId = imdbId.Trim();
         ReleaseYear = releaseYear;
         SeriesType = seriesType;
         TotalSeasons = totalSeasons >= 0 ? totalSeasons : 0;
-        ImdbId = string.IsNullOrWhiteSpace(imdbId) ? null : imdbId.Trim();
         ImdbRating = imdbRating;
         ImdbVotes = imdbVotes;
-        ModifiedAtUtc = DateTime.UtcNow;
+
+        if (!string.IsNullOrWhiteSpace(posterUrl))
+            PosterUrl = posterUrl.Trim();
+
+        if (backdropUrl is not null)
+            BackdropUrl = string.IsNullOrWhiteSpace(backdropUrl) ? null : backdropUrl.Trim();
 
         RaiseUpdatedEvent();
     }
@@ -93,7 +111,6 @@ public class Series : Media
         if (seasonNumber > TotalSeasons)
             TotalSeasons = seasonNumber;
 
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
         return season;
     }
@@ -118,8 +135,17 @@ public class Series : Media
             imdbRating,
             thumbnailUrl);
 
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
+        RaiseDomainEvent(new EpisodeCreatedDomainEvent(Id, season.Id, episode.Id, episodeNumber, standaloneFlag));
         return episode;
+    }
+
+    public override void Delete(string? deletedBy = null)
+    {
+        base.Delete(deletedBy);
+        foreach (var season in _seasons)
+        {
+            season.Delete(deletedBy);
+        }
     }
 }

@@ -7,19 +7,62 @@ namespace ShuffleSeries.Identity.Infrastructure.Persistence;
 public static class IdentityDbSeeder
 {
     private const string CatalogModule = "Catalog";
+    private const string ShuffleModule = "Shuffle";
+    private const string IdentityModule = "Identity";
 
     public static async Task SeedAsync(IdentityDbContext context, CancellationToken cancellationToken = default)
     {
         // 1. Permissions Seed
         var permissions = new List<Permission>
         {
-            Permission.Create(SystemPermissions.CatalogRead, CatalogModule, "Allows reading movies, series and episodes"),
-            Permission.Create(SystemPermissions.CatalogCreate, CatalogModule, "Allows creating catalog content"),
-            Permission.Create(SystemPermissions.CatalogUpdate, CatalogModule, "Allows updating catalog content"),
-            Permission.Create(SystemPermissions.CatalogDelete, CatalogModule, "Allows deleting catalog content"),
-            Permission.Create(SystemPermissions.ShuffleBasic, "Shuffle", "Allows basic random episode shuffle"),
-            Permission.Create(SystemPermissions.ShuffleVip, "Shuffle", "Allows VIP curated weekend arena shuffle"),
-            Permission.Create(SystemPermissions.AuthManage, "Identity", "Allows managing users and roles")
+            // Movies Granular Permissions
+            Permission.Create(SystemPermissions.Catalog.MoviesRead, CatalogModule, "Allows viewing movie details"),
+            Permission.Create(SystemPermissions.Catalog.MoviesCreate, CatalogModule, "Allows creating new movies in catalog"),
+            Permission.Create(SystemPermissions.Catalog.MoviesUpdate, CatalogModule, "Allows updating movie metadata"),
+            Permission.Create(SystemPermissions.Catalog.MoviesDelete, CatalogModule, "Allows soft-deleting movies"),
+
+            // Series Granular Permissions
+            Permission.Create(SystemPermissions.Catalog.SeriesRead, CatalogModule, "Allows viewing series and season details"),
+            Permission.Create(SystemPermissions.Catalog.SeriesCreate, CatalogModule, "Allows creating new series in catalog"),
+            Permission.Create(SystemPermissions.Catalog.SeriesUpdate, CatalogModule, "Allows updating series metadata"),
+            Permission.Create(SystemPermissions.Catalog.SeriesDelete, CatalogModule, "Allows soft-deleting series"),
+
+            // Episodes Granular Permissions
+            Permission.Create(SystemPermissions.Catalog.EpisodesRead, CatalogModule, "Allows viewing episode details"),
+            Permission.Create(SystemPermissions.Catalog.EpisodesCreate, CatalogModule, "Allows creating new episodes under series"),
+            Permission.Create(SystemPermissions.Catalog.EpisodesUpdate, CatalogModule, "Allows updating episode metadata"),
+            Permission.Create(SystemPermissions.Catalog.EpisodesDelete, CatalogModule, "Allows soft-deleting episodes"),
+
+            // Platforms Granular Permissions
+            Permission.Create(SystemPermissions.Catalog.PlatformsRead, CatalogModule, "Allows reading streaming platforms list"),
+            Permission.Create(SystemPermissions.Catalog.PlatformsCreate, CatalogModule, "Allows creating new streaming platforms"),
+            Permission.Create(SystemPermissions.Catalog.PlatformsUpdate, CatalogModule, "Allows updating platform details and logos"),
+            Permission.Create(SystemPermissions.Catalog.PlatformsDelete, CatalogModule, "Allows soft-deleting streaming platforms"),
+
+            // Moods Granular Permissions
+            Permission.Create(SystemPermissions.Catalog.MoodsRead, CatalogModule, "Allows reading catalog moods list"),
+            Permission.Create(SystemPermissions.Catalog.MoodsCreate, CatalogModule, "Allows creating new mood categories"),
+            Permission.Create(SystemPermissions.Catalog.MoodsUpdate, CatalogModule, "Allows updating mood metadata and ambient colors"),
+            Permission.Create(SystemPermissions.Catalog.MoodsDelete, CatalogModule, "Allows soft-deleting mood categories"),
+
+            // Genres Granular Permissions
+            Permission.Create(SystemPermissions.Catalog.GenresRead, CatalogModule, "Allows reading catalog genres taxonomy"),
+            Permission.Create(SystemPermissions.Catalog.GenresCreate, CatalogModule, "Allows creating new genre categories"),
+            Permission.Create(SystemPermissions.Catalog.GenresUpdate, CatalogModule, "Allows updating genre metadata"),
+            Permission.Create(SystemPermissions.Catalog.GenresDelete, CatalogModule, "Allows soft-deleting genre categories"),
+
+            // Media & Episode Associations & Translations
+            Permission.Create(SystemPermissions.Catalog.AssociationsManage, CatalogModule, "Allows managing media and episode platform, mood, genre associations and translations"),
+
+            // Admin CMS
+            Permission.Create(SystemPermissions.Catalog.AdminMediaRead, CatalogModule, "Allows access to admin CMS media management listing"),
+
+            // Shuffle Permissions
+            Permission.Create(SystemPermissions.ShuffleBasic, ShuffleModule, "Allows basic random episode shuffle"),
+            Permission.Create(SystemPermissions.ShuffleVip, ShuffleModule, "Allows VIP curated weekend arena shuffle"),
+
+            // Identity Permissions
+            Permission.Create(SystemPermissions.AuthManage, IdentityModule, "Allows managing users and roles")
         };
 
         var existingPermissions = await context.Permissions
@@ -92,20 +135,40 @@ public static class IdentityDbSeeder
         // 3. Role-Permission Mappings
         var permMap = existingPermissions.ToDictionary(p => p.Code, p => p.Id);
 
-        // Guest: catalog:read, shuffle:basic
-        MapPermission(guestRole, permMap, SystemPermissions.CatalogRead);
+        // Granular catalog reading permissions for all authenticated/guest users
+        string[] allCatalogReadPermissions =
+        [
+            SystemPermissions.Catalog.MoviesRead,
+            SystemPermissions.Catalog.SeriesRead,
+            SystemPermissions.Catalog.EpisodesRead,
+            SystemPermissions.Catalog.PlatformsRead,
+            SystemPermissions.Catalog.MoodsRead,
+            SystemPermissions.Catalog.GenresRead
+        ];
+
+        // Guest: All catalog read + shuffle:basic
+        foreach (var readPerm in allCatalogReadPermissions)
+        {
+            MapPermission(guestRole, permMap, readPerm);
+        }
         MapPermission(guestRole, permMap, SystemPermissions.ShuffleBasic);
 
-        // Standard: catalog:read, shuffle:basic
-        MapPermission(standardRole, permMap, SystemPermissions.CatalogRead);
+        // Standard: All catalog read + shuffle:basic
+        foreach (var readPerm in allCatalogReadPermissions)
+        {
+            MapPermission(standardRole, permMap, readPerm);
+        }
         MapPermission(standardRole, permMap, SystemPermissions.ShuffleBasic);
 
-        // Premium: catalog:read, shuffle:basic, shuffle:vip
-        MapPermission(premiumRole, permMap, SystemPermissions.CatalogRead);
+        // Premium: All catalog read + shuffle:basic + shuffle:vip
+        foreach (var readPerm in allCatalogReadPermissions)
+        {
+            MapPermission(premiumRole, permMap, readPerm);
+        }
         MapPermission(premiumRole, permMap, SystemPermissions.ShuffleBasic);
         MapPermission(premiumRole, permMap, SystemPermissions.ShuffleVip);
 
-        // Admin: all
+        // Admin: all permissions in the system
         foreach (var perm in existingPermissions)
         {
             adminRole.AddPermission(perm.Id);

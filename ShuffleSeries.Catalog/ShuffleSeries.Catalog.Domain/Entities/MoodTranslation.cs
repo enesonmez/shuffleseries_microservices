@@ -36,6 +36,5 @@ public class MoodTranslation : BaseEntity
         Name = name.Trim();
         Description = description.Trim();
         VibeTags = string.IsNullOrWhiteSpace(vibeTags) ? null : vibeTags.Trim();
-        ModifiedAtUtc = DateTime.UtcNow;
     }
 }

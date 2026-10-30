@@ -5,9 +5,12 @@ namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSerie
 
 public sealed record UpdateSeriesCommand(
     Guid Id,
+    int TmdbId,
+    string ImdbId,
     int ReleaseYear,
     SeriesType SeriesType,
     int TotalSeasons,
-    string? ImdbId = null,
     double? ImdbRating = null,
-    int? ImdbVotes = null) : IRequest;
+    int? ImdbVotes = null,
+    string? PosterUrl = null,
+    string? BackdropUrl = null) : IRequest;

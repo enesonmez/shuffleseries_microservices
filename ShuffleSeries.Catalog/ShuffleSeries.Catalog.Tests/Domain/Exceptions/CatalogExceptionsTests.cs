@@ -64,6 +64,15 @@ public class CatalogExceptionsTests
     }
 
     [Fact]
+    public void DuplicateEpisodePlatformException_ShouldHaveCorrectErrorCode()
+    {
+        var ex = new DuplicateEpisodePlatformException(Guid.NewGuid(), Guid.NewGuid());
+
+        ex.Should().BeAssignableTo<ConflictException>();
+        ex.Code.Should().Be("DUPLICATE_EPISODE_PLATFORM");
+    }
+
+    [Fact]
     public void DuplicateMediaMoodException_ShouldHaveCorrectErrorCode()
     {
         var ex = new DuplicateMediaMoodException(Guid.NewGuid(), Guid.NewGuid());
@@ -118,5 +127,15 @@ public class CatalogExceptionsTests
 
         ex.Should().BeAssignableTo<ConflictException>();
         ex.Code.Should().Be("DUPLICATE_EPISODE");
+    }
+
+    [Fact]
+    public void DuplicateTmdbIdException_ShouldHaveCorrectErrorCode()
+    {
+        var ex = new DuplicateTmdbIdException(550);
+
+        ex.Should().BeAssignableTo<ConflictException>();
+        ex.Code.Should().Be("DUPLICATE_TMDB_ID");
+        ex.Message.Should().Contain("550");
     }
 }

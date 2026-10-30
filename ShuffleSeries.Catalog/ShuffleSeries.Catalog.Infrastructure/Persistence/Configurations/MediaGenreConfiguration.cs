@@ -27,7 +27,5 @@ public class MediaGenreConfiguration : IEntityTypeConfiguration<MediaGenre>
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
     }
 }

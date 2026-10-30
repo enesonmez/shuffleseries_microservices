@@ -27,14 +27,4 @@ public class EpisodePlatform : BaseEntity
         WebUrl = webUrl.Trim();
         AppSchemeUrl = string.IsNullOrWhiteSpace(appSchemeUrl) ? null : appSchemeUrl.Trim();
     }
-
-    internal void UpdateUrls(string webUrl, string? appSchemeUrl = null)
-    {
-        if (string.IsNullOrWhiteSpace(webUrl))
-            throw new ArgumentException("WebUrl cannot be empty.", nameof(webUrl));
-
-        WebUrl = webUrl.Trim();
-        AppSchemeUrl = string.IsNullOrWhiteSpace(appSchemeUrl) ? null : appSchemeUrl.Trim();
-        ModifiedAtUtc = DateTime.UtcNow;
-    }
 }

@@ -1,20 +1,216 @@
-@ShuffleSeries.Microservices.ApiGateway_HostAddress = http://localhost:5001
+@Gateway_HostAddress = http://localhost:5001
 
-### 1. API Gateway Kendi Sağlığı (Liveness Probe)
-GET {{ShuffleSeries.Microservices.ApiGateway_HostAddress}}/health/live
+# Dynamic Tokens (HashiCorp Vault 'Jwt:Secret' ile imzalı, geçerlilik: 2033)
+@AdminToken = eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMTExMTEiLCAianRpIjogImUyZS1nYXRld2F5LWFkbWluLTAwMSIsICJlbWFpbCI6ICJhZG1pbkBzaHVmZmxlc2VyaWVzLmNvbSIsICJyb2xlIjogWyJBZG1pbiJdLCAicGVybWlzc2lvbiI6IFsiY2F0YWxvZzptb3ZpZXM6cmVhZCIsICJjYXRhbG9nOm1vdmllczpjcmVhdGUiLCAiY2F0YWxvZzptb3ZpZXM6dXBkYXRlIiwgImNhdGFsb2c6bW92aWVzOmRlbGV0ZSIsICJjYXRhbG9nOnNlcmllczpyZWFkIiwgImNhdGFsb2c6c2VyaWVzOmNyZWF0ZSIsICJjYXRhbG9nOnNlcmllczp1cGRhdGUiLCAiY2F0YWxvZzpzZXJpZXM6ZGVsZXRlIiwgImNhdGFsb2c6ZXBpc29kZXM6cmVhZCIsICJjYXRhbG9nOmVwaXNvZGVzOmNyZWF0ZSIsICJjYXRhbG9nOmVwaXNvZGVzOnVwZGF0ZSIsICJjYXRhbG9nOmVwaXNvZGVzOmRlbGV0ZSIsICJjYXRhbG9nOnBsYXRmb3JtczpyZWFkIiwgImNhdGFsb2c6cGxhdGZvcm1zOmNyZWF0ZSIsICJjYXRhbG9nOnBsYXRmb3Jtczp1cGRhdGUiLCAiY2F0YWxvZzpwbGF0Zm9ybXM6ZGVsZXRlIiwgImNhdGFsb2c6bW9vZHM6cmVhZCIsICJjYXRhbG9nOm1vb2RzOmNyZWF0ZSIsICJjYXRhbG9nOm1vb2RzOnVwZGF0ZSIsICJjYXRhbG9nOm1vb2RzOmRlbGV0ZSIsICJjYXRhbG9nOmdlbnJlczpyZWFkIiwgImNhdGFsb2c6Z2VucmVzOmNyZWF0ZSIsICJjYXRhbG9nOmdlbnJlczp1cGRhdGUiLCAiY2F0YWxvZzpnZW5yZXM6ZGVsZXRlIiwgImNhdGFsb2c6bWVkaWE6dXBkYXRlLXBsYXRmb3JtcyIsICJjYXRhbG9nOm1lZGlhOnVwZGF0ZS1tb29kcyIsICJjYXRhbG9nOm1lZGlhOnVwZGF0ZS1nZW5yZXMiLCAiY2F0YWxvZzptZWRpYTp1cGRhdGUtdHJhbnNsYXRpb25zIiwgImNhdGFsb2c6YWRtaW4tbWVkaWE6cmVhZCJdLCAibmJmIjogMTcwMDAwMDAwMCwgImlhdCI6IDE3MDAwMDAwMDAsICJleHAiOiAxOTk5OTk5OTk5fQ.dSV625aHgDiAnGcMDZBo34xhjLh_COqEFNiIUG2TcaM
+@PremiumToken = eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIyMjIyMjIyMi0yMjIyLTIyMjItMjIyMi0yMjIyMjIyMjIyMjIiLCAianRpIjogImUyZS1nYXRld2F5LXByZW1pdW0tMDAxIiwgImVtYWlsIjogInByZW1pdW1Ac2h1ZmZsZXNlcmllcy5jb20iLCAicm9sZSI6IFsiUHJlbWl1bSJdLCAicGVybWlzc2lvbiI6IFsic2h1ZmZsZTpiYXNpYyIsICJzaHVmZmxlOnZpcCJdLCAibmJmIjogMTcwMDAwMDAwMCwgImlhdCI6IDE3MDAwMDAwMDAsICJleHAiOiAxOTk5OTk5OTk5fQ.dxCVidRviLsQygsCfs0in0VJgYT8XU94DlH56WwaBUA
+@StandardToken = eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIzMzMzMzMzMy0zMzMzLTMzMzMtMzMzMy0zMzMzMzMzMzMzMzMiLCAianRpIjogImUyZS1nYXRld2F5LXN0YW5kYXJkLTAwMSIsICJlbWFpbCI6ICJzdGFuZGFyZEBzaHVmZmxlc2VyaWVzLmNvbSIsICJyb2xlIjogWyJTdGFuZGFyZCJdLCAicGVybWlzc2lvbiI6IFsiY2F0YWxvZzpwbGF0Zm9ybXM6cmVhZCIsICJjYXRhbG9nOnNlcmllczpyZWFkIl0sICJuYmYiOiAxNzAwMDAwMDAwLCAiaWF0IjogMTcwMDAwMDAwMCwgImV4cCI6IDE5OTk5OTk5OTl9.mn5FY_tTubGKwkGSxQcSUZIAQvK2dGjqaq7eiCZMv6I
+@GuestToken = eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICI0NDQ0NDQ0NC00NDQ0LTQ0NDQtNDQ0NC00NDQ0NDQ0NDQ0NDQiLCAianRpIjogImUyZS1nYXRld2F5LWd1ZXN0LTAwMSIsICJlbWFpbCI6ICJndWVzdEBzaHVmZmxlc2VyaWVzLmNvbSIsICJyb2xlIjogWyJHdWVzdCJdLCAicGVybWlzc2lvbiI6IFsiY2F0YWxvZzpwbGF0Zm9ybXM6cmVhZCJdLCAibmJmIjogMTcwMDAwMDAwMCwgImlhdCI6IDE3MDAwMDAwMDAsICJleHAiOiAxOTk5OTk5OTk5fQ.Pshui97PU2B6F3wUdz_dqsVIirc5K_pJqKcri_wjxfw
+@ExpiredToken = eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMTExMTEiLCAianRpIjogImUyZS1nYXRld2F5LWV4cGlyZWQtMDAxIiwgImVtYWlsIjogImFkbWluQHNodWZmbGVzZXJpZXMuY29tIiwgInJvbGUiOiBbIkFkbWluIl0sICJwZXJtaXNzaW9uIjogWyJjYXRhbG9nOm1vdmllczpyZWFkIiwgImNhdGFsb2c6bW92aWVzOmNyZWF0ZSIsICJjYXRhbG9nOm1vdmllczp1cGRhdGUiLCAiY2F0YWxvZzptb3ZpZXM6ZGVsZXRlIiwgImNhdGFsb2c6c2VyaWVzOnJlYWQiLCAiY2F0YWxvZzpzZXJpZXM6Y3JlYXRlIiwgImNhdGFsb2c6c2VyaWVzOnVwZGF0ZSIsICJjYXRhbG9nOnNlcmllczpkZWxldGUiLCAiY2F0YWxvZzplcGlzb2RlczpyZWFkIiwgImNhdGFsb2c6ZXBpc29kZXM6Y3JlYXRlIiwgImNhdGFsb2c6ZXBpc29kZXM6dXBkYXRlIiwgImNhdGFsb2c6ZXBpc29kZXM6ZGVsZXRlIiwgImNhdGFsb2c6cGxhdGZvcm1zOnJlYWQiLCAiY2F0YWxvZzpwbGF0Zm9ybXM6Y3JlYXRlIiwgImNhdGFsb2c6cGxhdGZvcm1zOnVwZGF0ZSIsICJjYXRhbG9nOnBsYXRmb3JtczpkZWxldGUiLCAiY2F0YWxvZzptb29kczpyZWFkIiwgImNhdGFsb2c6bW9vZHM6Y3JlYXRlIiwgImNhdGFsb2c6bW9vZHM6dXBkYXRlIiwgImNhdGFsb2c6bW9vZHM6ZGVsZXRlIiwgImNhdGFsb2c6Z2VucmVzOnJlYWQiLCAiY2F0YWxvZzpnZW5yZXM6Y3JlYXRlIiwgImNhdGFsb2c6Z2VucmVzOnVwZGF0ZSIsICJjYXRhbG9nOmdlbnJlczpkZWxldGUiLCAiY2F0YWxvZzptZWRpYTp1cGRhdGUtcGxhdGZvcm1zIiwgImNhdGFsb2c6bWVkaWE6dXBkYXRlLW1vb2RzIiwgImNhdGFsb2c6bWVkaWE6dXBkYXRlLWdlbnJlcyIsICJjYXRhbG9nOm1lZGlhOnVwZGF0ZS10cmFuc2xhdGlvbnMiLCAiY2F0YWxvZzphZG1pbi1tZWRpYTpyZWFkIl0sICJuYmYiOiAxNzAwMDAwMDAwLCAiaWF0IjogMTcwMDAwMDAwMCwgImV4cCI6IDE2MDAwMDAwMDB9.igC0IDWy79JmJhglIkvUkyh_fsqywKGqvedPJtottN4
+@TamperedToken = eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMTExMTEiLCAianRpIjogImUyZS1nYXRld2F5LXRhbXBlcmVkLTAwMSIsICJlbWFpbCI6ICJhZG1pbkBzaHVmZmxlc2VyaWVzLmNvbSIsICJyb2xlIjogWyJBZG1pbiJdLCAicGVybWlzc2lvbiI6IFsiY2F0YWxvZzptb3ZpZXM6cmVhZCIsICJjYXRhbG9nOm1vdmllczpjcmVhdGUiLCAiY2F0YWxvZzptb3ZpZXM6dXBkYXRlIiwgImNhdGFsb2c6bW92aWVzOmRlbGV0ZSIsICJjYXRhbG9nOnNlcmllczpyZWFkIiwgImNhdGFsb2c6c2VyaWVzOmNyZWF0ZSIsICJjYXRhbG9nOnNlcmllczp1cGRhdGUiLCAiY2F0YWxvZzpzZXJpZXM6ZGVsZXRlIiwgImNhdGFsb2c6ZXBpc29kZXM6cmVhZCIsICJjYXRhbG9nOmVwaXNvZGVzOmNyZWF0ZSIsICJjYXRhbG9nOmVwaXNvZGVzOnVwZGF0ZSIsICJjYXRhbG9nOmVwaXNvZGVzOmRlbGV0ZSIsICJjYXRhbG9nOnBsYXRmb3JtczpyZWFkIiwgImNhdGFsb2c6cGxhdGZvcm1zOmNyZWF0ZSIsICJjYXRhbG9nOnBsYXRmb3Jtczp1cGRhdGUiLCAiY2F0YWxvZzpwbGF0Zm9ybXM6ZGVsZXRlIiwgImNhdGFsb2c6bW9vZHM6cmVhZCIsICJjYXRhbG9nOm1vb2RzOmNyZWF0ZSIsICJjYXRhbG9nOm1vb2RzOnVwZGF0ZSIsICJjYXRhbG9nOm1vb2RzOmRlbGV0ZSIsICJjYXRhbG9nOmdlbnJlczpyZWFkIiwgImNhdGFsb2c6Z2VucmVzOmNyZWF0ZSIsICJjYXRhbG9nOmdlbnJlczp1cGRhdGUiLCAiY2F0YWxvZzptZWRpYTp1cGRhdGUtcGxhdGZvcm1zIiwgImNhdGFsb2c6bWVkaWE6dXBkYXRlLW1vb2RzIiwgImNhdGFsb2c6bWVkaWE6dXBkYXRlLWdlbnJlcyIsICJjYXRhbG9nOm1lZGlhOnVwZGF0ZS10cmFuc2xhdGlvbnMiLCAiY2F0YWxvZzphZG1pbi1tZWRpYTpyZWFkIl0sICJuYmYiOiAxNzAwMDAwMDAwLCAiaWF0IjogMTcwMDAwMDAwMCwgImV4cCI6IDE5OTk5OTk5OTl9.Nhw1md9Itca-KmHWb1x6z93BJw_R4M4WaHoo5xhyVY8
+
+###############################################################################
+# 1. API GATEWAY SAĞLIK KONTROLLERİ (HEALTH PROBES)
+###############################################################################
+
+### 🟢 1.1 API Gateway Kendi Sağlığı (Liveness Probe)
+# Beklenen: 200 OK -> {"status":"Healthy","type":"Liveness",...}
+GET {{Gateway_HostAddress}}/health/live
 Accept: application/json
 
-### 2. API Gateway Kendi Sağlığı (Readiness Probe)
-GET {{ShuffleSeries.Microservices.ApiGateway_HostAddress}}/health/ready
+### 🟢 1.2 API Gateway Kendi Sağlığı (Readiness Probe)
+# Beklenen: 200 OK -> {"status":"Healthy","type":"Readiness",...}
+GET {{Gateway_HostAddress}}/health/ready
 Accept: application/json
 
-### 3. Catalog Mikroservisi Sağlığı (Gateway YARP Üzerinden - Liveness)
-GET {{ShuffleSeries.Microservices.ApiGateway_HostAddress}}/catalog-api/health/live
+### 🟢 1.3 Catalog Mikroservisi Sağlığı (Gateway YARP Üzerinden - Liveness)
+# Beklenen: 200 OK -> YARP reverse proxy üzerinden catalog /health/live
+GET {{Gateway_HostAddress}}/catalog-api/health/live
 Accept: application/json
 
-### 4. Catalog Mikroservisi Sağlığı (Gateway YARP Üzerinden - Readiness)
-GET {{ShuffleSeries.Microservices.ApiGateway_HostAddress}}/catalog-api/health/ready
+### 🟢 1.4 Catalog Mikroservisi Sağlığı (Gateway YARP Üzerinden - Readiness)
+# Beklenen: 200 OK -> YARP reverse proxy üzerinden catalog /health/ready
+GET {{Gateway_HostAddress}}/catalog-api/health/ready
 Accept: application/json
 
-###
+### 🟢 1.5 Identity Mikroservisi Sağlığı (Gateway YARP Üzerinden - Liveness)
+# Beklenen: 200 OK -> YARP reverse proxy üzerinden identity /health/live
+GET {{Gateway_HostAddress}}/identity-api/health/live
+Accept: application/json
 
+### 🟢 1.6 Identity Mikroservisi Sağlığı (Gateway YARP Üzerinden - Readiness)
+# Beklenen: 200 OK -> YARP reverse proxy üzerinden identity /health/ready
+GET {{Gateway_HostAddress}}/identity-api/health/ready
+Accept: application/json
+
+
+###############################################################################
+# 2. MERKEZİ OPENAPI / SWAGGER DOKÜMANTASYON AGGREGATION
+###############################################################################
+
+### 🟢 2.1 Catalog OpenAPI v3 JSON Spesifikasyonu
+# Beklenen: 200 OK -> Catalog servisinin OpenAPI spesifikasyonu
+GET {{Gateway_HostAddress}}/catalog-api/openapi/v1.json
+Accept: application/json
+
+### 🟢 2.2 Identity OpenAPI v3 JSON Spesifikasyonu
+# Beklenen: 200 OK -> Identity servisinin OpenAPI spesifikasyonu
+GET {{Gateway_HostAddress}}/identity-api/openapi/v1.json
+Accept: application/json
+
+
+###############################################################################
+# 3. YARP REVERSE PROXY ROUTING KONTROLLERİ
+###############################################################################
+
+### 🟢 3.1 Catalog Platformlar Listesi Proxy
+GET {{Gateway_HostAddress}}/api/catalog/platforms
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 3.2 Catalog Modlar Listesi Proxy
+GET {{Gateway_HostAddress}}/api/catalog/moods?lang=tr
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 3.3 Catalog Türler Listesi Proxy
+GET {{Gateway_HostAddress}}/api/catalog/genres?lang=tr
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 3.4 Catalog Sayfalanmış Dizi Listesi Proxy
+GET {{Gateway_HostAddress}}/api/catalog/series?page=1&pageSize=5
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 3.5 Identity Anonim Misafir Oturumu Proxy
+POST {{Gateway_HostAddress}}/api/auth/guest
+Content-Type: application/json
+
+### 🔴 3.6 Tanımlı Olmayan Downstream Route -> 404 Not Found
+GET {{Gateway_HostAddress}}/api/nonexistent/route/xyz
+Accept: application/json
+
+### 🔴 3.7 Gateway Tarafında Hiç Tanımlanmamış Path -> 404 Not Found
+GET {{Gateway_HostAddress}}/totally/unknown/path
+Accept: application/json
+
+
+###############################################################################
+# 4. DAĞITIK İZLEME (DISTRIBUTED TRACING & CORRELATION ID)
+###############################################################################
+
+### 🟢 4.1 İstemci Özel X-Correlation-ID Başlığı Gönderdiğinde Response'ta Aynen Korunur
+# Beklenen: Response headers içinde 'X-Correlation-ID: custom-client-trace-12345' döner.
+GET {{Gateway_HostAddress}}/health/live
+X-Correlation-ID: custom-client-trace-12345
+Accept: application/json
+
+### 🟢 4.2 X-Correlation-ID Gönderilmediğinde Gateway Tarafından Otomatik Üretilir
+# Beklenen: Response headers içinde en az 32 karakterlik GUID 'X-Correlation-ID' döner.
+GET {{Gateway_HostAddress}}/health/live
+Accept: application/json
+
+
+###############################################################################
+# 5. MERKEZİ CORS (CROSS-ORIGIN RESOURCE SHARING) PREFLIGHT
+###############################################################################
+
+### 🟢 5.1 OPTIONS Preflight Talebi (CORS Doğrulaması)
+# Beklenen: 204 No Content -> Access-Control-Allow-Origin, Access-Control-Allow-Methods, Access-Control-Allow-Headers döner.
+OPTIONS {{Gateway_HostAddress}}/api/catalog/platforms
+Origin: http://localhost:3000
+Access-Control-Request-Method: GET
+Access-Control-Request-Headers: Authorization,Content-Type,X-Correlation-ID
+
+### 🟢 5.2 Origin Başlığı ile Basit GET İsteği
+# Beklenen: 200 OK -> Access-Control-Allow-Origin başlığı içerir.
+GET {{Gateway_HostAddress}}/health/live
+Origin: http://localhost:3000
+Accept: application/json
+
+
+###############################################################################
+# 6. GATEWAY SEVİYESİNDE ROL TABANLI YETKİLENDİRME (RBAC POLICY ENFORCEMENT)
+# Hedef: /api/shuffle/vip-weekend (Gateway appsettings'te RequirePremiumRole ile korunur)
+###############################################################################
+
+### 🔴 6.1 Token Olmadan VIP Rotaya Erişim -> 401 Unauthorized (AUTH_UNAUTHORIZED)
+# Beklenen: 401 Unauthorized -> code: "AUTH_UNAUTHORIZED" (Downstream'e iletilmeden Gateway sınırında engellenir)
+GET {{Gateway_HostAddress}}/api/shuffle/vip-weekend
+Accept: application/json
+
+### 🔴 6.2 Geçersiz / Bozuk Token ile VIP Rotaya Erişim -> 401 Unauthorized
+GET {{Gateway_HostAddress}}/api/shuffle/vip-weekend
+Authorization: Bearer not_a_valid_jwt_token_string
+Accept: application/json
+
+### 🔴 6.3 Süresi Dolmuş (Expired) Token ile VIP Rotaya Erişim -> 401 Unauthorized
+GET {{Gateway_HostAddress}}/api/shuffle/vip-weekend
+Authorization: Bearer {{ExpiredToken}}
+Accept: application/json
+
+### 🔴 6.4 İmzası Değiştirilmiş (Tampered) Token ile VIP Rotaya Erişim -> 401 Unauthorized
+GET {{Gateway_HostAddress}}/api/shuffle/vip-weekend
+Authorization: Bearer {{TamperedToken}}
+Accept: application/json
+
+### 🔴 6.5 Standard Rolü ile VIP Rotaya Erişim -> 403 Forbidden (AUTH_FORBIDDEN)
+# Beklenen: 403 Forbidden -> code: "AUTH_FORBIDDEN" (RequirePremiumRole kuralı Gateway seviyesinde denetlenir)
+GET {{Gateway_HostAddress}}/api/shuffle/vip-weekend
+Authorization: Bearer {{StandardToken}}
+Accept: application/json
+
+### 🔴 6.6 Guest Rolü ile VIP Rotaya Erişim -> 403 Forbidden (AUTH_FORBIDDEN)
+GET {{Gateway_HostAddress}}/api/shuffle/vip-weekend
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 6.7 Premium Rolü ile VIP Rotaya Erişim -> Auth Başarılı (200 veya 502 Downstream)
+# Beklenen: Yetkilendirme Gateway sınırında başarıyla geçer, istek shuffle servisine yönlendirilir.
+GET {{Gateway_HostAddress}}/api/shuffle/vip-weekend
+Authorization: Bearer {{PremiumToken}}
+Accept: application/json
+
+
+###############################################################################
+# 7. REDIS TOKEN VE OTURUM KARA LİSTESİ (EDGE BLACKLIST ENFORCEMENT)
+###############################################################################
+
+### 🔴 7.1 Redis Kara Listesine Alınmış Token ile İstek (401 AUTH_TOKEN_REVOKED)
+# Test Adımı: Redis CLI'dan aşağıdaki komut ile token jti kara listeye alınır:
+# docker exec shuffleseries_redis redis-cli -a SuperSecretRedisPassword2026!! SET "shuffleseries:blacklist:token:e2e-gateway-admin-001" "revoked" EX 60
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_TOKEN_REVOKED", title: "Token Revoked"
+GET {{Gateway_HostAddress}}/api/auth/me
+Authorization: Bearer {{AdminToken}}
+Accept: application/json
+
+
+###############################################################################
+# 8. SIKI HIZ SINIRLANDIRMASI (STRICTLIMITER - 429 TOO MANY REQUESTS)
+# Hedef: /api/auth/{**catch-all} (1 saniyede en fazla 5 isteğe izin verir)
+###############################################################################
+
+### 🟢 8.1 Kota İçi Normal İstek (1. İstek)
+POST {{Gateway_HostAddress}}/api/auth/guest
+Content-Type: application/json
+
+### 🟢 8.2 Kota İçi Hızlı İstek (2. İstek)
+POST {{Gateway_HostAddress}}/api/auth/guest
+Content-Type: application/json
+
+### 🟢 8.3 Kota İçi Hızlı İstek (3. İstek)
+POST {{Gateway_HostAddress}}/api/auth/guest
+Content-Type: application/json
+
+### 🟢 8.4 Kota İçi Hızlı İstek (4. İstek)
+POST {{Gateway_HostAddress}}/api/auth/guest
+Content-Type: application/json
+
+### 🟢 8.5 Kota İçi Hızlı İstek (5. İstek)
+POST {{Gateway_HostAddress}}/api/auth/guest
+Content-Type: application/json
+
+### 🔴 8.6 Kota Aşımı (6. İstek - 1 saniye dolmadan gönderilirse) -> 429 Too Many Requests
+# Beklenen: 429 Too Many Requests (StrictLimiter PermitLimit = 5 aşıldığında Gateway anında engeller)
+POST {{Gateway_HostAddress}}/api/auth/guest
+Content-Type: application/json

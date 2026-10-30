@@ -33,6 +33,5 @@ public class EpisodeTranslation : BaseEntity
     {
         Title = title.Trim();
         Overview = string.IsNullOrWhiteSpace(overview) ? null : overview.Trim();
-        ModifiedAtUtc = DateTime.UtcNow;
     }
 }

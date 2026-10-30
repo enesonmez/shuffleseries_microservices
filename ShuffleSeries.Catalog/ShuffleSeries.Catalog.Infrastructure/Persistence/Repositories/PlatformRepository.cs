@@ -20,14 +20,10 @@ internal sealed class PlatformRepository : IPlatformRepository
     public async Task<Platform?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await _context.Platforms.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<Platform?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(slug))
-            return null;
-
-        return await _context.Platforms
-            .FirstOrDefaultAsync(x => x.Slug == slug.Trim().ToLowerInvariant(), cancellationToken);
-    }
+    public async Task<Platform?> GetByIdForDetailAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await _context.Platforms
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public async Task<bool> ExistsBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {

@@ -4,7 +4,6 @@ using ShuffleSeries.Identity.Application.Interfaces;
 using ShuffleSeries.Identity.Domain.Entities;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Identity.Tests.Application;
 
@@ -46,7 +45,7 @@ public class GetCurrentUserQueryHandlerTests
         _userRepositoryMock.Setup(r => r.GetByIdWithDetailsAsync(user.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(user);
         _permissionResolverMock.Setup(p => p.ResolveEffectivePermissionsAsync(user, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(([SystemRoles.Standard], ["catalog:read"]));
+            .ReturnsAsync(([SystemRoles.Standard], [SystemPermissions.Catalog.MoviesRead]));
 
         var query = new GetCurrentUserQuery(user.Id);
 
@@ -58,7 +57,7 @@ public class GetCurrentUserQueryHandlerTests
         response.UserId.Should().Be(user.Id);
         response.Email.Should().Be("user@test.com");
         response.Roles.Should().Contain(SystemRoles.Standard);
-        response.Permissions.Should().Contain("catalog:read");
+        response.Permissions.Should().Contain(SystemPermissions.Catalog.MoviesRead);
         response.IsGuest.Should().BeFalse();
         response.Status.Should().Be("Active");
     }
