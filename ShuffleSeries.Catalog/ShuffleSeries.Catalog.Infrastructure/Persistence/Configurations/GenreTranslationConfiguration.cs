@@ -34,7 +34,5 @@ public class GenreTranslationConfiguration : IEntityTypeConfiguration<GenreTrans
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
     }
 }

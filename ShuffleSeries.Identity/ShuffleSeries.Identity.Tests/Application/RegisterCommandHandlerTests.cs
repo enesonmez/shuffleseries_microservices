@@ -5,7 +5,6 @@ using ShuffleSeries.Identity.Application.Models;
 using ShuffleSeries.Identity.Domain.Entities;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Tests.Application;
@@ -69,7 +68,7 @@ public class RegisterCommandHandlerTests
         _tokenServiceMock.Setup(t => t.GenerateTokensAsync(It.IsAny<User>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TokenResponse("access_jwt", "raw_refresh_token", 3600));
         _permissionResolverMock.Setup(p => p.ResolveEffectivePermissionsAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(([SystemRoles.Standard], ["catalog:read"]));
+            .ReturnsAsync(([SystemRoles.Standard], [SystemPermissions.Catalog.MoviesRead]));
 
         // Act
         var response = await _handler.Handle(command, CancellationToken.None);
@@ -78,7 +77,7 @@ public class RegisterCommandHandlerTests
         response.Should().NotBeNull();
         response.Email.Should().Be("new@test.com");
         response.Roles.Should().Contain(SystemRoles.Standard);
-        response.Permissions.Should().Contain("catalog:read");
+        response.Permissions.Should().Contain(SystemPermissions.Catalog.MoviesRead);
         response.AccessToken.Should().Be("access_jwt");
         _userRepositoryMock.Verify(r => r.Add(It.IsAny<User>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);

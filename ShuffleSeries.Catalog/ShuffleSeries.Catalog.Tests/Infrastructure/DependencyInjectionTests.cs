@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Catalog.Domain.Repositories;
-using ShuffleSeries.Catalog.Domain.Services;
 using ShuffleSeries.Catalog.Infrastructure;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
@@ -31,8 +30,9 @@ public class DependencyInjectionTests
         services.Should().Contain(d => d.ServiceType == typeof(IMovieRepository));
         services.Should().Contain(d => d.ServiceType == typeof(IPlatformRepository));
         services.Should().Contain(d => d.ServiceType == typeof(IMoodRepository));
+        services.Should().Contain(d => d.ServiceType == typeof(IGenreRepository));
         services.Should().Contain(d => d.ServiceType == typeof(IEpisodeRepository));
         services.Should().Contain(d => d.ServiceType == typeof(IUnitOfWork));
-        services.Should().Contain(d => d.ServiceType == typeof(SeriesDomainService));
+        services.Should().Contain(d => d.ServiceType == typeof(ShuffleSeries.Catalog.Application.Common.Interfaces.ICatalogCacheService));
     }
 }

@@ -56,22 +56,6 @@ public class GenreTests
     }
 
     [Fact]
-    public void RemoveTranslation_Should_RemoveTranslation()
-    {
-        // Arrange
-        var genre = Genre.Create("action", 1);
-        genre.AddOrUpdateTranslation(LanguageCode.Turkish, "Aksiyon");
-        genre.AddOrUpdateTranslation(LanguageCode.English, "Action");
-
-        // Act
-        genre.RemoveTranslation("tr");
-
-        // Assert
-        genre.Translations.Should().HaveCount(1);
-        genre.Translations.Should().NotContain(t => t.LanguageCode == LanguageCode.Turkish);
-    }
-
-    [Fact]
     public void Update_Should_UpdateDetailsAndRaiseEvent()
     {
         // Arrange
@@ -84,23 +68,7 @@ public class GenreTests
         // Assert
         genre.Code.Should().Be("new-code");
         genre.DisplayOrder.Should().Be(5);
-        genre.ModifiedAtUtc.Should().NotBeNull();
 
-        genre.GetDomainEvents().Should().ContainSingle(e => e is GenreUpdatedDomainEvent);
-    }
-
-    [Fact]
-    public void ToggleActive_Should_ToggleAndRaiseEvent()
-    {
-        // Arrange
-        var genre = Genre.Create("sci-fi", 1);
-        genre.ClearDomainEvents();
-
-        // Act
-        genre.ToggleActive(false);
-
-        // Assert
-        genre.IsActive.Should().BeFalse();
         genre.GetDomainEvents().Should().ContainSingle(e => e is GenreUpdatedDomainEvent);
     }
 
@@ -134,7 +102,7 @@ public class GenreTests
     public void Media_AddGenre_Should_AddMediaGenre()
     {
         // Arrange
-        var movie = Movie.Create(2020, 120, "https://poster.jpg", null, "tt123", 8.0, 1000, "Director");
+        var movie = Movie.Create(100, "tt1234567", 2020, 120, "https://poster.jpg", null, 8.0, 1000, "Director");
         var genreId = Guid.NewGuid();
 
         // Act
@@ -150,7 +118,7 @@ public class GenreTests
     public void Media_AddGenre_ShouldThrowDuplicateMediaGenreException_WhenAlreadyAdded()
     {
         // Arrange
-        var movie = Movie.Create(2020, 120, "https://poster.jpg", null, "tt123", 8.0, 1000, "Director");
+        var movie = Movie.Create(100, "tt1234567", 2020, 120, "https://poster.jpg", null, 8.0, 1000, "Director");
         var genreId = Guid.NewGuid();
         movie.AddGenre(genreId);
 
@@ -162,10 +130,36 @@ public class GenreTests
     }
 
     [Fact]
+    public void Delete_Should_SoftDeleteGenreAndAllTranslations()
+    {
+        // Arrange
+        var genre = Genre.Create("action", 1);
+        genre.AddOrUpdateTranslation(LanguageCode.Turkish, "Aksiyon");
+        genre.AddOrUpdateTranslation(LanguageCode.English, "Action");
+        genre.ClearDomainEvents();
+
+        // Act
+        genre.Delete("admin-user");
+
+        // Assert
+        genre.IsDeleted.Should().BeTrue();
+        genre.DeletedBy.Should().Be("admin-user");
+        genre.DeletedAtUtc.Should().NotBeNull();
+        genre.Translations.Should().HaveCount(2);
+        genre.Translations.Should().AllSatisfy(t =>
+        {
+            t.IsDeleted.Should().BeTrue();
+            t.DeletedBy.Should().Be("admin-user");
+            t.DeletedAtUtc.Should().NotBeNull();
+        });
+        genre.GetDomainEvents().Should().ContainSingle(e => e is GenreDeletedDomainEvent && ((GenreDeletedDomainEvent)e).GenreId == genre.Id);
+    }
+
+    [Fact]
     public void Media_RemoveGenre_Should_RemoveMediaGenre()
     {
         // Arrange
-        var movie = Movie.Create(2020, 120, "https://poster.jpg", null, "tt123", 8.0, 1000, "Director");
+        var movie = Movie.Create(100, "tt1234567", 2020, 120, "https://poster.jpg", null, 8.0, 1000, "Director");
         var genreId = Guid.NewGuid();
         movie.AddGenre(genreId);
 
@@ -174,5 +168,23 @@ public class GenreTests
 
         // Assert
         movie.MediaGenres.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void RemoveTranslation_Should_RemoveTranslationAndRaiseEvent()
+    {
+        // Arrange
+        var genre = Genre.Create("action");
+        genre.AddOrUpdateTranslation("tr", "Aksiyon", "Açıklama");
+        genre.AddOrUpdateTranslation("en", "Action", "Description");
+        genre.ClearDomainEvents();
+
+        // Act
+        genre.RemoveTranslation("tr");
+
+        // Assert
+        genre.Translations.Should().HaveCount(1);
+        genre.Translations.Should().NotContain(t => t.LanguageCode == "tr");
+        genre.GetDomainEvents().Should().ContainSingle(e => e is GenreUpdatedDomainEvent);
     }
 }

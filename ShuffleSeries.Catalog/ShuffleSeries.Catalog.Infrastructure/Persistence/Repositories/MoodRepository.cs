@@ -25,15 +25,11 @@ internal sealed class MoodRepository : IMoodRepository
             .Include(x => x.Translations)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<Mood?> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-            return null;
-
-        return await _context.Moods
+    public async Task<Mood?> GetByIdForDetailAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await _context.Moods
+            .AsNoTracking()
             .Include(x => x.Translations)
-            .FirstOrDefaultAsync(x => x.Code == code.Trim().ToLowerInvariant(), cancellationToken);
-    }
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public async Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default)
     {

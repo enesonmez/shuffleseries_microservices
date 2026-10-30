@@ -34,7 +34,5 @@ public class EpisodeTranslationConfiguration : IEntityTypeConfiguration<EpisodeT
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
     }
 }

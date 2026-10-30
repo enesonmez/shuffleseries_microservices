@@ -15,7 +15,9 @@ internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outb
         builder.Property(x => x.Content).IsRequired().HasColumnType("jsonb");
         builder.Property(x => x.RetryCount).HasDefaultValue(0);
 
-        builder.HasIndex(x => x.ProcessedOnUtc).HasFilter("\"ProcessedOnUtc\" IS NULL");
+        builder.HasIndex(x => x.OccurredOnUtc)
+            .HasDatabaseName("IX_OutboxMessages_Pending")
+            .HasFilter("\"ProcessedOnUtc\" IS NULL AND \"RetryCount\" < 3");
         builder.HasIndex(x => x.OccurredOnUtc);
     }
 }

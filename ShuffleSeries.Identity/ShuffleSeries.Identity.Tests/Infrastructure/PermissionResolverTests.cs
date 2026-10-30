@@ -20,9 +20,9 @@ public class PermissionResolverTests
     public async Task ResolveEffectivePermissions_ShouldIncludeRolePermissions_AndCustomGrants_AndExcludeRevokes()
     {
         // Arrange: Roles and Permissions
-        var permRead = Permission.Create("catalog:read", "Catalog", "Read catalog");
-        var permWrite = Permission.Create("catalog:write", "Catalog", "Write catalog");
-        var permVip = Permission.Create("shuffle:vip", "Shuffle", "VIP arena");
+        var permRead = Permission.Create(SystemPermissions.Catalog.MoviesRead, "Catalog", "Read movies");
+        var permWrite = Permission.Create(SystemPermissions.Catalog.MoviesCreate, "Catalog", "Create movies");
+        var permVip = Permission.Create(SystemPermissions.ShuffleVip, "Shuffle", "VIP arena");
 
         var standardRole = Role.Create("Standard", "Standard User");
         standardRole.AddPermission(permRead.Id);
@@ -38,7 +38,7 @@ public class PermissionResolverTests
         var user = User.CreateStandard("user@test.com", "hash");
         user.AssignRole(standardRole.Id);
 
-        // Custom override: Revoke "catalog:write" and Grant "shuffle:vip"
+        // Custom override: Revoke "catalog:movies:create" and Grant "shuffle:vip"
         user.RevokePermission(permWrite.Id);
         user.GrantPermission(permVip.Id);
 
@@ -53,8 +53,8 @@ public class PermissionResolverTests
 
         // Assert
         roles.Should().ContainSingle().Which.Should().Be("Standard");
-        effectivePermissions.Should().Contain("catalog:read");
-        effectivePermissions.Should().Contain("shuffle:vip");
-        effectivePermissions.Should().NotContain("catalog:write", "because catalog:write was explicitly revoked for this user");
+        effectivePermissions.Should().Contain(SystemPermissions.Catalog.MoviesRead);
+        effectivePermissions.Should().Contain(SystemPermissions.ShuffleVip);
+        effectivePermissions.Should().NotContain(SystemPermissions.Catalog.MoviesCreate, "because catalog:movies:create was explicitly revoked for this user");
     }
 }

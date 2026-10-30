@@ -17,9 +17,22 @@ public class InsertOutboxMessagesInterceptorTests
         public void Emit(string name) => RaiseDomainEvent(new SampleDomainEvent(name));
     }
 
+    private sealed class DummyChildEntity : BaseEntity, IHaveDomainEvents
+    {
+        private readonly List<IDomainEvent> _domainEvents = [];
+        public IReadOnlyCollection<IDomainEvent> GetDomainEvents() => _domainEvents.AsReadOnly();
+        public void ClearDomainEvents() => _domainEvents.Clear();
+
+        public DummyChildEntity(Guid id) : base(id) { }
+        private DummyChildEntity() { }
+
+        public void Emit(string name) => _domainEvents.Add(new SampleDomainEvent(name));
+    }
+
     private sealed class TestOutboxDbContext : DbContext
     {
         public DbSet<DummyAggregate> Aggregates => Set<DummyAggregate>();
+        public DbSet<DummyChildEntity> ChildEntities => Set<DummyChildEntity>();
         public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
         public TestOutboxDbContext(DbContextOptions<TestOutboxDbContext> options) : base(options) { }
@@ -79,5 +92,22 @@ public class InsertOutboxMessagesInterceptorTests
 
         var outboxEntries = context.ChangeTracker.Entries<OutboxMessage>().ToList();
         outboxEntries.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SavingChangesAsync_WhenChildEntityImplementsIHaveDomainEvents_ShouldQueueOutboxMessages()
+    {
+        await using var context = CreateDbContext();
+        var childEntity = new DummyChildEntity(Guid.NewGuid());
+        childEntity.Emit("EpisodeCreated");
+
+        context.ChildEntities.Add(childEntity);
+        await context.SaveChangesAsync();
+
+        var outboxEntries = context.ChangeTracker.Entries<OutboxMessage>().ToList();
+        outboxEntries.Should().HaveCount(1);
+        outboxEntries.First().Entity.Type.Should().Be(nameof(SampleDomainEvent));
+        outboxEntries.First().Entity.Content.Should().Contain("EpisodeCreated");
+        childEntity.GetDomainEvents().Should().BeEmpty();
     }
 }

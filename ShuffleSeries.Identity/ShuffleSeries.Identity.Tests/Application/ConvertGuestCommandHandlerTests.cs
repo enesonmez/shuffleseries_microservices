@@ -6,7 +6,6 @@ using ShuffleSeries.Identity.Domain.Entities;
 using ShuffleSeries.Identity.Domain.Enums;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Tests.Application;
@@ -116,7 +115,7 @@ public class ConvertGuestCommandHandlerTests
         _tokenServiceMock.Setup(t => t.GenerateTokensAsync(It.IsAny<User>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TokenResponse("access_jwt", "raw_refresh_token", 3600));
         _permissionResolverMock.Setup(p => p.ResolveEffectivePermissionsAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(([SystemRoles.Standard], ["catalog:read"]));
+            .ReturnsAsync(([SystemRoles.Standard], [SystemPermissions.Catalog.MoviesRead]));
 
         var command = new ConvertGuestCommand(guestUser.Id, "converted@test.com", "Password123!", "127.0.0.1");
 

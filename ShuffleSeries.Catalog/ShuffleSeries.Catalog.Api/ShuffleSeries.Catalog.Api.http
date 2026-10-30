@@ -1,68 +1,892 @@
-@ShuffleSeries.Catalog.Api_HostAddress = http://localhost:6000
-@HostAddress = http://localhost:6000/api/catalog/series
-@SeriesId = 65785cd3-a10f-4433-9396-652731874987
+@Gateway_HostAddress = http://localhost:5001
+@Catalog_HostAddress = http://localhost:5010
 
-### 🟢 Senaryo 1: Yeni Dizi Ekleme (POST) 
-# NOT: Buradan dönen ID'yi kopyalayıp yukarıdaki SeriesId değişkenine yapıştırın!
-POST {{HostAddress}}
-Content-Type: application/json
+# Dynamic Test IDs (Oluşturma isteklerinden dönen GUID'leri buraya yapıştırabilirsiniz)
+@MovieId = 00000000-0000-0000-0000-000000000000
+@SeriesId = 00000000-0000-0000-0000-000000000000
+@EpisodeId = 00000000-0000-0000-0000-000000000000
+@PlatformId = 00000000-0000-0000-0000-000000000000
+@MoodId = 00000000-0000-0000-0000-000000000000
+@GenreId = 00000000-0000-0000-0000-000000000000
 
-{
-  "title": "Breaking Bad",
-  "description": "Short",
-  "isIndependentEpisodes": false
-}
+# Pre-Generated JWT Tokens (HMAC-SHA256, HashiCorp Vault 'Jwt:Secret' ile imzalı, geçerlilik: 2033)
+@AdminToken = eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMTExMTEiLCAianRpIjogImUyZS1odHRwLXRlc3QtanRpLTAwMSIsICJlbWFpbCI6ICJhZG1pbkBzaHVmZmxlc2VyaWVzLmNvbSIsICJyb2xlIjogWyJBZG1pbiJdLCAicGVybWlzc2lvbiI6IFsiY2F0YWxvZzptb3ZpZXM6cmVhZCIsICJjYXRhbG9nOm1vdmllczpjcmVhdGUiLCAiY2F0YWxvZzptb3ZpZXM6dXBkYXRlIiwgImNhdGFsb2c6bW92aWVzOmRlbGV0ZSIsICJjYXRhbG9nOnNlcmllczpyZWFkIiwgImNhdGFsb2c6c2VyaWVzOmNyZWF0ZSIsICJjYXRhbG9nOnNlcmllczp1cGRhdGUiLCAiY2F0YWxvZzpzZXJpZXM6ZGVsZXRlIiwgImNhdGFsb2c6ZXBpc29kZXM6cmVhZCIsICJjYXRhbG9nOmVwaXNvZGVzOmNyZWF0ZSIsICJjYXRhbG9nOmVwaXNvZGVzOnVwZGF0ZSIsICJjYXRhbG9nOmVwaXNvZGVzOmRlbGV0ZSIsICJjYXRhbG9nOnBsYXRmb3JtczpyZWFkIiwgImNhdGFsb2c6cGxhdGZvcm1zOmNyZWF0ZSIsICJjYXRhbG9nOnBsYXRmb3Jtczp1cGRhdGUiLCAiY2F0YWxvZzpwbGF0Zm9ybXM6ZGVsZXRlIiwgImNhdGFsb2c6bW9vZHM6cmVhZCIsICJjYXRhbG9nOm1vb2RzOmNyZWF0ZSIsICJjYXRhbG9nOm1vb2RzOnVwZGF0ZSIsICJjYXRhbG9nOm1vb2RzOmRlbGV0ZSIsICJjYXRhbG9nOmdlbnJlczpyZWFkIiwgImNhdGFsb2c6Z2VucmVzOmNyZWF0ZSIsICJjYXRhbG9nOmdlbnJlczp1cGRhdGUiLCAiY2F0YWxvZzpnZW5yZXM6ZGVsZXRlIiwgImNhdGFsb2c6bWVkaWE6dXBkYXRlLXBsYXRmb3JtcyIsICJjYXRhbG9nOm1lZGlhOnVwZGF0ZS1tb29kcyIsICJjYXRhbG9nOm1lZGlhOnVwZGF0ZS1nZW5yZXMiLCAiY2F0YWxvZzptZWRpYTp1cGRhdGUtdHJhbnNsYXRpb25zIiwgImNhdGFsb2c6YWRtaW4tbWVkaWE6cmVhZCJdLCAibmJmIjogMTcwMDAwMDAwMCwgImlhdCI6IDE3MDAwMDAwMDAsICJleHAiOiAxOTk5OTk5OTk5fQ.CykdjVV5C-ykh6lEoFaUueCtvVY0H-Ov2UeUIwDHeTk
+@GuestToken = eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMTExMTEiLCAianRpIjogImUyZS1odHRwLXRlc3QtanRpLTAwMSIsICJlbWFpbCI6ICJhZG1pbkBzaHVmZmxlc2VyaWVzLmNvbSIsICJyb2xlIjogWyJHdWVzdCIsICJTdGFuZGFyZCJdLCAicGVybWlzc2lvbiI6IFsiY2F0YWxvZzptb3ZpZXM6cmVhZCIsICJjYXRhbG9nOnNlcmllczpyZWFkIiwgImNhdGFsb2c6ZXBpc29kZXM6cmVhZCIsICJjYXRhbG9nOnBsYXRmb3JtczpyZWFkIiwgImNhdGFsb2c6bW9vZHM6cmVhZCIsICJjYXRhbG9nOmdlbnJlczpyZWFkIl0sICJuYmYiOiAxNzAwMDAwMDAwLCAiaWF0IjogMTcwMDAwMDAwMCwgImV4cCI6IDE5OTk5OTk5OTl9.03CRLu4fqT8uEPQ-AI8F0SMEGCa1e1DVnVvxFDrEv1w
 
-### 🔵 Senaryo 2: Id'ye Göre Getirme (GET)
-GET {{HostAddress}}/{{SeriesId}}
+###############################################################################
+# 1. SAĞLIK KONTROLLERİ (HEALTH PROBES)
+###############################################################################
+
+### 🟢 1.1 Gateway Liveness Probe
+# Beklenen: 200 OK -> {"status":"Healthy","type":"Liveness",...}
+GET {{Gateway_HostAddress}}/health/live
 Accept: application/json
 
-### 🟡 Senaryo 3: Başarılı Güncelleme (PUT - Happy Path)
-# Beklenen Sonuç: 204 No Content
-PUT {{HostAddress}}/{{SeriesId}}
+### 🟢 1.2 Gateway Readiness Probe (Redis vb. bağımlılıklar)
+# Beklenen: 200 OK -> {"status":"Healthy","type":"Readiness",...}
+GET {{Gateway_HostAddress}}/health/ready
+Accept: application/json
+
+### 🟢 1.3 Gateway Üzerinden Catalog Liveness Probe
+# Beklenen: 200 OK -> YARP reverse proxy üzerinden catalog-api /health/live
+GET {{Gateway_HostAddress}}/catalog-api/health/live
+Accept: application/json
+
+### 🟢 1.4 Gateway Üzerinden Catalog Readiness Probe
+# Beklenen: 200 OK -> YARP reverse proxy üzerinden catalog-api (PostgreSQL, Vault, RabbitMQ)
+GET {{Gateway_HostAddress}}/catalog-api/health/ready
+Accept: application/json
+
+### 🟢 1.5 Doğrudan Catalog Liveness Probe
+# Beklenen: 200 OK
+GET {{Catalog_HostAddress}}/health/live
+Accept: application/json
+
+### 🟢 1.6 Doğrudan Catalog Readiness Probe
+# Beklenen: 200 OK
+GET {{Catalog_HostAddress}}/health/ready
+Accept: application/json
+
+
+###############################################################################
+# 2. GÜVENLİK & YETKİLENDİRME (EDGE AUTHENTICATION & PBAC)
+###############################################################################
+
+### 🔴 2.1 Tokensiz İstek (Missing Authorization Header)
+# Beklenen: 401 Unauthorized (YARP Edge Authentication koruması)
+GET {{Gateway_HostAddress}}/api/catalog/admin/media
+Accept: application/json
+
+### 🔴 2.2 Bozuk / Geçersiz Formatlı Token (Malformed Bearer)
+# Beklenen: 401 Unauthorized
+GET {{Gateway_HostAddress}}/api/catalog/admin/media
+Authorization: Bearer not_a_valid_jwt_token_format
+Accept: application/json
+
+### 🔴 2.3 Süresi Dolmuş Token (Expired JWT)
+# Beklenen: 401 Unauthorized (ClockSkew = Zero)
+GET {{Gateway_HostAddress}}/api/catalog/admin/media
+Authorization: Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJleHAiOiAxNjAwMDAwMDAwfQ.invalid
+Accept: application/json
+
+### 🔴 2.4 İmzası Tahrif Edilmiş Token (Tampered Signature)
+# Beklenen: 401 Unauthorized (HMAC-SHA256 signature verification failed)
+GET {{Gateway_HostAddress}}/api/catalog/admin/media
+Authorization: Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJleHAiOiAxOTk5OTk5OTk5fQ.tampered_signature_payload_xyz
+Accept: application/json
+
+### 🔴 2.5 Standart Kullanıcı Admin Endpoint'ine Erişim (Policy Reddi)
+# Beklenen: 403 Forbidden (GuestToken kullanıcısında 'catalog:admin-media:read' yetkisi yoktur)
+GET {{Gateway_HostAddress}}/api/catalog/admin/media
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🔴 2.6 Standart Kullanıcı Film Oluşturma Denemesi (PBAC Reddi)
+# Beklenen: 403 Forbidden (GuestToken kullanıcısında 'catalog:movies:create' yetkisi yoktur)
+POST {{Gateway_HostAddress}}/api/catalog/movies
+Authorization: Bearer {{GuestToken}}
 Content-Type: application/json
 
 {
-  "id": "{{SeriesId}}",
-  "title": "Test Dizisi (Güncellendi)",
-  "description": "Bu dizi başarıyla güncellendi.",
-  "isIndependentEpisodes": true
+  "releaseYear": 2024,
+  "runtimeMinutes": 120,
+  "posterUrl": "https://example.com/poster.jpg",
+  "languageCode": "tr",
+  "title": "Yetkisiz Ekleme Denemesi"
 }
 
-### 🔴 Senaryo 4: Güvenlik Kontrolü Testi (URL ve Body ID Uyuşmazlığı)
-# Beklenen Sonuç: 400 Bad Request ("Route ID and Command ID must match.")
-PUT {{HostAddress}}/11111111-1111-1111-1111-111111111111
+
+###############################################################################
+# 3. PLATFORMLAR TAKSONOMİSİ (TAXONOMY - PLATFORMS CRUD & CACHING)
+###############################################################################
+
+### 🟢 3.1 Aktif Platformları Listeleme (Read-Through Cache)
+# Beklenen: 200 OK -> IReadOnlyList<PlatformResponse>
+GET {{Gateway_HostAddress}}/api/catalog/platforms
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 3.2 Yeni Platform Ekleme (Admin)
+# Beklenen: 201 Created -> Platform GUID (Örn: "ec8798dc-2c47-4301-8585-15c789d0e32e")
+# NOT: Dönen GUID'yi yukarıdaki @PlatformId değişkenine yapıştırın.
+POST {{Gateway_HostAddress}}/api/catalog/platforms
+Authorization: Bearer {{AdminToken}}
 Content-Type: application/json
 
 {
-  "id": "22222222-2222-2222-2222-222222222222",
-  "title": "Farklı ID Testi",
-  "description": "Bu istek URL ve Body ID'leri farklı olduğu için reddedilmeli.",
-  "isIndependentEpisodes": false
+  "name": "HBO Max Global",
+  "slug": "hbo-max-e2e",
+  "logoUrl": "https://example.com/hbomax.png",
+  "inactiveLogoUrl": "https://example.com/hbomax-off.png",
+  "baseWebUrl": "https://www.hbomax.com",
+  "baseAppSchemeUrl": "hbomax://",
+  "displayOrder": 5,
+  "isActive": true
 }
 
-### 🔴 Senaryo 5: Validasyon Boru Hattı Testi (Geçersiz Veri - Boş Başlık)
-# Beklenen Sonuç: 400 Bad Request (RFC 7807 Problem Details formatında validasyon hataları)
-PUT {{HostAddress}}/{{SeriesId}}
+### 🔴 3.3 Mükerrer Platform Slug Hatası (Conflict)
+# Beklenen: 409 Conflict -> code: "PLATFORM_SLUG_ALREADY_EXISTS"
+POST {{Gateway_HostAddress}}/api/catalog/platforms
+Authorization: Bearer {{AdminToken}}
 Content-Type: application/json
 
 {
-  "id": "{{SeriesId}}",
+  "name": "HBO Max Duplicate",
+  "slug": "hbo-max-e2e",
+  "logoUrl": "https://example.com/hbomax.png",
+  "inactiveLogoUrl": "https://example.com/hbomax-off.png",
+  "baseWebUrl": "https://www.hbomax.com",
+  "baseAppSchemeUrl": "hbomax://",
+  "displayOrder": 5,
+  "isActive": true
+}
+
+### 🔴 3.4 Validasyon Hatası: Boş İsim (Validation Problem)
+# Beklenen: 400 Bad Request -> RFC 7807 ProblemDetails
+POST {{Gateway_HostAddress}}/api/catalog/platforms
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "slug": "empty-slug-test",
+  "logoUrl": "https://example.com/logo.png",
+  "inactiveLogoUrl": "https://example.com/off.png",
+  "baseWebUrl": "https://example.com",
+  "displayOrder": 1,
+  "isActive": true
+}
+
+### 🔴 3.5 Validasyon Hatası: Geçersiz Logo URL Formatı (Validation Problem)
+# Beklenen: 400 Bad Request -> RFC 7807 ProblemDetails ('LogoUrl must be a valid HTTP or HTTPS URL.')
+POST {{Gateway_HostAddress}}/api/catalog/platforms
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Invalid URL Test",
+  "slug": "invalid-url-test",
+  "logoUrl": "not-a-valid-http-url",
+  "inactiveLogoUrl": "https://example.com/off.png",
+  "baseWebUrl": "https://example.com",
+  "displayOrder": 1,
+  "isActive": true
+}
+
+### 🔴 3.6 Validasyon Hatası: Tehlikeli AppSchemeUrl (javascript:) (XSS / Injection Defense)
+# Beklenen: 400 Bad Request -> RFC 7807 ProblemDetails ('BaseAppSchemeUrl must be a valid custom application scheme')
+POST {{Gateway_HostAddress}}/api/catalog/platforms
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Dangerous Scheme Test",
+  "slug": "danger-scheme-test",
+  "logoUrl": "https://example.com/logo.png",
+  "inactiveLogoUrl": "https://example.com/off.png",
+  "baseWebUrl": "https://example.com",
+  "baseAppSchemeUrl": "javascript:alert(1)",
+  "displayOrder": 1,
+  "isActive": true
+}
+
+### 🔴 3.7 Platform ID ile Tekil Getirme Denemesi (Endpoint Tasarımı)
+# Beklenen: 405 Method Not Allowed (Taksonomiler tek tek sorgulanmaz, GET / listesinden çekilir)
+GET {{Gateway_HostAddress}}/api/catalog/platforms/{{PlatformId}}
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 3.6 Platform Güncelleme (Admin)
+# Beklenen: 204 No Content (Önbellek geçersiz kılınır)
+PUT {{Gateway_HostAddress}}/api/catalog/platforms/{{PlatformId}}
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "name": "Max (Rebranded)",
+  "slug": "max-e2e",
+  "logoUrl": "https://example.com/max.png",
+  "inactiveLogoUrl": "https://example.com/max-off.png",
+  "baseWebUrl": "https://www.max.com",
+  "baseAppSchemeUrl": "max://watch",
+  "displayOrder": 1
+}
+
+### 🟢 3.7 Platform Silme / Soft-Delete (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/platforms/{{PlatformId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🔴 3.8 Olmayan Platformu Silme (Not Found)
+# Beklenen: 404 Not Found -> code: "PLATFORM_NOT_FOUND"
+DELETE {{Gateway_HostAddress}}/api/catalog/platforms/ffffffff-ffff-ffff-ffff-ffffffffffff
+Authorization: Bearer {{AdminToken}}
+
+
+###############################################################################
+# 4. MODLAR TAKSONOMİSİ (TAXONOMY - MOODS CRUD & CACHING)
+###############################################################################
+
+### 🟢 4.1 Aktif Modları Listeleme (Çok Dilli & Read-Through Cache)
+# Beklenen: 200 OK -> IReadOnlyList<MoodResponse>
+GET {{Gateway_HostAddress}}/api/catalog/moods?lang=tr
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 4.2 Yeni İzleme Modu Ekleme (Admin)
+# Beklenen: 201 Created -> Mood GUID
+# NOT: Dönen GUID'yi yukarıdaki @MoodId değişkenine yapıştırın.
+POST {{Gateway_HostAddress}}/api/catalog/moods
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "code": "mind-bending-e2e",
+  "ambientColorHex": "#6C5CE7",
+  "name": "Beyin Yakanlar",
+  "description": "Zaman yolculuğu, ters köşe ve derin felsefi yapımlar",
+  "languageCode": "tr",
+  "iconUrl": "https://example.com/icons/brain.svg",
+  "displayOrder": 3,
+  "isActive": true
+}
+
+### 🔴 4.3 Mükerrer Mod Kodu Hatası (Conflict)
+# Beklenen: 409 Conflict -> code: "MOOD_CODE_ALREADY_EXISTS"
+POST {{Gateway_HostAddress}}/api/catalog/moods
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "code": "mind-bending-e2e",
+  "ambientColorHex": "#6C5CE7",
+  "name": "Beyin Yakanlar Tekrar",
+  "description": "Tekrar denemesi",
+  "languageCode": "tr",
+  "iconUrl": "https://example.com/icons/brain.svg",
+  "displayOrder": 3,
+  "isActive": true
+}
+
+### 🔴 4.4 Validasyon Hatası: Hatalı Hex Renk Formatı
+# Beklenen: 400 Bad Request (Geçersiz ambientColorHex)
+POST {{Gateway_HostAddress}}/api/catalog/moods
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "code": "invalid-color-mood",
+  "ambientColorHex": "MaviRenk",
+  "name": "Geçersiz Renk Modu",
+  "languageCode": "tr"
+}
+
+### 🟢 4.5 Mod Güncelleme (Admin)
+# Beklenen: 204 No Content
+PUT {{Gateway_HostAddress}}/api/catalog/moods/{{MoodId}}
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "code": "mind-bending-e2e",
+  "ambientColorHex": "#A29BFE",
+  "iconUrl": "https://example.com/icons/brain-v2.svg",
+  "displayOrder": 2
+}
+
+### 🟢 4.6 Mod Silme (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/moods/{{MoodId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🔴 4.7 Olmayan Modu Silme (Not Found)
+# Beklenen: 404 Not Found -> code: "MOOD_NOT_FOUND"
+DELETE {{Gateway_HostAddress}}/api/catalog/moods/ffffffff-ffff-ffff-ffff-ffffffffffff
+Authorization: Bearer {{AdminToken}}
+
+
+###############################################################################
+# 5. TÜRLER TAKSONOMİSİ (TAXONOMY - GENRES CRUD & CACHING)
+###############################################################################
+
+### 🟢 5.1 Aktif Türleri Listeleme (Çok Dilli & Read-Through Cache)
+# Beklenen: 200 OK -> IReadOnlyList<GenreResponse>
+GET {{Gateway_HostAddress}}/api/catalog/genres?lang=tr
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 5.2 Yeni Tür Ekleme (Admin)
+# Beklenen: 201 Created -> Genre GUID
+# NOT: Dönen GUID'yi yukarıdaki @GenreId değişkenine yapıştırın.
+POST {{Gateway_HostAddress}}/api/catalog/genres
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "code": "cyberpunk-e2e",
+  "name": "Siberpunk",
+  "description": "Yüksek teknoloji, düşük yaşam distopik gelecek kurguları",
+  "languageCode": "tr",
+  "displayOrder": 12,
+  "isActive": true
+}
+
+### 🔴 5.3 Mükerrer Tür Kodu Hatası (Conflict)
+# Beklenen: 409 Conflict -> code: "GENRE_CODE_ALREADY_EXISTS"
+POST {{Gateway_HostAddress}}/api/catalog/genres
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "code": "cyberpunk-e2e",
+  "name": "Siberpunk Tekrar",
+  "languageCode": "tr"
+}
+
+### 🔴 5.4 Validasyon Hatası: Desteklenmeyen Dil Kodu
+# Beklenen: 400 Bad Request (Desteklenmeyen dil kodu 'de')
+POST {{Gateway_HostAddress}}/api/catalog/genres
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "code": "scifi-invalid-lang",
+  "name": "Science-Fiction",
+  "languageCode": "de"
+}
+
+### 🟢 5.5 Tür Güncelleme (Admin)
+# Beklenen: 204 No Content
+PUT {{Gateway_HostAddress}}/api/catalog/genres/{{GenreId}}
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "code": "cyberpunk-e2e",
+  "displayOrder": 15
+}
+
+### 🟢 5.6 Tür Silme (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/genres/{{GenreId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🔴 5.7 Olmayan Türü Silme (Not Found)
+# Beklenen: 404 Not Found -> code: "GENRE_NOT_FOUND"
+DELETE {{Gateway_HostAddress}}/api/catalog/genres/ffffffff-ffff-ffff-ffff-ffffffffffff
+Authorization: Bearer {{AdminToken}}
+
+
+###############################################################################
+# 6. FİLMLER (MOVIES CRUD, CONTENT NEGOTIATION & EDGE CASES)
+###############################################################################
+
+### 🟢 6.1 Yeni Film Oluşturma (Admin)
+# Beklenen: 201 Created -> Movie GUID
+# NOT: Dönen GUID'yi yukarıdaki @MovieId değişkenine yapıştırın.
+POST {{Gateway_HostAddress}}/api/catalog/movies
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 27205,
+  "imdbId": "tt1375666",
+  "releaseYear": 2010,
+  "runtimeMinutes": 148,
+  "posterUrl": "https://image.tmdb.org/t/p/original/inception.jpg",
+  "backdropUrl": "https://image.tmdb.org/t/p/original/inception-bg.jpg",
+  "languageCode": "tr",
+  "title": "Başlangıç (Inception)",
+  "overview": "Rüya içinde rüya paylaşımı teknolojisini kullanan bir hırsızın zihne fikir ekleme görevi.",
+  "tagline": "Rüyanız gerçek dünyanızdır.",
+  "director": "Christopher Nolan",
+  "imdbRating": 8.8,
+  "imdbVotes": 2400000,
+  "platformIds": [],
+  "moodIds": [],
+  "genreIds": []
+}
+
+### 🔴 6.2 Validasyon Hatası: Sinema Öncesi Çıkış Yılı (< 1888)
+# Beklenen: 400 Bad Request -> "Çıkış yılı 1888 veya daha sonrası olmalıdır."
+POST {{Gateway_HostAddress}}/api/catalog/movies
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 1001,
+  "imdbId": "tt0001001",
+  "releaseYear": 1800,
+  "runtimeMinutes": 120,
+  "posterUrl": "https://example.com/poster.jpg",
+  "languageCode": "tr",
+  "title": "Eski Zamanlar",
+  "overview": "Geçersiz çıkış yılı denemesi"
+}
+
+### 🔴 6.3 Validasyon Hatası: Negatif veya Sıfır Çalışma Süresi (<= 0)
+# Beklenen: 400 Bad Request -> "Süre 0'dan büyük olmalıdır."
+POST {{Gateway_HostAddress}}/api/catalog/movies
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 1002,
+  "imdbId": "tt0001002",
+  "releaseYear": 2024,
+  "runtimeMinutes": 0,
+  "posterUrl": "https://example.com/poster.jpg",
+  "languageCode": "tr",
+  "title": "Sıfır Dakika Filmi",
+  "overview": "Geçersiz süre testi"
+}
+
+### 🔴 6.4 Mükerrer TMDb ID (Conflict)
+# Beklenen: 409 Conflict -> code: "DUPLICATE_TMDB_ID"
+POST {{Gateway_HostAddress}}/api/catalog/movies
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 27205,
+  "imdbId": "tt9999999",
+  "releaseYear": 2010,
+  "runtimeMinutes": 148,
+  "posterUrl": "https://image.tmdb.org/t/p/original/inception.jpg",
+  "languageCode": "tr",
+  "title": "Başlangıç (Inception)",
+  "overview": "Aynı TMDb ID ile tekrar film ekleme denemesi"
+}
+
+### 🟢 6.5 Film Detayı Getirme (Standard User)
+# Beklenen: 200 OK -> MovieResponse (Başlık, Süre, Çeviriler, Platformlar, Modlar, Türler)
+GET {{Gateway_HostAddress}}/api/catalog/movies/{{MovieId}}
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 6.6 Çok Dilli İçerik (Query Param: ?lang=tr)
+# Beklenen: 200 OK -> Türkçe çeviri lokalize edilmiş sonuç
+GET {{Gateway_HostAddress}}/api/catalog/movies/{{MovieId}}?lang=tr
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 6.7 Çok Dilli İçerik (Header: Accept-Language: tr)
+# Beklenen: 200 OK -> Header üzerinden dil tespiti
+GET {{Gateway_HostAddress}}/api/catalog/movies/{{MovieId}}
+Authorization: Bearer {{GuestToken}}
+Accept-Language: tr
+Accept: application/json
+
+### 🟢 6.8 Film Güncelleme (Admin)
+# Beklenen: 204 No Content
+PUT {{Gateway_HostAddress}}/api/catalog/movies/{{MovieId}}
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 27205,
+  "imdbId": "tt1375666",
+  "releaseYear": 2010,
+  "runtimeMinutes": 148,
+  "director": "Christopher Nolan (Updated)",
+  "imdbRating": 8.9,
+  "imdbVotes": 2450000
+}
+
+### 🔴 6.9 Olmayan Filmi Güncelleme (Not Found)
+# Beklenen: 404 Not Found -> code: "MOVIE_NOT_FOUND"
+PUT {{Gateway_HostAddress}}/api/catalog/movies/ffffffff-ffff-ffff-ffff-ffffffffffff
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 27205,
+  "imdbId": "tt1375666",
+  "releaseYear": 2020,
+  "runtimeMinutes": 100
+}
+
+### 🟢 6.10 Film Silme / Soft-Delete (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/movies/{{MovieId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🔴 6.11 Silinmiş Filmi Getirme (Soft-Delete Kontrolü)
+# Beklenen: 404 Not Found -> code: "MOVIE_NOT_FOUND"
+GET {{Gateway_HostAddress}}/api/catalog/movies/{{MovieId}}
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+
+###############################################################################
+# 7. DİZİLER (SERIES CRUD, PAGINATION & SEC-01 DTO ISOLATION)
+###############################################################################
+
+### 🟢 7.1 Yeni Dizi Oluşturma (Admin)
+# Beklenen: 201 Created -> Series GUID
+# NOT: Dönen GUID'yi yukarıdaki @SeriesId değişkenine yapıştırın.
+POST {{Gateway_HostAddress}}/api/catalog/series
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 70523,
+  "imdbId": "tt5753856",
+  "releaseYear": 2017,
+  "seriesType": 1,
+  "posterUrl": "https://image.tmdb.org/t/p/original/dark.jpg",
+  "backdropUrl": "https://image.tmdb.org/t/p/original/dark-bg.jpg",
+  "languageCode": "tr",
+  "title": "Dark Zaman Döngüsü",
+  "overview": "Winden kasabasında kaybolan iki çocuk ve zaman yolculuğu sırları.",
+  "tagline": "Asıl soru nerede değil, ne zaman.",
+  "imdbRating": 8.7,
+  "imdbVotes": 450000,
+  "totalSeasons": 3
+}
+
+### 🔴 7.2 Mükerrer TMDb ID (Conflict Hatası)
+# Beklenen: 409 Conflict -> code: "DUPLICATE_TMDB_ID"
+POST {{Gateway_HostAddress}}/api/catalog/series
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 70523,
+  "imdbId": "tt9999998",
+  "releaseYear": 2017,
+  "seriesType": 1,
+  "posterUrl": "https://image.tmdb.org/t/p/original/dark.jpg",
+  "languageCode": "tr",
+  "title": "Dark Zaman Döngüsü",
+  "overview": "Aynı TMDb ID ile mükerrer dizi kaydı"
+}
+
+### 🔴 7.3 Validasyon Hatası: Boş Başlık
+# Beklenen: 400 Bad Request -> "Başlık boş olamaz."
+POST {{Gateway_HostAddress}}/api/catalog/series
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 1003,
+  "imdbId": "tt0001003",
+  "releaseYear": 2020,
+  "seriesType": 1,
+  "posterUrl": "https://example.com/poster.jpg",
+  "languageCode": "tr",
   "title": "",
-  "description": "Başlık boş bırakıldığı için validasyon pipeline'ına takılmalı.",
-  "isIndependentEpisodes": false
+  "overview": "Boş başlık denemesi"
 }
 
-### 🟠 Senaryo 6: Başarılı Silme İşlemi (DELETE - Happy Path)
-# Beklenen Sonuç: 204 No Content
-DELETE {{HostAddress}}/{{SeriesId}}
+### 🟢 7.4 Dizi Detayı Getirme (Standard User)
+# Beklenen: 200 OK -> SeriesResponse (ve bağımsız bölümler varsa listesi)
+GET {{Gateway_HostAddress}}/api/catalog/series/{{SeriesId}}
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 7.8 Dizi Güncelleme - SEC-01 DTO İzolasyonu (Admin)
+# Beklenen: 204 No Content
+# NOT: Body içerisinde Id alanı YOKTUR; ID doğrudan route URL'inden güvenle alınır.
+PUT {{Gateway_HostAddress}}/api/catalog/series/{{SeriesId}}
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "tmdbId": 70523,
+  "imdbId": "tt5753856",
+  "releaseYear": 2018,
+  "seriesType": 1,
+  "totalSeasons": 3,
+  "imdbRating": 8.8,
+  "imdbVotes": 460000
+}
+  "totalSeasons": 4,
+  "imdbId": "tt5753856",
+  "imdbRating": 8.9,
+  "imdbVotes": 500000
+}
+
+### 🔴 7.9 Olmayan Diziyi Güncelleme (Not Found)
+# Beklenen: 404 Not Found -> code: "SERIES_NOT_FOUND"
+PUT {{Gateway_HostAddress}}/api/catalog/series/ffffffff-ffff-ffff-ffff-ffffffffffff
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "releaseYear": 2020,
+  "seriesType": 1,
+  "totalSeasons": 1
+}
+
+### 🟢 7.10 Dizi Silme / Soft-Delete (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/series/{{SeriesId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🔴 7.11 Silinmiş Diziyi Getirme (Soft-Delete Kontrolü)
+# Beklenen: 404 Not Found -> code: "SERIES_NOT_FOUND"
+GET {{Gateway_HostAddress}}/api/catalog/series/{{SeriesId}}
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
 
 
-### 🔴 Senaryo 7: Silindikten Sonra Getirme (Not Found Testi)
-# Beklenen Sonuç: 404 Not Found (Global Exception Handler'dan gelmeli)
-GET {{HostAddress}}/{{SeriesId}}
+###############################################################################
+# 8. BÖLÜMLER (EPISODES CRUD & STANDALONE EDGE CASES)
+###############################################################################
 
-### 🟣 Senaryo 8: Sayfalı Dizi Listesini Getirme (GET Collection)
-# Beklenen Sonuç: 200 OK ve içinde Items (Dizi Listesi), PageNumber, TotalPages vs. olan JSON
-GET {{HostAddress}}?page=1&pageSize=5
+### 🟢 8.1 Yeni Bölüm Oluşturma (Admin)
+# Beklenen: 201 Created -> Episode GUID
+# NOT: Dönen GUID'yi yukarıdaki @EpisodeId değişkenine yapıştırın.
+POST {{Gateway_HostAddress}}/api/catalog/episodes
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "seriesId": "{{SeriesId}}",
+  "seasonNumber": 1,
+  "episodeNumber": 1,
+  "runtimeMinutes": 60,
+  "stillUrl": "https://image.tmdb.org/t/p/original/s1e1.jpg",
+  "languageCode": "tr",
+  "title": "Sırlar ve Kayıplar",
+  "overview": "Küçük bir çocuk ormanda gizemli bir şekilde kaybolur.",
+  "isStandAlone": true,
+  "imdbId": "tt6754321",
+  "imdbRating": 8.5,
+  "imdbVotes": 12000
+}
+
+### 🔴 8.2 Olmayan Diziye Bölüm Ekleme (Not Found)
+# Beklenen: 404 Not Found -> code: "SERIES_NOT_FOUND"
+POST {{Gateway_HostAddress}}/api/catalog/episodes
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "seriesId": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+  "seasonNumber": 1,
+  "episodeNumber": 1,
+  "runtimeMinutes": 45,
+  "languageCode": "tr",
+  "title": "Yetim Bölüm",
+  "overview": "Olmayan diziye bağlı bölüm denemesi"
+}
+
+### 🔴 8.3 Validasyon Hatası: Boş Bölüm Başlığı
+# Beklenen: 400 Bad Request -> "Bölüm başlığı boş olamaz."
+POST {{Gateway_HostAddress}}/api/catalog/episodes
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "seriesId": "{{SeriesId}}",
+  "seasonNumber": 1,
+  "episodeNumber": 1,
+  "runtimeMinutes": 45,
+  "languageCode": "tr",
+  "title": "",
+  "overview": "Başlıksız bölüm"
+}
+
+### 🟢 8.4 Bölüm Detayı Getirme (Standard User)
+# Beklenen: 200 OK -> EpisodeResponse
+GET {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 8.5 Bölüm Güncelleme (Admin)
+# Beklenen: 204 No Content
+PUT {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "seasonNumber": 1,
+  "episodeNumber": 1,
+  "runtimeMinutes": 62,
+  "stillUrl": "https://image.tmdb.org/t/p/original/s1e1-v2.jpg",
+  "isStandAlone": true,
+  "imdbId": "tt6754321",
+  "imdbRating": 8.8,
+  "imdbVotes": 15000
+}
+
+### 🟢 8.6 Bölüm Silme / Soft-Delete (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🔴 8.7 Silinmiş Bölümü Getirme (Soft-Delete Kontrolü)
+# Beklenen: 404 Not Found -> code: "EPISODE_NOT_FOUND"
+GET {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 8.8 Bölüme Yayın Platformu Bağlama / Deep Link (Admin)
+# Beklenen: 204 No Content
+POST {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}/platforms
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "platformId": "{{PlatformId}}",
+  "webUrl": "https://www.netflix.com/watch/80100172",
+  "appSchemeUrl": "nflx://watch/80100172"
+}
+
+### 🔴 8.8.1 Mükerrer Bölüm Platform Bağlantısı Hatası (Conflict)
+# Beklenen: 409 Conflict -> code: "DUPLICATE_EPISODE_PLATFORM"
+POST {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}/platforms
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "platformId": "{{PlatformId}}",
+  "webUrl": "https://www.netflix.com/watch/80100172",
+  "appSchemeUrl": "nflx://watch/80100172"
+}
+
+### 🟢 8.9 Bölümden Yayın Platformu Bağlantısını Kaldırma (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}/platforms/{{PlatformId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🟢 8.10 Bölüme Çeviri Ekleme veya Güncelleme (Admin)
+# Beklenen: 204 No Content
+POST {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}/translations
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "languageCode": "en",
+  "title": "Secrets and Losses",
+  "overview": "A young boy mysteriously disappears in the forest."
+}
+
+### 🟢 8.11 Bölümden Çeviri Kaldırma (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/episodes/{{EpisodeId}}/translations/en
+Authorization: Bearer {{AdminToken}}
+
+
+###############################################################################
+# 9. MEDYA İLİŞKİLERİ (MEDIA ASSOCIATIONS - PLATFORMS, MOODS, GENRES, TRANSLATIONS)
+###############################################################################
+
+### 🟢 9.1 Medyaya Yayın Platformu Bağlama (Admin)
+# Beklenen: 204 No Content
+POST {{Gateway_HostAddress}}/api/catalog/media/{{MovieId}}/platforms
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "platformId": "{{PlatformId}}",
+  "webUrl": "https://www.netflix.com/title/80100172"
+}
+
+### 🟢 9.2 Medyadan Yayın Platformu Bağlantısını Koparma (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/media/{{MovieId}}/platforms/{{PlatformId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🟢 9.3 Medyaya İzleme Modu Bağlama (Admin)
+# Beklenen: 204 No Content
+POST {{Gateway_HostAddress}}/api/catalog/media/{{MovieId}}/moods
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "moodId": "{{MoodId}}"
+}
+
+### 🟢 9.4 Medyadan İzleme Modunu Çıkarma (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/media/{{MovieId}}/moods/{{MoodId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🟢 9.5 Medyaya İçerik Türü Bağlama (Admin)
+# Beklenen: 204 No Content
+POST {{Gateway_HostAddress}}/api/catalog/media/{{MovieId}}/genres
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "genreId": "{{GenreId}}"
+}
+
+### 🟢 9.6 Medyadan İçerik Türünü Çıkarma (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/media/{{MovieId}}/genres/{{GenreId}}
+Authorization: Bearer {{AdminToken}}
+
+### 🟢 9.7 Medyaya Yeni Dil Çevirisi Ekleme / Güncelleme (Admin)
+# Beklenen: 204 No Content (İngilizce Çeviri Eklendi)
+POST {{Gateway_HostAddress}}/api/catalog/media/{{MovieId}}/translations
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "languageCode": "en",
+  "title": "Inception (English Title)",
+  "overview": "A thief who steals corporate secrets through the use of dream-sharing technology.",
+  "tagline": "Your mind is the scene of the crime."
+}
+
+### 🟢 9.8 Medyayı Yeni Eklenen Dilde Getirme (?lang=en)
+# Beklenen: 200 OK -> Başlık: "Inception (English Title)"
+GET {{Gateway_HostAddress}}/api/catalog/movies/{{MovieId}}?lang=en
+Authorization: Bearer {{GuestToken}}
+Accept: application/json
+
+### 🟢 9.9 Medyadan İngilizce Çeviriyi Silme (Admin)
+# Beklenen: 204 No Content
+DELETE {{Gateway_HostAddress}}/api/catalog/media/{{MovieId}}/translations/en
+Authorization: Bearer {{AdminToken}}
+
+### 🔴 9.10 Olmayan Medyaya Çeviri Ekleme (Not Found)
+# Beklenen: 404 Not Found -> code: "MEDIA_NOT_FOUND"
+POST {{Gateway_HostAddress}}/api/catalog/media/ffffffff-ffff-ffff-ffff-ffffffffffff/translations
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/json
+
+{
+  "languageCode": "en",
+  "title": "Non-existent movie translation",
+  "overview": "Will fail with 404"
+}
+
+
+###############################################################################
+# 10. CMS YÖNETİM PORTALI & ARAMA (ADMIN CMS - PERF-01 GIN & SEC-02 RE-DOS GUARD)
+###############################################################################
+
+### 🟢 10.1 CMS Medya Listesi (Admin - Sayfalanmış)
+# Beklenen: 200 OK -> AdminMediaListResponse (Tüm film ve dizilerin ham dökümü)
+GET {{Gateway_HostAddress}}/api/catalog/admin/media?page=1&pageSize=10
+Authorization: Bearer {{AdminToken}}
+Accept: application/json
+
+### 🟢 10.2 Leading Wildcard Arama (PERF-01: GIN Trigram İndeks Hızlandırması)
+# Beklenen: 200 OK -> "Başlangıç" kelimesini içeren medya kayıtları milisaniyeler içinde döner
+GET {{Gateway_HostAddress}}/api/catalog/admin/media?search=Ba%C5%9Flang%C4%B1%C3%A7
+Authorization: Bearer {{AdminToken}}
+Accept: application/json
+
+### 🟢 10.3 Medya Türü Filtresi: Sadece Filmler (MediaType=1)
+# Beklenen: 200 OK -> Yalnızca Film türündeki kayıtlar listelenir
+GET {{Gateway_HostAddress}}/api/catalog/admin/media?mediaType=1
+Authorization: Bearer {{AdminToken}}
+Accept: application/json
+
+### 🟢 10.4 Medya Türü Filtresi: Sadece Diziler (MediaType=2)
+# Beklenen: 200 OK -> Yalnızca Dizi türündeki kayıtlar listelenir
+GET {{Gateway_HostAddress}}/api/catalog/admin/media?mediaType=2
+Authorization: Bearer {{AdminToken}}
+Accept: application/json
+
+### 🔴 10.5 SEC-02 DoS / ReDoS Koruması: Arama Parametresi > 100 Karakter Doğrulaması
+# Beklenen: 400 Bad Request -> "Arama ifadesi en fazla 100 karakter olabilir."
+GET {{Gateway_HostAddress}}/api/catalog/admin/media?search=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+Authorization: Bearer {{AdminToken}}
 Accept: application/json

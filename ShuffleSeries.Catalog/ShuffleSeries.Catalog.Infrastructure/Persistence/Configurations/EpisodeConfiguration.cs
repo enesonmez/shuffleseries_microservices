@@ -26,8 +26,6 @@ public class EpisodeConfiguration : IEntityTypeConfiguration<Episode>
             .IsRequired()
             .HasDefaultValue(false);
 
-        builder.HasIndex(x => x.IsDeleted);
-
         builder.HasIndex(x => new { x.SeasonId, x.EpisodeNumber })
             .IsUnique()
             .HasFilter("\"IsDeleted\" = false");

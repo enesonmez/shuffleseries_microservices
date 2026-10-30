@@ -10,12 +10,15 @@ namespace ShuffleSeries.Catalog.Tests.Application.Features.GetSeriesById;
 public class GetSeriesByIdQueryHandlerTests
 {
     private readonly Mock<ISeriesRepository> _seriesRepositoryMock;
+    private readonly Mock<ILanguageContext> _languageContextMock;
     private readonly GetSeriesByIdQueryHandler _handler;
 
     public GetSeriesByIdQueryHandlerTests()
     {
         _seriesRepositoryMock = new Mock<ISeriesRepository>();
-        _handler = new GetSeriesByIdQueryHandler(_seriesRepositoryMock.Object);
+        _languageContextMock = new Mock<ILanguageContext>();
+        _languageContextMock.Setup(x => x.CurrentLanguage).Returns("tr");
+        _handler = new GetSeriesByIdQueryHandler(_seriesRepositoryMock.Object, _languageContextMock.Object);
     }
 
     [Fact]
@@ -24,7 +27,7 @@ public class GetSeriesByIdQueryHandlerTests
         // Arrange
         var query = new GetSeriesByIdQuery(Guid.NewGuid());
 
-        _seriesRepositoryMock.Setup(x => x.GetByIdWithTranslationsAsync(query.Id, It.IsAny<CancellationToken>()))
+        _seriesRepositoryMock.Setup(x => x.GetByIdForDetailAsync(query.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Series?)null);
 
         // Act
@@ -35,10 +38,12 @@ public class GetSeriesByIdQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_Should_ReturnSeriesResponse_When_SeriesExists()
+    public async Task Handle_Should_ReturnSeriesDetailResponse_When_SeriesExists()
     {
         // Arrange
         var series = Series.Create(
+            tmdbId: 42009,
+            imdbId: "tt2085059",
             releaseYear: 2020,
             seriesType: SeriesType.EpisodicAnthology,
             posterUrl: "https://example.com/poster.jpg",
@@ -48,7 +53,7 @@ public class GetSeriesByIdQueryHandlerTests
 
         var query = new GetSeriesByIdQuery(series.Id);
 
-        _seriesRepositoryMock.Setup(x => x.GetByIdWithTranslationsAsync(query.Id, It.IsAny<CancellationToken>()))
+        _seriesRepositoryMock.Setup(x => x.GetByIdForDetailAsync(query.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(series);
 
         // Act
@@ -57,6 +62,8 @@ public class GetSeriesByIdQueryHandlerTests
         // Assert
         result.Should().NotBeNull();
         result.Id.Should().Be(series.Id);
+        result.TmdbId.Should().Be(42009);
+        result.ImdbId.Should().Be("tt2085059");
         result.ReleaseYear.Should().Be(2020);
         result.SeriesType.Should().Be(SeriesType.EpisodicAnthology);
         result.Translations.Should().HaveCount(1);

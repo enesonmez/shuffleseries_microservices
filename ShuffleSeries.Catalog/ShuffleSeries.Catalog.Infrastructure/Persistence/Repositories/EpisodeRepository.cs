@@ -16,6 +16,27 @@ internal sealed class EpisodeRepository : IEpisodeRepository
         _context = context;
     }
 
+    public void Update(Episode episode)
+    {
+        if (_context.Entry(episode).State == EntityState.Detached)
+        {
+            _context.Episodes.Update(episode);
+        }
+    }
+
+    public void Delete(Episode episode) => _context.Episodes.Remove(episode);
+
+    public async Task<Episode?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await _context.Episodes.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task<Episode?> GetByIdForDetailAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await _context.Episodes
+            .AsNoTracking()
+            .Include(x => x.Translations)
+            .Include(x => x.EpisodePlatforms).ThenInclude(p => p.Platform)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
     public async Task<Episode?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default) =>
         await _context.Episodes
             .Include(x => x.Translations)

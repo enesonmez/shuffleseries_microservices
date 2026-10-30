@@ -37,6 +37,5 @@ public class MediaTranslation : BaseEntity
         Title = title.Trim();
         Overview = overview.Trim();
         Tagline = string.IsNullOrWhiteSpace(tagline) ? null : tagline.Trim();
-        ModifiedAtUtc = DateTime.UtcNow;
     }
 }

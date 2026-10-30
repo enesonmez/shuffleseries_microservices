@@ -34,7 +34,5 @@ public class EpisodePlatformConfiguration : IEntityTypeConfiguration<EpisodePlat
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
     }
 }

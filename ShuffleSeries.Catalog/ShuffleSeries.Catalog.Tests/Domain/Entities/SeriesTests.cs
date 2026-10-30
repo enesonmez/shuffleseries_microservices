@@ -13,11 +13,12 @@ public class SeriesTests
     {
         // Act
         var series = Series.Create(
+            tmdbId: 42009,
+            imdbId: "tt2085059",
             releaseYear: 2011,
             seriesType: SeriesType.EpisodicAnthology,
             posterUrl: "https://example.com/black-mirror.jpg",
             backdropUrl: "https://example.com/bm-backdrop.jpg",
-            imdbId: "tt2085059",
             imdbRating: 8.7,
             imdbVotes: 600000,
             totalSeasons: 6);
@@ -26,11 +27,12 @@ public class SeriesTests
         series.Should().NotBeNull();
         series.Id.Should().NotBeEmpty();
         series.MediaType.Should().Be(MediaType.Series);
+        series.TmdbId.Should().Be(42009);
+        series.ImdbId.Should().Be("tt2085059");
         series.SeriesType.Should().Be(SeriesType.EpisodicAnthology);
         series.ReleaseYear.Should().Be(2011);
         series.PosterUrl.Should().Be("https://example.com/black-mirror.jpg");
         series.BackdropUrl.Should().Be("https://example.com/bm-backdrop.jpg");
-        series.ImdbId.Should().Be("tt2085059");
         series.ImdbRating.Should().Be(8.7);
         series.ImdbVotes.Should().Be(600000);
         series.TotalSeasons.Should().Be(6);
@@ -47,26 +49,31 @@ public class SeriesTests
     public void UpdateDetails_Should_UpdatePropertiesAndRaiseDomainEvent()
     {
         // Arrange
-        var series = Series.Create(2010, SeriesType.Standard, "https://example.com/poster.jpg");
+        var series = Series.Create(42009, "tt2085059", 2010, SeriesType.Standard, "https://example.com/poster.jpg");
         series.ClearDomainEvents();
 
         // Act
         series.UpdateDetails(
+            tmdbId: 42009,
+            imdbId: "tt9999999",
             releaseYear: 2011,
             seriesType: SeriesType.SeasonalAnthology,
             totalSeasons: 4,
-            imdbId: "tt9999999",
             imdbRating: 9.1,
-            imdbVotes: 100000);
+            imdbVotes: 100000,
+            posterUrl: "https://example.com/new-poster.jpg",
+            backdropUrl: "https://example.com/new-backdrop.jpg");
 
         // Assert
+        series.TmdbId.Should().Be(42009);
+        series.ImdbId.Should().Be("tt9999999");
         series.ReleaseYear.Should().Be(2011);
         series.SeriesType.Should().Be(SeriesType.SeasonalAnthology);
         series.TotalSeasons.Should().Be(4);
-        series.ImdbId.Should().Be("tt9999999");
         series.ImdbRating.Should().Be(9.1);
         series.ImdbVotes.Should().Be(100000);
-        series.ModifiedAtUtc.Should().NotBeNull();
+        series.PosterUrl.Should().Be("https://example.com/new-poster.jpg");
+        series.BackdropUrl.Should().Be("https://example.com/new-backdrop.jpg");
 
         series.GetDomainEvents().Should().ContainSingle(e => e is MediaUpdatedDomainEvent);
     }
@@ -75,7 +82,7 @@ public class SeriesTests
     public void AddSeason_Should_AddSeasonToSeries_And_UpdateTotalSeasonsIfHigher()
     {
         // Arrange
-        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg", totalSeasons: 1);
+        var series = Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, "https://example.com/poster.jpg", totalSeasons: 1);
 
         // Act
         var season = series.AddSeason(2, "Season 2");
@@ -92,7 +99,7 @@ public class SeriesTests
     public void AddSeason_WhenSeasonAlreadyExists_ShouldReturnExistingSeason()
     {
         // Arrange
-        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var series = Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, "https://example.com/poster.jpg");
         var season1 = series.AddSeason(1, "Season 1");
 
         // Act
@@ -107,7 +114,7 @@ public class SeriesTests
     public void AddEpisode_InEpisodicAnthology_ShouldDefaultIsStandaloneToTrue()
     {
         // Arrange
-        var series = Series.Create(2011, SeriesType.EpisodicAnthology, "https://example.com/bm.jpg");
+        var series = Series.Create(42009, "tt2085059", 2011, SeriesType.EpisodicAnthology, "https://example.com/bm.jpg");
 
         // Act
         var episode = series.AddEpisode(
@@ -124,13 +131,15 @@ public class SeriesTests
         episode.IsStandalone.Should().BeTrue();
         episode.RuntimeMinutes.Should().Be(44);
         episode.ImdbRating.Should().Be(8.0);
+        series.GetDomainEvents().Should().ContainSingle(e => e is EpisodeCreatedDomainEvent)
+            .Which.Should().BeEquivalentTo(new EpisodeCreatedDomainEvent(series.Id, episode.SeasonId, episode.Id, 1, true));
     }
 
     [Fact]
     public void AddEpisode_InStandardSeries_ShouldDefaultIsStandaloneToFalse()
     {
         // Arrange
-        var series = Series.Create(2008, SeriesType.Standard, "https://example.com/bb.jpg");
+        var series = Series.Create(42009, "tt2085059", 2008, SeriesType.Standard, "https://example.com/bb.jpg");
 
         // Act
         var episode = series.AddEpisode(
@@ -146,7 +155,7 @@ public class SeriesTests
     public void AddOrUpdateTranslation_Should_AddTranslationNormalizedAndAllowUpdate()
     {
         // Arrange
-        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var series = Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, "https://example.com/poster.jpg");
 
         // Act 1: Add TR
         var tr = series.AddOrUpdateTranslation("TR", "Başlık", "Özet", "Etiket");
@@ -168,7 +177,7 @@ public class SeriesTests
     public void AddPlatform_Should_AddPlatformOrThrowIfDuplicate()
     {
         // Arrange
-        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var series = Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, "https://example.com/poster.jpg");
         var platformId = Guid.NewGuid();
 
         // Act
@@ -187,7 +196,7 @@ public class SeriesTests
     public void AddMood_Should_AddMoodOrThrowIfDuplicate()
     {
         // Arrange
-        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var series = Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, "https://example.com/poster.jpg");
         var moodId = Guid.NewGuid();
 
         // Act
@@ -206,7 +215,7 @@ public class SeriesTests
     public void Delete_Should_SoftDeleteAndRaiseDomainEvent()
     {
         // Arrange
-        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var series = Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, "https://example.com/poster.jpg");
         series.ClearDomainEvents();
 
         // Act
@@ -219,12 +228,34 @@ public class SeriesTests
         series.GetDomainEvents().Should().ContainSingle(e => e is MediaDeletedDomainEvent);
     }
 
+    [Fact]
+    public void Delete_Should_CascadeSoftDeleteSeasonsAndEpisodes()
+    {
+        // Arrange
+        var series = Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var season = series.AddSeason(1);
+        var episode = series.AddEpisode(1, 1, isStandalone: false, runtimeMinutes: 45);
+
+        // Act
+        series.Delete("system-admin");
+
+        // Assert
+        series.IsDeleted.Should().BeTrue();
+        season.IsDeleted.Should().BeTrue();
+        season.DeletedBy.Should().Be("system-admin");
+        season.DeletedAtUtc.Should().NotBeNull();
+
+        episode.IsDeleted.Should().BeTrue();
+        episode.DeletedBy.Should().Be("system-admin");
+        episode.DeletedAtUtc.Should().NotBeNull();
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
     public void Create_Should_ThrowArgumentException_When_PosterUrlIsEmpty(string invalidPosterUrl)
     {
-        var action = () => Series.Create(2020, SeriesType.Standard, invalidPosterUrl);
+        var action = () => Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, invalidPosterUrl);
         action.Should().Throw<ArgumentException>();
     }
 
@@ -233,7 +264,7 @@ public class SeriesTests
     [InlineData(2101)]
     public void Create_Should_ThrowArgumentOutOfRangeException_When_ReleaseYearIsOutOfBounds(int invalidYear)
     {
-        var action = () => Series.Create(invalidYear, SeriesType.Standard, "https://example.com/poster.jpg");
+        var action = () => Series.Create(42009, "tt2085059", invalidYear, SeriesType.Standard, "https://example.com/poster.jpg");
         action.Should().Throw<ArgumentOutOfRangeException>();
     }
 
@@ -241,7 +272,7 @@ public class SeriesTests
     public void AddEpisode_WhenDuplicateEpisodeNumberInSameSeason_ShouldThrowDuplicateEpisodeException()
     {
         // Arrange
-        var series = Series.Create(2011, SeriesType.EpisodicAnthology, "https://example.com/bm.jpg");
+        var series = Series.Create(42009, "tt2085059", 2011, SeriesType.EpisodicAnthology, "https://example.com/bm.jpg");
         series.AddEpisode(1, 1);
 
         // Act
@@ -255,7 +286,7 @@ public class SeriesTests
     public void RemoveChildCollections_Should_MarkRemovedItemsForHardDelete()
     {
         // Arrange
-        var series = Series.Create(2020, SeriesType.Standard, "https://example.com/poster.jpg");
+        var series = Series.Create(42009, "tt2085059", 2020, SeriesType.Standard, "https://example.com/poster.jpg");
         var translation = series.AddOrUpdateTranslation("tr", "Başlık", "Özet");
         var platformId = Guid.NewGuid();
         var mediaPlatform = series.AddPlatform(platformId, "https://netflix.com/title/1");

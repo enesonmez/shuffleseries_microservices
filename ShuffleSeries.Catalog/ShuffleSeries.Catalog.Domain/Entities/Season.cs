@@ -45,14 +45,16 @@ public class Season : BaseEntity
             thumbnailUrl);
 
         _episodes.Add(episode);
-        ModifiedAtUtc = DateTime.UtcNow;
 
         return episode;
     }
 
-    public void UpdateTitle(string? title)
+    public void Delete(string? deletedBy = null)
     {
-        Title = string.IsNullOrWhiteSpace(title) ? null : title.Trim();
-        ModifiedAtUtc = DateTime.UtcNow;
+        SoftDelete(deletedBy);
+        foreach (var episode in _episodes)
+        {
+            episode.Delete(deletedBy);
+        }
     }
 }

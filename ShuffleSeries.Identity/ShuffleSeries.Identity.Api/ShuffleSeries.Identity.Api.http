@@ -143,6 +143,18 @@ GET {{Identity_HostAddress}}/api/auth/me
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature
 Accept: application/json
 
+### 🔴 4.4 Profil Bilgileri: Süresi Dolmuş Token (GET - RFC 7807 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_UNAUTHORIZED"
+GET {{Identity_HostAddress}}/api/auth/me
+Authorization: Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMTExMTEiLCAianRpIjogImV4cGlyZWQtdGVzdCIsICJlbWFpbCI6ICJ1c2VyQHNoZWZmbGVzZXJpZXMuY29tIiwgInJvbGUiOiBbIlN0YW5kYXJkIl0sICJuYmYiOiAxNzAwMDAwMDAwLCAiaWF0IjogMTcwMDAwMDAwMCwgImV4cCI6IDE2MDAwMDAwMDB9.invalid
+Accept: application/json
+
+### 🔴 4.5 Profil Bilgileri: İmzası Değiştirilmiş (Tampered) Token (GET - 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "AUTH_UNAUTHORIZED"
+GET {{Identity_HostAddress}}/api/auth/me
+Authorization: Bearer eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJpc3MiOiAiU2h1ZmZsZVNlcmllcy5JZGVudGl0eSIsICJhdWQiOiAiU2h1ZmZsZVNlcmllcy5NaWNyb3NlcnZpY2VzIiwgInN1YiI6ICIxMTExMTExMS0xMTExLTExMTEtMTExMS0xMTExMTExMTExMTEiLCAianRpIjogInRhbXBlcmVkLXRlc3QiLCAiZW1haWwiOiAidXNlckBzaHVmZmxlc2VyaWVzLmNvbSIsICJyb2xlIjogWyJTdGFuZGFyZCJdLCAibmJmIjogMTcwMDAwMDAwMCwgImlhdCI6IDE3MDAwMDAwMDAsICJleHAiOiAxOTk5OTk5OTk5fQ.wrong_tampered_signature_must_fail
+Accept: application/json
+
 
 ###############################################################################
 # 5. MİSAFİR OTURUMU (GUEST SESSION)
@@ -245,6 +257,15 @@ Content-Type: application/json
   "refreshToken": "completely_fake_refresh_token_xyz_123"
 }
 
+### 🔴 7.4 Boş Refresh Token Validasyon Hatası (POST - 400 Bad Request)
+# Beklenen Sonuç: 400 Bad Request -> RFC 7807 Validation Problem Details
+POST {{Identity_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": ""
+}
+
 
 ###############################################################################
 # 8. TOKEN İPTALİ / ÇIKIŞ (REVOKE TOKEN)
@@ -268,6 +289,15 @@ Content-Type: application/json
 
 {
   "refreshToken": "non_existent_refresh_token_abc_999"
+}
+
+### 🔴 8.3 Boş Token ile İptal Talebi (POST - 400 Bad Request)
+# Beklenen Sonuç: 400 Bad Request -> RFC 7807 Validation Problem Details
+POST {{Identity_HostAddress}}/api/auth/revoke
+Content-Type: application/json
+
+{
+  "refreshToken": ""
 }
 
 
@@ -416,5 +446,25 @@ Content-Type: application/json
 {
   "currentPassword": "CurrentPassword123!",
   "newPassword": "CurrentPassword123!"
+}
+
+### 🔴 12.6 Parola Değişimi Sonrası Eski Parola ile Giriş (POST - 401 Unauthorized)
+# Beklenen Sonuç: 401 Unauthorized -> code: "INVALID_CREDENTIALS"
+POST {{Identity_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "promoted.user@shuffleseries.com",
+  "password": "NewPassword123!"
+}
+
+### 🟢 12.7 Parola Değişimi Sonrası Yeni Parola ile Giriş (POST - 200 OK)
+# Beklenen Sonuç: 200 OK -> Yeni accessToken ve refreshToken döner
+POST {{Identity_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "promoted.user@shuffleseries.com",
+  "password": "UpdatedPassword456!"
 }
 

@@ -1,12 +1,19 @@
+using ShuffleSeries.Catalog.Domain.Events;
+using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
 using ShuffleSeries.Shared.Core.Domain.ValueObjects;
 
 namespace ShuffleSeries.Catalog.Domain.Entities;
 
-public class Episode : BaseEntity
+public class Episode : BaseEntity, IHaveDomainEvents
 {
+    private readonly List<IDomainEvent> _domainEvents = [];
     private readonly List<EpisodeTranslation> _translations = [];
     private readonly List<EpisodePlatform> _episodePlatforms = [];
+
+    public IReadOnlyCollection<IDomainEvent> GetDomainEvents() => _domainEvents.AsReadOnly();
+    protected void RaiseDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
+    public void ClearDomainEvents() => _domainEvents.Clear();
 
     public Guid SeasonId { get; private set; }
     public int EpisodeNumber { get; private set; }
@@ -66,7 +73,8 @@ public class Episode : BaseEntity
         RuntimeMinutes = runtimeMinutes;
         ImdbRating = imdbRating;
         ThumbnailUrl = string.IsNullOrWhiteSpace(thumbnailUrl) ? null : thumbnailUrl.Trim();
-        ModifiedAtUtc = DateTime.UtcNow;
+
+        RaiseUpdatedEvent();
     }
 
     public EpisodeTranslation AddOrUpdateTranslation(LanguageCode languageCode, string title, string? overview = null)
@@ -81,13 +89,13 @@ public class Episode : BaseEntity
         if (existing is not null)
         {
             existing.Update(title, overview);
-            ModifiedAtUtc = DateTime.UtcNow;
+            RaiseUpdatedEvent();
             return existing;
         }
 
         var translation = new EpisodeTranslation(Id, languageCode, title, overview);
         _translations.Add(translation);
-        ModifiedAtUtc = DateTime.UtcNow;
+        RaiseUpdatedEvent();
 
         return translation;
     }
@@ -110,7 +118,7 @@ public class Episode : BaseEntity
         var removed = _translations.RemoveAll(t => t.LanguageCode == languageCode);
         if (removed > 0)
         {
-            ModifiedAtUtc = DateTime.UtcNow;
+            RaiseUpdatedEvent();
         }
     }
 
@@ -125,17 +133,12 @@ public class Episode : BaseEntity
 
     public EpisodePlatform AddPlatform(Guid platformId, string webUrl, string? appSchemeUrl = null)
     {
-        var existing = _episodePlatforms.FirstOrDefault(p => p.PlatformId == platformId);
-        if (existing is not null)
-        {
-            existing.UpdateUrls(webUrl, appSchemeUrl);
-            ModifiedAtUtc = DateTime.UtcNow;
-            return existing;
-        }
+        if (_episodePlatforms.Any(p => p.PlatformId == platformId))
+            throw new DuplicateEpisodePlatformException(Id, platformId);
 
         var episodePlatform = new EpisodePlatform(Id, platformId, webUrl, appSchemeUrl);
         _episodePlatforms.Add(episodePlatform);
-        ModifiedAtUtc = DateTime.UtcNow;
+        RaiseUpdatedEvent();
 
         return episodePlatform;
     }
@@ -150,13 +153,29 @@ public class Episode : BaseEntity
         var removed = _episodePlatforms.RemoveAll(p => p.PlatformId == platformId);
         if (removed > 0)
         {
-            ModifiedAtUtc = DateTime.UtcNow;
+            RaiseUpdatedEvent();
         }
     }
 
-    public void SetStandalone(bool isStandalone)
+    public void Delete(string? deletedBy = null)
     {
-        IsStandalone = isStandalone;
-        ModifiedAtUtc = DateTime.UtcNow;
+        SoftDelete(deletedBy);
+        foreach (var translation in _translations)
+        {
+            translation.SoftDelete(deletedBy);
+        }
+        foreach (var platform in _episodePlatforms)
+        {
+            platform.SoftDelete(deletedBy);
+        }
+        RaiseDomainEvent(new EpisodeDeletedDomainEvent(Id));
+    }
+
+    private void RaiseUpdatedEvent()
+    {
+        if (GetDomainEvents().Any(e => e is EpisodeCreatedDomainEvent or EpisodeUpdatedDomainEvent or EpisodeDeletedDomainEvent))
+            return;
+
+        RaiseDomainEvent(new EpisodeUpdatedDomainEvent(Id, EpisodeNumber, IsStandalone, RuntimeMinutes, ImdbRating));
     }
 }

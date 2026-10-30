@@ -13,6 +13,15 @@ namespace ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
 
 public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    static CatalogApiFactory()
+    {
+        Environment.SetEnvironmentVariable("Jwt__Secret", TestJwtGenerator.TestSecret);
+        Environment.SetEnvironmentVariable("Jwt__Issuer", TestJwtGenerator.TestIssuer);
+        Environment.SetEnvironmentVariable("Jwt__Audience", TestJwtGenerator.TestAudience);
+        Environment.SetEnvironmentVariable("Vault__Enabled", "false");
+        Environment.SetEnvironmentVariable("Vault__Optional", "true");
+    }
+
     private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
         .WithDatabase("shuffleseries_catalog_test")
@@ -59,6 +68,9 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["ConnectionStrings:Database"] = _dbContainer.GetConnectionString(),
                 ["Vault:Enabled"] = "false",
                 ["Vault:Optional"] = "true",
+                ["Jwt:Secret"] = TestJwtGenerator.TestSecret,
+                ["Jwt:Issuer"] = TestJwtGenerator.TestIssuer,
+                ["Jwt:Audience"] = TestJwtGenerator.TestAudience,
             });
         });
 

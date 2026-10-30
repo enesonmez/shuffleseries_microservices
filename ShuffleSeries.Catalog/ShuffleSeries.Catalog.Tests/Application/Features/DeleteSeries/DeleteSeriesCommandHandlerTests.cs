@@ -27,7 +27,7 @@ public class DeleteSeriesCommandHandlerTests
         // Arrange
         var command = new DeleteSeriesCommand(Guid.NewGuid());
 
-        _seriesRepositoryMock.Setup(x => x.GetByIdAsync(command.Id, It.IsAny<CancellationToken>()))
+        _seriesRepositoryMock.Setup(x => x.GetByIdWithDetailsAsync(command.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Series?)null);
 
         // Act
@@ -45,10 +45,10 @@ public class DeleteSeriesCommandHandlerTests
     public async Task Handle_Should_CallDeleteAndSaveChanges_When_SeriesExists()
     {
         // Arrange
-        var existingSeries = Series.Create(2020, ShuffleSeries.Catalog.Domain.Enums.SeriesType.Standard, "https://example.com/poster.jpg");
+        var existingSeries = Series.Create(42009, "tt2085059", 2020, ShuffleSeries.Catalog.Domain.Enums.SeriesType.Standard, "https://example.com/poster.jpg");
         var command = new DeleteSeriesCommand(existingSeries.Id);
 
-        _seriesRepositoryMock.Setup(x => x.GetByIdAsync(command.Id, It.IsAny<CancellationToken>()))
+        _seriesRepositoryMock.Setup(x => x.GetByIdWithDetailsAsync(command.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingSeries);
 
         // Act

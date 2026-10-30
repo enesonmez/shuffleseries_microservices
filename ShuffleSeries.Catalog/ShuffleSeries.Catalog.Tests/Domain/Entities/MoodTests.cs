@@ -56,9 +56,34 @@ public class MoodTests
         mood.AmbientColorHex.Should().Be("#000000");
         mood.IconUrl.Should().Be("new-icon");
         mood.DisplayOrder.Should().Be(5);
-        mood.ModifiedAtUtc.Should().NotBeNull();
 
         mood.GetDomainEvents().Should().ContainSingle(e => e is MoodUpdatedDomainEvent);
+    }
+
+    [Fact]
+    public void Delete_Should_SoftDeleteMoodAndAllTranslations()
+    {
+        // Arrange
+        var mood = Mood.Create("code", "#FFFFFF", "icon", 1);
+        mood.AddOrUpdateTranslation("tr", "İsim", "Açıklama");
+        mood.AddOrUpdateTranslation("en", "Name", "Description");
+        mood.ClearDomainEvents();
+
+        // Act
+        mood.Delete("admin-id");
+
+        // Assert
+        mood.IsDeleted.Should().BeTrue();
+        mood.DeletedBy.Should().Be("admin-id");
+        mood.DeletedAtUtc.Should().NotBeNull();
+        mood.Translations.Should().HaveCount(2);
+        mood.Translations.Should().AllSatisfy(t =>
+        {
+            t.IsDeleted.Should().BeTrue();
+            t.DeletedBy.Should().Be("admin-id");
+            t.DeletedAtUtc.Should().NotBeNull();
+        });
+        mood.GetDomainEvents().Should().ContainSingle(e => e is MoodDeletedDomainEvent && ((MoodDeletedDomainEvent)e).MoodId == mood.Id);
     }
 
     [Theory]
@@ -68,5 +93,23 @@ public class MoodTests
     {
         var action = () => Mood.Create(code, color, icon, 1);
         action.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void RemoveTranslation_Should_RemoveTranslationAndRaiseEvent()
+    {
+        // Arrange
+        var mood = Mood.Create("code", "#FFFFFF");
+        mood.AddOrUpdateTranslation("tr", "İsim", "Açıklama");
+        mood.AddOrUpdateTranslation("en", "Name", "Description");
+        mood.ClearDomainEvents();
+
+        // Act
+        mood.RemoveTranslation("tr");
+
+        // Assert
+        mood.Translations.Should().HaveCount(1);
+        mood.Translations.Should().NotContain(t => t.LanguageCode == "tr");
+        mood.GetDomainEvents().Should().ContainSingle(e => e is MoodUpdatedDomainEvent);
     }
 }

@@ -33,7 +33,17 @@ public class AuthenticationExtensionsTests
 
         var authorizationOptions = serviceProvider.GetRequiredService<IOptions<AuthorizationOptions>>().Value;
         authorizationOptions.GetPolicy("RequirePremiumRole").Should().NotBeNull();
-        authorizationOptions.GetPolicy("CanReadCatalog").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanReadCatalogMovies").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanCreateCatalogMovies").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanUpdateCatalogMovies").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanDeleteCatalogMovies").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanReadCatalogSeries").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanReadCatalogEpisodes").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanReadCatalogPlatforms").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanReadCatalogMoods").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanReadCatalogGenres").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanManageCatalogAssociations").Should().NotBeNull();
+        authorizationOptions.GetPolicy("CanReadAdminMedia").Should().NotBeNull();
 
         var resultHandler = serviceProvider.GetService<IAuthorizationMiddlewareResultHandler>();
         resultHandler.Should().NotBeNull();

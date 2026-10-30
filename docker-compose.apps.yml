@@ -19,6 +19,10 @@ services:
       - MessageBroker__Host=${RABBITMQ_HOST:-rabbitmq}
       - MessageBroker__Username=${RABBITMQ_USER:-guest_123}
       - MessageBroker__Password=${RABBITMQ_PASSWORD:-guest_123}
+      - Jwt__Secret=${JWT_SECRET:-SuperSecretSecretKeyForJwtAuthenticationTokens2026!!}
+      - Jwt__Issuer=${JWT_ISSUER:-ShuffleSeries.Identity}
+      - Jwt__Audience=${JWT_AUDIENCE:-ShuffleSeries.Microservices}
+      - Jwt__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}
     depends_on:
       postgres:
         condition: service_healthy
@@ -26,6 +30,8 @@ services:
         condition: service_healthy
       vault:
         condition: service_healthy
+      vault_init:
+        condition: service_completed_successfully
     networks:
       shuffle_network:
         aliases:
@@ -55,6 +61,10 @@ services:
       - Redis__Host=${REDIS_HOST:-redis}
       - Redis__Port=${REDIS_PORT:-6379}
       - Redis__Password=${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!}
+      - Jwt__Secret=${JWT_SECRET:-SuperSecretSecretKeyForJwtAuthenticationTokens2026!!}
+      - Jwt__Issuer=${JWT_ISSUER:-ShuffleSeries.Identity}
+      - Jwt__Audience=${JWT_AUDIENCE:-ShuffleSeries.Microservices}
+      - Jwt__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +74,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      vault_init:
+        condition: service_completed_successfully
     networks:
       shuffle_network:
         aliases:
@@ -89,6 +101,9 @@ services:
       - Redis__Host=${REDIS_HOST:-redis}
       - Redis__Port=${REDIS_PORT:-6379}
       - Redis__Password=${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!}
+      - Jwt__Secret=${JWT_SECRET:-SuperSecretSecretKeyForJwtAuthenticationTokens2026!!}
+      - Jwt__Issuer=${JWT_ISSUER:-ShuffleSeries.Identity}
+      - Jwt__Audience=${JWT_AUDIENCE:-ShuffleSeries.Microservices}
       - ReverseProxy__Clusters__catalog-cluster__Destinations__destination1__Address=http://catalog.api:8080
       - ReverseProxy__Clusters__identity-cluster__Destinations__destination1__Address=http://identity.api:8080
     depends_on:

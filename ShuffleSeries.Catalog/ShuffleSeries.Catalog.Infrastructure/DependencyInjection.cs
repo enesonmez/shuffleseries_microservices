@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using ShuffleSeries.Catalog.Domain.Repositories;
-using ShuffleSeries.Catalog.Domain.Services;
 using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
@@ -51,6 +50,9 @@ public static class DependencyInjection
                     host.Password(configuration["MessageBroker:Password"] ?? "guest");
                 });
 
+                // Unbounded prefetch ve Pod OOMKilled riskine karşı tavan limit (Pillar 3.4)
+                configurator.PrefetchCount = 16;
+
                 configurator.ConfigureEndpoints(context);
             });
         });
@@ -76,6 +78,10 @@ public static class DependencyInjection
             options.WaitForJobsToComplete = true;
         });
 
+        // In-Memory Önbellek & Metadata Read-Through Cache
+        services.AddMemoryCache();
+        services.AddSingleton<ShuffleSeries.Catalog.Application.Common.Interfaces.ICatalogCacheService, ShuffleSeries.Catalog.Infrastructure.Services.MemoryCatalogCacheService>();
+
         // Interface - Somut Sınıf eşleşmeleri
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<CatalogDbContext>());
         services.AddScoped<IMediaRepository, MediaRepository>();
@@ -85,7 +91,5 @@ public static class DependencyInjection
         services.AddScoped<IMoodRepository, MoodRepository>();
         services.AddScoped<IGenreRepository, GenreRepository>();
         services.AddScoped<IEpisodeRepository, EpisodeRepository>();
-
-        services.AddScoped<SeriesDomainService>();
     }
 }

@@ -90,6 +90,14 @@ public sealed class DuplicateMediaPlatformException : ConflictException
     }
 }
 
+public sealed class DuplicateEpisodePlatformException : ConflictException
+{
+    public DuplicateEpisodePlatformException(Guid episodeId, Guid platformId)
+        : base($"Episode '{episodeId}' is already associated with platform '{platformId}'.", "DUPLICATE_EPISODE_PLATFORM")
+    {
+    }
+}
+
 public sealed class DuplicateMediaMoodException : ConflictException
 {
     public DuplicateMediaMoodException(Guid mediaId, Guid moodId)
@@ -126,6 +134,14 @@ public sealed class DuplicateImdbIdException : ConflictException
 {
     public DuplicateImdbIdException(string imdbId)
         : base($"Media with IMDb ID '{imdbId}' already exists.", "DUPLICATE_IMDB_ID")
+    {
+    }
+}
+
+public sealed class DuplicateTmdbIdException : ConflictException
+{
+    public DuplicateTmdbIdException(int tmdbId)
+        : base($"Media with TMDb ID '{tmdbId}' already exists.", "DUPLICATE_TMDB_ID")
     {
     }
 }

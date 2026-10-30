@@ -67,7 +67,6 @@ public partial class Mood : AggregateRoot
         AmbientColorHex = NormalizeColorHex(ambientColorHex);
         IconUrl = string.IsNullOrWhiteSpace(iconUrl) ? null : iconUrl.Trim();
         DisplayOrder = displayOrder;
-        ModifiedAtUtc = DateTime.UtcNow;
 
         RaiseUpdatedEvent();
     }
@@ -91,14 +90,12 @@ public partial class Mood : AggregateRoot
         if (existing is not null)
         {
             existing.Update(name, description, vibeTags);
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
             return existing;
         }
 
         var translation = new MoodTranslation(Id, languageCode, name, description, vibeTags);
         _translations.Add(translation);
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
 
         return translation;
@@ -126,7 +123,6 @@ public partial class Mood : AggregateRoot
         var removed = _translations.RemoveAll(t => t.LanguageCode == languageCode);
         if (removed > 0)
         {
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
         }
     }
@@ -140,16 +136,13 @@ public partial class Mood : AggregateRoot
             RemoveTranslation(parsed);
     }
 
-    public void ToggleActive(bool isActive)
-    {
-        IsActive = isActive;
-        ModifiedAtUtc = DateTime.UtcNow;
-        RaiseUpdatedEvent();
-    }
-
     public void Delete(string? deletedBy = null)
     {
         SoftDelete(deletedBy);
+        foreach (var translation in _translations)
+        {
+            translation.SoftDelete(deletedBy);
+        }
         RaiseDomainEvent(new MoodDeletedDomainEvent(Id));
     }
 

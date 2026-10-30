@@ -24,19 +24,13 @@ public class GenreConfiguration : IEntityTypeConfiguration<Genre>
             .IsRequired()
             .HasDefaultValue(0);
 
-        builder.HasIndex(x => x.DisplayOrder);
-
         builder.Property(x => x.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
 
-        builder.HasIndex(x => x.IsActive);
-
         builder.Property(x => x.IsDeleted)
             .IsRequired()
             .HasDefaultValue(false);
-
-        builder.HasIndex(x => x.IsDeleted);
 
         builder.HasMany(x => x.Translations)
             .WithOne()

@@ -48,12 +48,10 @@ public sealed class SoftDeleteInterceptor(TimeProvider? timeProvider = null) : S
 
             entry.State = EntityState.Modified;
 
-            // Eğer domain seviyesinde (örn. entity.Delete("user")) zaten silinmişse
-            // atanmış olan DeletedBy ve DeletedAtUtc değerlerini koru, ezme!
-            if (!entry.Entity.IsDeleted)
-            {
-                entry.Entity.SoftDelete(deletedBy: null, deletedAtUtc: utcNow);
-            }
+            // DeletedBy değeri domain seviyesinde atanmışsa korunur,
+            // ancak DeletedAtUtc değeri TimeProvider determinizmini sağlamak için her halükarda ezilir.
+            var existingDeletedBy = entry.Entity.DeletedBy;
+            entry.Entity.SoftDelete(deletedBy: existingDeletedBy, deletedAtUtc: utcNow);
 
             entry.Property(nameof(ISoftDeletable.IsDeleted)).IsModified = true;
             entry.Property(nameof(ISoftDeletable.DeletedAtUtc)).IsModified = true;

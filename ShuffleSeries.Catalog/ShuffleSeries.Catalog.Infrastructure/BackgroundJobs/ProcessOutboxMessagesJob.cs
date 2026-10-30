@@ -63,7 +63,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
 
                 await _publishEndpoint.Publish(domainEvent, eventType, context.CancellationToken);
 
-                outboxMessage.ProcessedOnUtc = DateTime.UtcNow;
+                outboxMessage.ProcessedOnUtc = TimeProvider.System.GetUtcNow().UtcDateTime;
                 outboxMessage.Error = null;
             }
             catch (Exception ex)

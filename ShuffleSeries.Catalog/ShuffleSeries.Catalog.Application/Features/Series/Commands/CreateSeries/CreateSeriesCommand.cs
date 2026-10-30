@@ -4,6 +4,8 @@ using ShuffleSeries.Catalog.Domain.Enums;
 namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 
 public sealed record CreateSeriesCommand(
+    int TmdbId,
+    string ImdbId,
     int ReleaseYear,
     SeriesType SeriesType,
     string PosterUrl,
@@ -12,7 +14,9 @@ public sealed record CreateSeriesCommand(
     string Title,
     string Overview,
     string? Tagline = null,
-    string? ImdbId = null,
     double? ImdbRating = null,
     int? ImdbVotes = null,
-    int TotalSeasons = 0) : IRequest<Guid>;
+    int TotalSeasons = 0,
+    IReadOnlyList<Guid>? PlatformIds = null,
+    IReadOnlyList<Guid>? MoodIds = null,
+    IReadOnlyList<Guid>? GenreIds = null) : IRequest<Guid>;

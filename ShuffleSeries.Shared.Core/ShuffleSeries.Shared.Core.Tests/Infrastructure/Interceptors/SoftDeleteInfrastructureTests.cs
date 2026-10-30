@@ -256,4 +256,36 @@ public class SoftDeleteInfrastructureTests
         entity.IsDeleted.Should().BeTrue();
         entity.DeletedAtUtc.Should().Be(customTime.UtcDateTime);
     }
+
+    [Fact]
+    public async Task SoftDeleteInterceptor_WhenEntityAlreadySoftDeletedWithOldDate_ShouldOverwriteDeletedAtUtcWithTimeProviderTime_AndPreserveDeletedBy()
+    {
+        // Arrange
+        var customTime = new DateTimeOffset(2026, 1, 15, 8, 30, 0, TimeSpan.Zero);
+        var timeProvider = new CustomTestTimeProvider(customTime);
+
+        var options = new DbContextOptionsBuilder<DummyDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .AddInterceptors(new SoftDeleteInterceptor(timeProvider))
+            .Options;
+
+        await using var context = new DummyDbContext(options);
+        var entity = new DummySoftDeletableEntity(Guid.NewGuid(), "Pre-deleted Show");
+        context.SoftDeletables.Add(entity);
+        await context.SaveChangesAsync();
+
+        // Act - Domain SoftDelete call with older date and user
+        var oldDate = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        entity.SoftDelete(deletedBy: "domain-actor", deletedAtUtc: oldDate);
+
+        context.SoftDeletables.Remove(entity);
+        await context.SaveChangesAsync();
+
+        // Assert - DeletedAtUtc should be overwritten with customTime, DeletedBy should be preserved
+        var rawEntity = await context.SoftDeletables.IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == entity.Id);
+        rawEntity.Should().NotBeNull();
+        rawEntity!.IsDeleted.Should().BeTrue();
+        rawEntity.DeletedBy.Should().Be("domain-actor");
+        rawEntity.DeletedAtUtc.Should().Be(customTime.UtcDateTime);
+    }
 }

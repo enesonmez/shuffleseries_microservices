@@ -38,12 +38,12 @@ public sealed class InsertOutboxMessagesInterceptor(TimeProvider? timeProvider =
 
         var outboxMessages = context.ChangeTracker
             .Entries()
-            .Where(x => x.Entity is IAggregateRoot)
-            .Select(x => (IAggregateRoot)x.Entity)
-            .SelectMany(aggregateRoot =>
+            .Where(x => x.Entity is IHaveDomainEvents)
+            .Select(x => (IHaveDomainEvents)x.Entity)
+            .SelectMany(entityWithEvents =>
             {
-                var domainEvents = aggregateRoot.GetDomainEvents().ToList();
-                aggregateRoot.ClearDomainEvents();
+                var domainEvents = entityWithEvents.GetDomainEvents().ToList();
+                entityWithEvents.ClearDomainEvents();
                 return domainEvents;
             })
             .Select(domainEvent => new OutboxMessage

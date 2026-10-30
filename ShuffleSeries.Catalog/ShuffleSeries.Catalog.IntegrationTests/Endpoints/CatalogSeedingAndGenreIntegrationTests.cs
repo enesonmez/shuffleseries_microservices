@@ -69,7 +69,7 @@ public class CatalogSeedingAndGenreIntegrationTests : CatalogIntegrationTestBase
         var activeGenres = await repository.GetActiveGenresWithTranslationsAsync();
         activeGenres.Should().HaveCount(19);
 
-        var actionGenre = await repository.GetByCodeAsync("action");
+        var actionGenre = activeGenres.FirstOrDefault(g => g.Code == "action");
         actionGenre.Should().NotBeNull();
         actionGenre!.Translations.Should().Contain(t => t.LanguageCode == LanguageCode.Turkish && t.Name == "Aksiyon");
     }

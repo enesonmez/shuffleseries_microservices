@@ -22,8 +22,6 @@ public class SeasonConfiguration : IEntityTypeConfiguration<Season>
             .IsRequired()
             .HasDefaultValue(false);
 
-        builder.HasIndex(x => x.IsDeleted);
-
         builder.HasIndex(x => new { x.SeriesId, x.SeasonNumber })
             .IsUnique()
             .HasFilter("\"IsDeleted\" = false");

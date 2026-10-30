@@ -194,13 +194,14 @@ public static class CatalogDbSeeder
         var drama = context.Genres.Local.FirstOrDefault(g => g.Code == "drama")
             ?? await context.Genres.IgnoreQueryFilters().FirstOrDefaultAsync(g => g.Code == "drama", cancellationToken);
 
-        // 1. Örnek Film: Inception
+        // 1. Örnek Film: Inception (TMDb ID: 27205, IMDb: tt1375666)
         var inception = Movie.Create(
+            tmdbId: 27205,
+            imdbId: "tt1375666",
             releaseYear: 2010,
             runtimeMinutes: 148,
             posterUrl: "https://image.tmdb.org/t/p/original/edv5CZvWj09upOsy2Y6IwDhK8bt.jpg",
             backdropUrl: "https://image.tmdb.org/t/p/original/s3TBrRGB1iav7gFOCNx3H31MoES.jpg",
-            imdbId: "tt1375666",
             imdbRating: 8.8,
             imdbVotes: 2500000,
             director: "Christopher Nolan");
@@ -231,13 +232,14 @@ public static class CatalogDbSeeder
         inception.ClearDomainEvents();
         context.Movies.Add(inception);
 
-        // 2. Örnek Antoloji Dizisi: Black Mirror (Bölüm Ruleti ve Sadece Bu Diziyi Shuffle Yap için)
+        // 2. Örnek Antoloji Dizisi: Black Mirror (TMDb ID: 42009, IMDb: tt2085059)
         var blackMirror = Series.Create(
+            tmdbId: 42009,
+            imdbId: "tt2085059",
             releaseYear: 2011,
             seriesType: SeriesType.EpisodicAnthology,
             posterUrl: "https://image.tmdb.org/t/p/original/5UaMirnkW6v99uqR5Bw9ZfB63jE.jpg",
             backdropUrl: "https://image.tmdb.org/t/p/original/vxuoP3c9Vq2P4v2f92r4r6y1A6T.jpg",
-            imdbId: "tt2085059",
             imdbRating: 8.7,
             imdbVotes: 620000,
             totalSeasons: 6);

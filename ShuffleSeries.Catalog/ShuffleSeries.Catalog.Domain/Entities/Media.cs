@@ -14,7 +14,8 @@ public abstract class Media : AggregateRoot
     private readonly List<MediaGenre> _mediaGenres = [];
 
     public MediaType MediaType { get; protected set; }
-    public string? ImdbId { get; protected set; }
+    public int TmdbId { get; protected set; }
+    public string ImdbId { get; protected set; } = string.Empty;
     public double? ImdbRating { get; protected set; }
     public int? ImdbVotes { get; protected set; }
     public int ReleaseYear { get; protected set; }
@@ -31,13 +32,20 @@ public abstract class Media : AggregateRoot
     protected Media(
         Guid id,
         MediaType mediaType,
-        string? imdbId,
+        int tmdbId,
+        string imdbId,
         double? imdbRating,
         int? imdbVotes,
         int releaseYear,
         string posterUrl,
         string? backdropUrl) : base(id)
     {
+        if (tmdbId <= 0)
+            throw new ArgumentOutOfRangeException(nameof(tmdbId), "TMDb ID must be greater than zero.");
+
+        if (string.IsNullOrWhiteSpace(imdbId))
+            throw new ArgumentException("IMDb ID cannot be empty.", nameof(imdbId));
+
         if (string.IsNullOrWhiteSpace(posterUrl))
             throw new ArgumentException("Poster URL cannot be empty.", nameof(posterUrl));
 
@@ -45,7 +53,8 @@ public abstract class Media : AggregateRoot
         ValidateRatings(imdbRating, imdbVotes);
 
         MediaType = mediaType;
-        ImdbId = string.IsNullOrWhiteSpace(imdbId) ? null : imdbId.Trim();
+        TmdbId = tmdbId;
+        ImdbId = imdbId.Trim();
         ImdbRating = imdbRating;
         ImdbVotes = imdbVotes;
         ReleaseYear = releaseYear;
@@ -72,14 +81,12 @@ public abstract class Media : AggregateRoot
         if (existing is not null)
         {
             existing.Update(title, overview, tagline);
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
             return existing;
         }
 
         var translation = new MediaTranslation(Id, languageCode, title, overview, tagline);
         _translations.Add(translation);
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
 
         return translation;
@@ -107,7 +114,6 @@ public abstract class Media : AggregateRoot
         var removed = _translations.RemoveAll(t => t.LanguageCode == languageCode);
         if (removed > 0)
         {
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
         }
     }
@@ -128,20 +134,9 @@ public abstract class Media : AggregateRoot
 
         var mediaPlatform = new MediaPlatform(Id, platformId, webUrl, appSchemeUrl);
         _mediaPlatforms.Add(mediaPlatform);
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
 
         return mediaPlatform;
-    }
-
-    public void UpdatePlatformUrls(Guid platformId, string webUrl, string? appSchemeUrl = null)
-    {
-        var existing = _mediaPlatforms.FirstOrDefault(p => p.PlatformId == platformId)
-            ?? throw new PlatformNotFoundException(platformId);
-
-        existing.UpdateUrls(webUrl, appSchemeUrl);
-        ModifiedAtUtc = DateTime.UtcNow;
-        RaiseUpdatedEvent();
     }
 
     public void RemovePlatform(Guid platformId)
@@ -154,7 +149,6 @@ public abstract class Media : AggregateRoot
         var removed = _mediaPlatforms.RemoveAll(p => p.PlatformId == platformId);
         if (removed > 0)
         {
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
         }
     }
@@ -166,7 +160,6 @@ public abstract class Media : AggregateRoot
 
         var mediaMood = new MediaMood(Id, moodId);
         _mediaMoods.Add(mediaMood);
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
 
         return mediaMood;
@@ -182,7 +175,6 @@ public abstract class Media : AggregateRoot
         var removed = _mediaMoods.RemoveAll(m => m.MoodId == moodId);
         if (removed > 0)
         {
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
         }
     }
@@ -194,7 +186,6 @@ public abstract class Media : AggregateRoot
 
         var mediaGenre = new MediaGenre(Id, genreId);
         _mediaGenres.Add(mediaGenre);
-        ModifiedAtUtc = DateTime.UtcNow;
         RaiseUpdatedEvent();
 
         return mediaGenre;
@@ -210,40 +201,29 @@ public abstract class Media : AggregateRoot
         var removed = _mediaGenres.RemoveAll(g => g.GenreId == genreId);
         if (removed > 0)
         {
-            ModifiedAtUtc = DateTime.UtcNow;
             RaiseUpdatedEvent();
         }
-    }
-
-    public void UpdateVisuals(string posterUrl, string? backdropUrl = null)
-    {
-        if (string.IsNullOrWhiteSpace(posterUrl))
-            throw new ArgumentException("Poster URL cannot be empty.", nameof(posterUrl));
-
-        PosterUrl = posterUrl.Trim();
-        BackdropUrl = string.IsNullOrWhiteSpace(backdropUrl) ? null : backdropUrl.Trim();
-        ModifiedAtUtc = DateTime.UtcNow;
-
-        RaiseUpdatedEvent();
-    }
-
-    public void UpdateRatings(string? imdbId, double? imdbRating, int? imdbVotes, int releaseYear)
-    {
-        ValidateReleaseYear(releaseYear);
-        ValidateRatings(imdbRating, imdbVotes);
-
-        ImdbId = string.IsNullOrWhiteSpace(imdbId) ? null : imdbId.Trim();
-        ImdbRating = imdbRating;
-        ImdbVotes = imdbVotes;
-        ReleaseYear = releaseYear;
-        ModifiedAtUtc = DateTime.UtcNow;
-
-        RaiseUpdatedEvent();
     }
 
     public virtual void Delete(string? deletedBy = null)
     {
         SoftDelete(deletedBy);
+        foreach (var translation in _translations)
+        {
+            translation.SoftDelete(deletedBy);
+        }
+        foreach (var platform in _mediaPlatforms)
+        {
+            platform.SoftDelete(deletedBy);
+        }
+        foreach (var mood in _mediaMoods)
+        {
+            mood.SoftDelete(deletedBy);
+        }
+        foreach (var genre in _mediaGenres)
+        {
+            genre.SoftDelete(deletedBy);
+        }
         RaiseDomainEvent(new MediaDeletedDomainEvent(Id, MediaType));
     }
 

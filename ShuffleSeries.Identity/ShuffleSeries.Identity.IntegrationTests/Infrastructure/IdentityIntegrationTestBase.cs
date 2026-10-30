@@ -50,10 +50,10 @@ public abstract class IdentityIntegrationTestBase : IAsyncLifetime
 
             var permissions = new List<Permission>
             {
-                Permission.Create("catalog:read", "Catalog", "Read catalog"),
-                Permission.Create("catalog:create", "Catalog", "Create catalog"),
-                Permission.Create("shuffle:basic", "Shuffle", "Basic shuffle"),
-                Permission.Create("shuffle:vip", "Shuffle", "VIP shuffle")
+                Permission.Create(SystemPermissions.Catalog.MoviesRead, "Catalog", "Read movies"),
+                Permission.Create(SystemPermissions.Catalog.MoviesCreate, "Catalog", "Create movies"),
+                Permission.Create(SystemPermissions.ShuffleBasic, "Shuffle", "Basic shuffle"),
+                Permission.Create(SystemPermissions.ShuffleVip, "Shuffle", "VIP shuffle")
             };
             context.Permissions.AddRange(permissions);
             await context.SaveChangesAsync();
@@ -67,15 +67,15 @@ public abstract class IdentityIntegrationTestBase : IAsyncLifetime
             await context.SaveChangesAsync();
 
             var permMap = permissions.ToDictionary(p => p.Code, p => p.Id);
-            standardRole.AddPermission(permMap["catalog:read"]);
-            standardRole.AddPermission(permMap["shuffle:basic"]);
+            standardRole.AddPermission(permMap[SystemPermissions.Catalog.MoviesRead]);
+            standardRole.AddPermission(permMap[SystemPermissions.ShuffleBasic]);
 
-            guestRole.AddPermission(permMap["catalog:read"]);
-            guestRole.AddPermission(permMap["shuffle:basic"]);
+            guestRole.AddPermission(permMap[SystemPermissions.Catalog.MoviesRead]);
+            guestRole.AddPermission(permMap[SystemPermissions.ShuffleBasic]);
 
-            premiumRole.AddPermission(permMap["catalog:read"]);
-            premiumRole.AddPermission(permMap["shuffle:basic"]);
-            premiumRole.AddPermission(permMap["shuffle:vip"]);
+            premiumRole.AddPermission(permMap[SystemPermissions.Catalog.MoviesRead]);
+            premiumRole.AddPermission(permMap[SystemPermissions.ShuffleBasic]);
+            premiumRole.AddPermission(permMap[SystemPermissions.ShuffleVip]);
 
             foreach (var p in permissions)
             {

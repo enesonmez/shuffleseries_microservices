@@ -1,13 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using ShuffleSeries.Catalog.Api.Contracts.Requests.Series;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
-using ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
-using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesList;
 using ShuffleSeries.Catalog.Application.Features.Series.Responses;
 using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
-using ShuffleSeries.Shared.Core.Application.Responses;
 
 namespace ShuffleSeries.Catalog.IntegrationTests.Endpoints;
 
@@ -50,6 +48,7 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
             Title: "Severance",
             Overview: "Lumos mystery sci-fi series",
             Tagline: "Please do not attempt to leave",
+            TmdbId: 115746,
             ImdbId: "tt11280740",
             ImdbRating: 8.7,
             ImdbVotes: 180000,
@@ -76,6 +75,8 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
             seriesInDb.Should().NotBeNull();
             seriesInDb!.ReleaseYear.Should().Be(2022);
             seriesInDb.SeriesType.Should().Be(SeriesType.Standard);
+            seriesInDb.TmdbId.Should().Be(115746);
+            seriesInDb.ImdbId.Should().Be("tt11280740");
             seriesInDb.IsDeleted.Should().BeFalse();
             seriesInDb.Translations.Should().ContainSingle(t => t.Title == "Severance");
             seriesInDb.Translations.First().Overview.Should().Be("Lumos mystery sci-fi series");
@@ -90,26 +91,39 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     }
 
     [Fact]
-    public async Task CreateSeries_WithDuplicateTitle_ShouldReturn422UnprocessableEntity()
+    public async Task CreateSeries_WithDuplicateTmdbId_ShouldReturn409Conflict()
     {
         // Arrange
-        var command = new CreateSeriesCommand(
-            2008,
-            SeriesType.Standard,
-            "https://example.com/bb.jpg",
-            null,
-            "tr",
-            "Breaking Bad",
-            "Chemistry teacher turns kingpin");
+        var command1 = new CreateSeriesCommand(
+            TmdbId: 1396,
+            ImdbId: "tt0903747",
+            ReleaseYear: 2008,
+            SeriesType: SeriesType.Standard,
+            PosterUrl: "https://example.com/bb.jpg",
+            BackdropUrl: null,
+            LanguageCode: "tr",
+            Title: "Breaking Bad",
+            Overview: "Chemistry teacher turns kingpin");
 
-        var firstResponse = await Client.PostAsJsonAsync("api/catalog/series", command);
+        var firstResponse = await Client.PostAsJsonAsync("api/catalog/series", command1);
         firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        // Act (Aynı başlıkla ikinci kayıt)
-        var secondResponse = await Client.PostAsJsonAsync("api/catalog/series", command);
+        var command2 = new CreateSeriesCommand(
+            TmdbId: 1396,
+            ImdbId: "tt9999999",
+            ReleaseYear: 2008,
+            SeriesType: SeriesType.Standard,
+            PosterUrl: "https://example.com/bb2.jpg",
+            BackdropUrl: null,
+            LanguageCode: "tr",
+            Title: "Breaking Bad Remake",
+            Overview: "Chemistry teacher turns kingpin");
 
-        // Assert (BusinessException -> 422 Unprocessable Entity)
-        secondResponse.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        // Act (Aynı TmdbId ile ikinci kayıt)
+        var secondResponse = await Client.PostAsJsonAsync("api/catalog/series", command2);
+
+        // Assert (ConflictException -> 409 Conflict)
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
     [Fact]
@@ -117,13 +131,15 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     {
         // Arrange
         var createCommand = new CreateSeriesCommand(
-            2017,
-            SeriesType.Standard,
-            "https://example.com/dark.jpg",
-            null,
-            "tr",
-            "Dark",
-            "Winden time travel puzzle");
+            TmdbId: 70523,
+            ImdbId: "tt5753856",
+            ReleaseYear: 2017,
+            SeriesType: SeriesType.Standard,
+            PosterUrl: "https://example.com/dark.jpg",
+            BackdropUrl: null,
+            LanguageCode: "tr",
+            Title: "Dark",
+            Overview: "Winden time travel puzzle");
 
         var createResponse = await Client.PostAsJsonAsync("api/catalog/series", createCommand);
         var seriesId = await createResponse.Content.ReadFromJsonAsync<Guid>();
@@ -133,10 +149,12 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
 
         // Assert
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var seriesDto = await getResponse.Content.ReadFromJsonAsync<SeriesResponse>();
+        var seriesDto = await getResponse.Content.ReadFromJsonAsync<SeriesDetailResponse>();
         seriesDto.Should().NotBeNull();
         seriesDto!.Id.Should().Be(seriesId);
         seriesDto.Translations.Should().ContainSingle(t => t.Title == "Dark");
+        seriesDto.TmdbId.Should().Be(70523);
+        seriesDto.ImdbId.Should().Be("tt5753856");
     }
 
     [Fact]
@@ -154,13 +172,15 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     {
         // Arrange
         var createCommand = new CreateSeriesCommand(
-            2017,
-            SeriesType.Standard,
-            "https://example.com/mindhunter.jpg",
-            null,
-            "tr",
-            "Mindhunter",
-            "FBI behavioral science unit");
+            TmdbId: 67744,
+            ImdbId: "tt5290382",
+            ReleaseYear: 2017,
+            SeriesType: SeriesType.Standard,
+            PosterUrl: "https://example.com/mindhunter.jpg",
+            BackdropUrl: null,
+            LanguageCode: "tr",
+            Title: "Mindhunter",
+            Overview: "FBI behavioral science unit");
 
         var createResponse = await Client.PostAsJsonAsync("api/catalog/series", createCommand);
         var seriesId = await createResponse.Content.ReadFromJsonAsync<Guid>();
@@ -187,46 +207,19 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     }
 
     [Fact]
-    public async Task GetSeriesList_ShouldReturnPaginatedResults_FromRealPostgreSql()
-    {
-        // Arrange
-        for (var i = 1; i <= 3; i++)
-        {
-            var command = new CreateSeriesCommand(
-                2020 + i,
-                SeriesType.Standard,
-                $"https://example.com/poster{i}.jpg",
-                null,
-                "tr",
-                $"Integration Series {i}",
-                $"Integration Description {i}");
-
-            await Client.PostAsJsonAsync("api/catalog/series", command);
-        }
-
-        // Act (1. Sayfa, 2 öğe)
-        var response = await Client.GetAsync("api/catalog/series?page=1&pageSize=2");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var paginatedResult = await response.Content.ReadFromJsonAsync<PaginatedList<SeriesListItemResponse>>();
-        paginatedResult.Should().NotBeNull();
-        paginatedResult!.Items.Should().HaveCount(2);
-        paginatedResult.TotalCount.Should().BeGreaterThanOrEqualTo(3);
-    }
-
-    [Fact]
     public async Task CreateSeries_WithEmptyTitle_ShouldReturn400BadRequest_WhenValidationFails()
     {
         // Arrange
         var command = new CreateSeriesCommand(
-            2020,
-            SeriesType.Standard,
-            "https://example.com/poster.jpg",
-            null,
-            "tr",
-            "",
-            "Valid Description");
+            TmdbId: 99901,
+            ImdbId: "tt9990001",
+            ReleaseYear: 2020,
+            SeriesType: SeriesType.Standard,
+            PosterUrl: "https://example.com/poster.jpg",
+            BackdropUrl: null,
+            LanguageCode: "tr",
+            Title: "",
+            Overview: "Valid Description");
 
         // Act
         var response = await Client.PostAsJsonAsync("api/catalog/series", command);
@@ -240,28 +233,30 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     {
         // Arrange
         var createCommand = new CreateSeriesCommand(
-            2018,
-            SeriesType.Standard,
-            "https://example.com/succession.jpg",
-            null,
-            "tr",
-            "Succession",
-            "Media dynasty satire");
+            TmdbId: 76331,
+            ImdbId: "tt7660850",
+            ReleaseYear: 2018,
+            SeriesType: SeriesType.Standard,
+            PosterUrl: "https://example.com/succession.jpg",
+            BackdropUrl: null,
+            LanguageCode: "tr",
+            Title: "Succession",
+            Overview: "Media dynasty satire");
 
         var createResponse = await Client.PostAsJsonAsync("api/catalog/series", createCommand);
         var seriesId = await createResponse.Content.ReadFromJsonAsync<Guid>();
 
-        var updateCommand = new UpdateSeriesCommand(
-            seriesId,
-            2019,
-            SeriesType.Standard,
-            4,
-            "tt7660850",
-            8.9,
-            200000);
+        var updateRequest = new UpdateSeriesRequest(
+            TmdbId: 76331,
+            ImdbId: "tt7660850",
+            ReleaseYear: 2019,
+            SeriesType: SeriesType.Standard,
+            TotalSeasons: 4,
+            ImdbRating: 8.9,
+            ImdbVotes: 200000);
 
         // Act
-        var updateResponse = await Client.PutAsJsonAsync($"api/catalog/series/{seriesId}", updateCommand);
+        var updateResponse = await Client.PutAsJsonAsync($"api/catalog/series/{seriesId}", updateRequest);
 
         // Assert HTTP
         updateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -273,6 +268,7 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
             updated.Should().NotBeNull();
             updated!.ReleaseYear.Should().Be(2019);
             updated.TotalSeasons.Should().Be(4);
+            updated.TmdbId.Should().Be(76331);
             updated.ImdbId.Should().Be("tt7660850");
             updated.ImdbRating.Should().Be(8.9);
             updated.ModifiedAtUtc.Should().NotBeNull();
@@ -287,15 +283,19 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     }
 
     [Fact]
-    public async Task UpdateSeries_WhenIdMismatch_ShouldReturn400BadRequest()
+    public async Task UpdateSeries_WithInvalidPayload_ShouldReturn400BadRequest()
     {
-        // Arrange
-        var routeId = Guid.NewGuid();
-        var bodyId = Guid.NewGuid();
-        var command = new UpdateSeriesCommand(bodyId, 2020, SeriesType.Standard, 1);
+        // Arrange (ReleaseYear < 1888 is invalid)
+        var id = Guid.NewGuid();
+        var request = new UpdateSeriesRequest(
+            TmdbId: 10001,
+            ImdbId: "tt1000001",
+            ReleaseYear: 1800,
+            SeriesType: SeriesType.Standard,
+            TotalSeasons: 1);
 
         // Act
-        var response = await Client.PutAsJsonAsync($"api/catalog/series/{routeId}", command);
+        var response = await Client.PutAsJsonAsync($"api/catalog/series/{id}", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -306,10 +306,15 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
     {
         // Arrange
         var nonExistentId = Guid.NewGuid();
-        var command = new UpdateSeriesCommand(nonExistentId, 2020, SeriesType.Standard, 1);
+        var request = new UpdateSeriesRequest(
+            TmdbId: 10002,
+            ImdbId: "tt1000002",
+            ReleaseYear: 2020,
+            SeriesType: SeriesType.Standard,
+            TotalSeasons: 1);
 
         // Act
-        var response = await Client.PutAsJsonAsync($"api/catalog/series/{nonExistentId}", command);
+        var response = await Client.PutAsJsonAsync($"api/catalog/series/{nonExistentId}", request);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -323,18 +328,5 @@ public class SeriesEndpointsIntegrationTests : CatalogIntegrationTestBase
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task GetSeriesList_WithZeroOrNegativePage_ShouldNormalizeToPageOne_AndReturn200Ok()
-    {
-        // Act (Negatif veya 0 sayfa numarası gönderildiğinde mimarimiz güvenle Page=1'e normalize eder)
-        var response = await Client.GetAsync("api/catalog/series?page=0&pageSize=10");
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var result = await response.Content.ReadFromJsonAsync<PaginatedList<SeriesListItemResponse>>();
-        result.Should().NotBeNull();
-        result!.PageNumber.Should().Be(1);
     }
 }
