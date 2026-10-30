@@ -60,6 +60,12 @@ internal sealed class MemoryCatalogCacheService : ICatalogCacheService
         }
     }
 
+    public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
+    {
+        _memoryCache.Remove(key);
+        return Task.CompletedTask;
+    }
+
     public void Remove(string key)
     {
         _memoryCache.Remove(key);

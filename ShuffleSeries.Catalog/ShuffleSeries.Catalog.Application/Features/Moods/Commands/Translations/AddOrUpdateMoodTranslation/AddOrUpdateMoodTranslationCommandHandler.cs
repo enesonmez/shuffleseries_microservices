@@ -33,6 +33,6 @@ public sealed class AddOrUpdateMoodTranslationCommandHandler : IRequestHandler<A
         _moodRepository.Update(mood);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Moods);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Moods, cancellationToken);
     }
 }

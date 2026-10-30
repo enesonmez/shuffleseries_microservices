@@ -44,7 +44,7 @@ public sealed class CreateGenreCommandHandler : IRequestHandler<CreateGenreComma
         _genreRepository.Add(genre);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Genres);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Genres, cancellationToken);
 
         return genre.Id;
     }

@@ -78,11 +78,12 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.PostConfigure<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckServiceOptions>(options =>
             {
-                var brokerChecks = options.Registrations
-                    .Where(r => r.Name.Contains("masstransit", StringComparison.OrdinalIgnoreCase))
+                var externalChecks = options.Registrations
+                    .Where(r => r.Name.Contains("masstransit", StringComparison.OrdinalIgnoreCase) ||
+                                r.Name.Contains("redis", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-                foreach (var check in brokerChecks)
+                foreach (var check in externalChecks)
                 {
                     options.Registrations.Remove(check);
                 }

@@ -1,6 +1,7 @@
 using Moq;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
+using ShuffleSeries.Catalog.Application.Features.Moods.Models;
 using ShuffleSeries.Catalog.Application.Features.Moods.Queries.GetActiveMoods;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Repositories;
@@ -21,10 +22,10 @@ public class GetActiveMoodsQueryHandlerTests
         // Mock cache to directly invoke factory
         _cacheServiceMock.Setup(x => x.GetOrCreateAsync(
                 CatalogCacheKeys.Moods,
-                It.IsAny<Func<Task<List<Mood>>>>(),
+                It.IsAny<Func<Task<List<CachedMoodItem>>>>(),
                 It.IsAny<TimeSpan?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<string, Func<Task<List<Mood>>>, TimeSpan?, CancellationToken>(
+            .Returns<string, Func<Task<List<CachedMoodItem>>>, TimeSpan?, CancellationToken>(
                 (_, factory, _, _) => factory());
 
         _handler = new GetActiveMoodsQueryHandler(

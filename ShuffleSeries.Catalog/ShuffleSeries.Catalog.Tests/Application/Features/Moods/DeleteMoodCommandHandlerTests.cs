@@ -51,6 +51,6 @@ public class DeleteMoodCommandHandlerTests
         mood.IsDeleted.Should().BeTrue();
         _moodRepositoryMock.Verify(x => x.Delete(mood), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Moods), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Moods, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

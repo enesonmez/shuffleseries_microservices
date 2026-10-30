@@ -45,7 +45,7 @@ public class DeletePlatformCommandHandlerTests
         platform.IsDeleted.Should().BeTrue();
         _platformRepositoryMock.Verify(x => x.Delete(platform), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Platforms), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Platforms, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -65,6 +65,6 @@ public class DeletePlatformCommandHandlerTests
         await act.Should().ThrowAsync<PlatformNotFoundException>();
         _platformRepositoryMock.Verify(x => x.Delete(It.IsAny<Platform>()), Times.Never);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
-        _cacheServiceMock.Verify(x => x.Remove(It.IsAny<string>()), Times.Never);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

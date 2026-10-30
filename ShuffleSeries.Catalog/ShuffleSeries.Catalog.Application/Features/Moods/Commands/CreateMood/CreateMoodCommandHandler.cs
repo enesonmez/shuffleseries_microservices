@@ -47,7 +47,7 @@ public sealed class CreateMoodCommandHandler : IRequestHandler<CreateMoodCommand
         _moodRepository.Add(mood);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Moods);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Moods, cancellationToken);
 
         return mood.Id;
     }

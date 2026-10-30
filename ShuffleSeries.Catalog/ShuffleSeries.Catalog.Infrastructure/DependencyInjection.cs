@@ -9,6 +9,7 @@ using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure;
+using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
 using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
 
@@ -78,9 +79,10 @@ public static class DependencyInjection
             options.WaitForJobsToComplete = true;
         });
 
-        // In-Memory Önbellek & Metadata Read-Through Cache
+        // Redis & Önbellek Yapılandırması (Distributed Cache - Multi-Replica Consistency)
+        services.AddSharedRedis(configuration);
         services.AddMemoryCache();
-        services.AddSingleton<ShuffleSeries.Catalog.Application.Common.Interfaces.ICatalogCacheService, ShuffleSeries.Catalog.Infrastructure.Services.MemoryCatalogCacheService>();
+        services.AddSingleton<ShuffleSeries.Catalog.Application.Common.Interfaces.ICatalogCacheService, ShuffleSeries.Catalog.Infrastructure.Services.RedisCatalogCacheService>();
 
         // Interface - Somut Sınıf eşleşmeleri
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<CatalogDbContext>());

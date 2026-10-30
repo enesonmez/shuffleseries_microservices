@@ -33,6 +33,6 @@ public sealed class RemoveGenreTranslationCommandHandler : IRequestHandler<Remov
         _genreRepository.Update(genre);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Genres);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Genres, cancellationToken);
     }
 }

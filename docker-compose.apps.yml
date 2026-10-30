@@ -14,21 +14,15 @@ services:
       - Vault__Address=http://vault:8200
       - Vault__Token=${VAULT_ROOT_TOKEN:-root}
       - Vault__MountPoint=secret
-      - Vault__Optional=true
-      - ConnectionStrings__Database=Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB_NAME:-shuffleseries_db};Username=${POSTGRES_DB_USER:-admin};Password=${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!};
-      - MessageBroker__Host=${RABBITMQ_HOST:-rabbitmq}
-      - MessageBroker__Username=${RABBITMQ_USER:-guest_123}
-      - MessageBroker__Password=${RABBITMQ_PASSWORD:-guest_123}
-      - Jwt__Secret=${JWT_SECRET:-SuperSecretSecretKeyForJwtAuthenticationTokens2026!!}
-      - Jwt__Issuer=${JWT_ISSUER:-ShuffleSeries.Identity}
-      - Jwt__Audience=${JWT_AUDIENCE:-ShuffleSeries.Microservices}
-      - Jwt__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}
+      - Vault__Optional=false
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
       vault:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       vault_init:
         condition: service_completed_successfully
@@ -53,18 +47,7 @@ services:
       - Vault__Address=http://vault:8200
       - Vault__Token=${VAULT_ROOT_TOKEN:-root}
       - Vault__MountPoint=secret
-      - Vault__Optional=true
-      - ConnectionStrings__Database=Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_IDENTITY_DB_NAME:-shuffleseries_identity};Username=${POSTGRES_DB_USER:-admin};Password=${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!};
-      - MessageBroker__Host=${RABBITMQ_HOST:-rabbitmq}
-      - MessageBroker__Username=${RABBITMQ_USER:-guest_123}
-      - MessageBroker__Password=${RABBITMQ_PASSWORD:-guest_123}
-      - Redis__Host=${REDIS_HOST:-redis}
-      - Redis__Port=${REDIS_PORT:-6379}
-      - Redis__Password=${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!}
-      - Jwt__Secret=${JWT_SECRET:-SuperSecretSecretKeyForJwtAuthenticationTokens2026!!}
-      - Jwt__Issuer=${JWT_ISSUER:-ShuffleSeries.Identity}
-      - Jwt__Audience=${JWT_AUDIENCE:-ShuffleSeries.Microservices}
-      - Jwt__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}
+      - Vault__Optional=false
     depends_on:
       postgres:
         condition: service_healthy
@@ -97,15 +80,7 @@ services:
       - Vault__Address=http://vault:8200
       - Vault__Token=${VAULT_ROOT_TOKEN:-root}
       - Vault__MountPoint=secret
-      - Vault__Optional=true
-      - Redis__Host=${REDIS_HOST:-redis}
-      - Redis__Port=${REDIS_PORT:-6379}
-      - Redis__Password=${REDIS_PASSWORD:-SuperSecretRedisPassword2026!!}
-      - Jwt__Secret=${JWT_SECRET:-SuperSecretSecretKeyForJwtAuthenticationTokens2026!!}
-      - Jwt__Issuer=${JWT_ISSUER:-ShuffleSeries.Identity}
-      - Jwt__Audience=${JWT_AUDIENCE:-ShuffleSeries.Microservices}
-      - ReverseProxy__Clusters__catalog-cluster__Destinations__destination1__Address=http://catalog.api:8080
-      - ReverseProxy__Clusters__identity-cluster__Destinations__destination1__Address=http://identity.api:8080
+      - Vault__Optional=false
     depends_on:
       catalog-api:
         condition: service_started
@@ -115,6 +90,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      vault_init:
+        condition: service_completed_successfully
     networks:
       shuffle_network:
         aliases:

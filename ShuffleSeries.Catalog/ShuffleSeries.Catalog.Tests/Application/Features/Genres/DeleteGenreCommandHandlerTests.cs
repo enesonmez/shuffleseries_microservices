@@ -51,6 +51,6 @@ public class DeleteGenreCommandHandlerTests
         genre.IsDeleted.Should().BeTrue();
         _genreRepositoryMock.Verify(x => x.Delete(genre), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Genres), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Genres, It.IsAny<CancellationToken>()), Times.Once);
     }
 }
