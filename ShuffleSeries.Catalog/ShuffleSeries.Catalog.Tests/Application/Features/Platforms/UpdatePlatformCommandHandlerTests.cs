@@ -57,7 +57,7 @@ public class UpdatePlatformCommandHandlerTests
         platform.BaseAppSchemeUrl.Should().Be("netflix://");
         _platformRepositoryMock.Verify(x => x.Update(platform), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Platforms), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Platforms, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

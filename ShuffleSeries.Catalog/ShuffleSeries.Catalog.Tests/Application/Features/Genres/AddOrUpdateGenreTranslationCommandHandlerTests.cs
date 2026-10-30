@@ -60,6 +60,6 @@ public class AddOrUpdateGenreTranslationCommandHandlerTests
         genre.Translations.Should().ContainSingle(t => t.LanguageCode == "tr" && t.Name == "Yeni Aksiyon");
         _genreRepositoryMock.Verify(x => x.Update(genre), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Genres), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Genres, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -68,6 +68,6 @@ public class CreateMoodCommandHandlerTests
         result.Should().NotBeEmpty();
         _moodRepositoryMock.Verify(x => x.Add(It.Is<Mood>(m => m.Code == "chill")), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Moods), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Moods, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

@@ -2,6 +2,7 @@ using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Extensions;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
+using ShuffleSeries.Catalog.Application.Features.Moods.Models;
 using ShuffleSeries.Catalog.Application.Features.Moods.Responses;
 using ShuffleSeries.Catalog.Domain.Repositories;
 
@@ -32,7 +33,19 @@ public sealed class GetActiveMoodsQueryHandler : IRequestHandler<GetActiveMoodsQ
             async () =>
             {
                 var list = await _moodRepository.GetActiveMoodsWithTranslationsAsync(cancellationToken);
-                return list.OrderBy(m => m.DisplayOrder).ToList();
+                return list
+                    .OrderBy(m => m.DisplayOrder)
+                    .Select(m => new CachedMoodItem(
+                        m.Id,
+                        m.Code,
+                        m.AmbientColorHex,
+                        m.IconUrl,
+                        m.DisplayOrder,
+                        m.IsActive,
+                        m.Translations
+                            .Select(t => new CachedMoodTranslationItem(t.LanguageCode.Value, t.Name, t.Description ?? string.Empty, t.VibeTags))
+                            .ToList()))
+                    .ToList();
             },
             CatalogCacheKeys.DefaultMetadataExpiration,
             cancellationToken);
@@ -42,7 +55,7 @@ public sealed class GetActiveMoodsQueryHandler : IRequestHandler<GetActiveMoodsQ
             {
                 var localized = m.GetLocalizedTranslation(targetLanguage);
                 var translations = m.Translations
-                    .Select(t => new MoodTranslationResponse(t.LanguageCode.Value, t.Name, t.Description, t.VibeTags))
+                    .Select(t => new MoodTranslationResponse(t.LanguageCode, t.Name, t.Description, t.VibeTags))
                     .ToList();
 
                 return new MoodResponse(

@@ -73,6 +73,6 @@ public class UpdateGenreCommandHandlerTests
 
         _genreRepositoryMock.Verify(x => x.Update(genre), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Genres), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Genres, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

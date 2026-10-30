@@ -32,6 +32,6 @@ public sealed class DeleteMoodCommandHandler : IRequestHandler<DeleteMoodCommand
         _moodRepository.Delete(mood);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Moods);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Moods, cancellationToken);
     }
 }

@@ -44,7 +44,7 @@ public sealed class CreatePlatformCommandHandler : IRequestHandler<CreatePlatfor
         _platformRepository.Add(platform);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Platforms);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Platforms, cancellationToken);
 
         return platform.Id;
     }

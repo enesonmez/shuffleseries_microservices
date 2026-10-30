@@ -40,6 +40,6 @@ public sealed class UpdateGenreCommandHandler : IRequestHandler<UpdateGenreComma
         _genreRepository.Update(genre);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Genres);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Genres, cancellationToken);
     }
 }

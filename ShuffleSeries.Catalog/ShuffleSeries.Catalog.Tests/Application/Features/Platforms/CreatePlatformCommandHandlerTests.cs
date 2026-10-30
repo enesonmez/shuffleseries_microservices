@@ -51,7 +51,7 @@ public class CreatePlatformCommandHandlerTests
         result.Should().NotBeEmpty();
         _platformRepositoryMock.Verify(x => x.Add(It.Is<Platform>(p => p.Slug == "hbo-max")), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Platforms), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Platforms, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]

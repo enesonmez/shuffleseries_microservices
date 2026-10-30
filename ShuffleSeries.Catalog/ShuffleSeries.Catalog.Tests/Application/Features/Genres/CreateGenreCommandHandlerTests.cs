@@ -62,6 +62,6 @@ public class CreateGenreCommandHandlerTests
         result.Should().NotBeEmpty();
         _genreRepositoryMock.Verify(x => x.Add(It.Is<Genre>(g => g.Code == "sci-fi")), Times.Once);
         _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
-        _cacheServiceMock.Verify(x => x.Remove(CatalogCacheKeys.Genres), Times.Once);
+        _cacheServiceMock.Verify(x => x.RemoveAsync(CatalogCacheKeys.Genres, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

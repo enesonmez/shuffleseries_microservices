@@ -1,6 +1,7 @@
 using Moq;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
+using ShuffleSeries.Catalog.Application.Features.Genres.Models;
 using ShuffleSeries.Catalog.Application.Features.Genres.Queries.GetActiveGenres;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Repositories;
@@ -21,10 +22,10 @@ public class GetActiveGenresQueryHandlerTests
         // Mock cache to directly invoke factory
         _cacheServiceMock.Setup(x => x.GetOrCreateAsync(
                 CatalogCacheKeys.Genres,
-                It.IsAny<Func<Task<List<Genre>>>>(),
+                It.IsAny<Func<Task<List<CachedGenreItem>>>>(),
                 It.IsAny<TimeSpan?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<string, Func<Task<List<Genre>>>, TimeSpan?, CancellationToken>(
+            .Returns<string, Func<Task<List<CachedGenreItem>>>, TimeSpan?, CancellationToken>(
                 (_, factory, _, _) => factory());
 
         _handler = new GetActiveGenresQueryHandler(

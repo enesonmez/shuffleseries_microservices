@@ -32,6 +32,6 @@ public sealed class DeleteGenreCommandHandler : IRequestHandler<DeleteGenreComma
         _genreRepository.Delete(genre);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Genres);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Genres, cancellationToken);
     }
 }

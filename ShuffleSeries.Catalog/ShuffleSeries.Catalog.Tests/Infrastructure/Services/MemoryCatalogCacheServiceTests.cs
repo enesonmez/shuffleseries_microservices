@@ -87,4 +87,24 @@ public class MemoryCatalogCacheServiceTests : IDisposable
         result2.Should().Be("val_2");
         callCount.Should().Be(2);
     }
+
+    [Fact]
+    public async Task RemoveAsync_Should_EvictKeyFromCache()
+    {
+        var callCount = 0;
+        Task<string> Factory()
+        {
+            callCount++;
+            return Task.FromResult($"val_{callCount}");
+        }
+
+        var result1 = await _service.GetOrCreateAsync("evict-async-key", Factory);
+        result1.Should().Be("val_1");
+
+        await _service.RemoveAsync("evict-async-key");
+
+        var result2 = await _service.GetOrCreateAsync("evict-async-key", Factory);
+        result2.Should().Be("val_2");
+        callCount.Should().Be(2);
+    }
 }

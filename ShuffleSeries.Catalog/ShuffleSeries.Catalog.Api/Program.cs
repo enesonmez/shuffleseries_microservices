@@ -4,6 +4,7 @@ using ShuffleSeries.Catalog.Infrastructure;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
 using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
+using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Web;
 using ShuffleSeries.Shared.Core.Web.Authentication;
 using ShuffleSeries.Shared.Core.Web.Correlation;
@@ -30,6 +31,7 @@ builder.Services.AddSharedOpenTelemetry(builder.Configuration, "Catalog.Api");
 
 // Add Standard Health Checks (Liveness & Readiness)
 builder.Services.AddSharedHealthChecks();
+builder.Services.AddSharedRedisHealthCheck();
 
 // Add Swagger & OpenAPI Documentation
 builder.Services.AddSharedSwagger(options =>

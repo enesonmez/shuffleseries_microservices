@@ -47,6 +47,6 @@ public sealed class UpdatePlatformCommandHandler : IRequestHandler<UpdatePlatfor
         _platformRepository.Update(platform);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _cacheService.Remove(CatalogCacheKeys.Platforms);
+        await _cacheService.RemoveAsync(CatalogCacheKeys.Platforms, cancellationToken);
     }
 }
