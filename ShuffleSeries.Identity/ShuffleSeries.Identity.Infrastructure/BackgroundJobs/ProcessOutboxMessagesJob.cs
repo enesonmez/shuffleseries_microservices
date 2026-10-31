@@ -39,11 +39,13 @@ public sealed class ProcessOutboxMessagesJob : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
+        var cancellationToken = context?.CancellationToken ?? CancellationToken.None;
+
         var messages = await _dbContext.OutboxMessages
             .Where(m => m.ProcessedOnUtc == null && m.RetryCount < MaxRetries)
             .OrderBy(m => m.OccurredOnUtc)
             .Take(20)
-            .ToListAsync(context.CancellationToken);
+            .ToListAsync(cancellationToken);
 
         if (messages.Count == 0)
         {
@@ -52,10 +54,10 @@ public sealed class ProcessOutboxMessagesJob : IJob
 
         foreach (var outboxMessage in messages)
         {
-            await ProcessSingleMessageAsync(outboxMessage, context.CancellationToken);
+            await ProcessSingleMessageAsync(outboxMessage, cancellationToken);
         }
 
-        await _dbContext.SaveChangesAsync(context.CancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task ProcessSingleMessageAsync(OutboxMessage outboxMessage, CancellationToken cancellationToken)

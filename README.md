@@ -209,7 +209,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 | **Secret Management** | HashiCorp Vault (KV-v2 engine, automated seeding) |
 | **Resilience** | Polly (Retry, Circuit Breaker, Fallback) |
 | **Observability** | OpenTelemetry, Serilog, Prometheus, Jaeger |
-| **Testing Architecture** | xUnit, AwesomeAssertions, Moq, NetArchTest.Rules, Testcontainers (PostgreSQL), WebApplicationFactory, Respawn, Coverlet |
+| **Testing Architecture** | xUnit, AwesomeAssertions, Moq, NetArchTest.Rules, Testcontainers (PostgreSQL, Redis, RabbitMQ), WebApplicationFactory, Respawn, Coverlet |
 | **CI/CD & Quality** | GitHub Actions, SonarQube / SonarCloud, Docker Buildx |
 
 ---
@@ -405,17 +405,17 @@ dotnet build
 ShuffleSeries enforces a strict, multi-tiered testing strategy:
 - **Unit Tests (`ShuffleSeries.Shared.Core.Tests`, `ShuffleSeries.Catalog.Tests`, `ShuffleSeries.Identity.Tests`):** Fast, isolated tests for domain entities, validation logic, and CQRS handlers.
 - **Architecture Dependency Tests (`ShuffleSeries.ArchitectureTests`):** Architectural Fitness Functions via `NetArchTest.Rules` verifying layer boundaries (Domain, Application, Infrastructure, Api), command-validator pairings, aggregate root encapsulation, and CQRS/DDD conventions across all microservices.
-- **Real Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`, `ShuffleSeries.Identity.IntegrationTests`, `ShuffleSeries.ApiGateway.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (PostgreSQL), and `Respawn` for lightning-fast sub-second table resets.
+- **Real Infrastructure Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`, `ShuffleSeries.Identity.IntegrationTests`, `ShuffleSeries.ApiGateway.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (**PostgreSQL, Redis & RabbitMQ**), `Respawn` and Redis `allowAdmin` database flushes for clean isolation, plus deterministic on-demand outbox message dispatching.
 - **Master E2E & Penetration Testing Suite (`e2e_tests/`):** 175 comprehensive integration and adversarial penetration tests through YARP API Gateway covering SSRF, SQLi/Trigram blind fuzzing, BOLA/IDOR, ReDoS/DoS, HTTP Parameter Pollution, and JWT Algorithm Confusion.
 
 ```bash
-# Run all 806 tests across the entire solution
+# Run all 858 tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)
 dotnet test ShuffleSeries.ArchitectureTests/ShuffleSeries.ArchitectureTests.csproj
 
-# Run Real Integration Tests (with Testcontainers PostgreSQL)
+# Run Real Integration Tests (with Testcontainers PostgreSQL, Redis & RabbitMQ)
 dotnet test ShuffleSeries.Catalog/ShuffleSeries.Catalog.IntegrationTests/ShuffleSeries.Catalog.IntegrationTests.csproj
 dotnet test ShuffleSeries.Identity/ShuffleSeries.Identity.IntegrationTests/ShuffleSeries.Identity.IntegrationTests.csproj
 dotnet test ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.IntegrationTests/ShuffleSeries.ApiGateway.IntegrationTests.csproj

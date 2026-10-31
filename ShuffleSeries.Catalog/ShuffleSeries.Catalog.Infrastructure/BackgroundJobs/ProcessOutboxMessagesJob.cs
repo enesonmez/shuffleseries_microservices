@@ -28,11 +28,13 @@ public sealed class ProcessOutboxMessagesJob : IJob
 
     public async Task Execute(IJobExecutionContext context)
     {
+        var cancellationToken = context?.CancellationToken ?? CancellationToken.None;
+
         var messages = await _dbContext.OutboxMessages
             .Where(m => m.ProcessedOnUtc == null && m.RetryCount < MaxRetries)
             .OrderBy(m => m.OccurredOnUtc)
             .Take(20)
-            .ToListAsync(context.CancellationToken);
+            .ToListAsync(cancellationToken);
 
         if (messages.Count == 0)
         {
@@ -61,7 +63,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     continue;
                 }
 
-                await _publishEndpoint.Publish(domainEvent, eventType, context.CancellationToken);
+                await _publishEndpoint.Publish(domainEvent, eventType, cancellationToken);
 
                 outboxMessage.ProcessedOnUtc = TimeProvider.System.GetUtcNow().UtcDateTime;
                 outboxMessage.Error = null;
@@ -73,6 +75,6 @@ public sealed class ProcessOutboxMessagesJob : IJob
             }
         }
 
-        await _dbContext.SaveChangesAsync(context.CancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

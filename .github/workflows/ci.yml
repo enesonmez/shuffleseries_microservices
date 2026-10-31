@@ -20,12 +20,14 @@ jobs:
   build-and-test:
     name: Build, Test & SonarQube Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      TESTCONTAINERS_RYUK_DISABLED: "true"
 
     steps:
       - name: 📥 Checkout Repository
@@ -80,13 +82,22 @@ jobs:
       - name: 🔨 Build Solution (Release Mode)
         run: dotnet build --no-restore --configuration Release
 
+      - name: 🐳 Pre-pull Testcontainer Images (Prevent Pull Delays)
+        run: |
+          docker pull postgres:16-alpine &
+          docker pull redis:7-alpine &
+          docker pull rabbitmq:3-management-alpine &
+          wait
+
       - name: 🧪 Execute Unit & Integration Tests (with Coverage)
+        timeout-minutes: 12
         run: |
           dotnet test --no-build --configuration Release \
             --settings coverage.runsettings \
             --collect:"XPlat Code Coverage" \
             --results-directory ./TestResults \
-            --logger "trx"
+            --logger "trx" \
+            --blame-hang --blame-hang-timeout 2m
 
       - name: 🏁 End SonarQube Analysis & Upload Quality Gate Report
         if: env.SONAR_TOKEN != ''

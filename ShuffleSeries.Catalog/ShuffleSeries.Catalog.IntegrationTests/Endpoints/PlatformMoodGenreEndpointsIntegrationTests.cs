@@ -339,4 +339,91 @@ public class PlatformMoodGenreEndpointsIntegrationTests : CatalogIntegrationTest
             t.DeletedAtUtc.Should().NotBeNull();
         });
     }
+
+    [Fact]
+    public async Task AddAndRemoveMoodTranslation_ShouldPersist_AndInvalidateCache()
+    {
+        // Arrange - Create a mood with default TR translation
+        var createRequest = new CreateMoodRequest(
+            Code: "retro-wave",
+            AmbientColorHex: "#9900ff",
+            Name: "Retro Dalgası",
+            Description: "80'ler synthwave ve neon atmosferi.",
+            LanguageCode: "tr",
+            VibeTags: "neon,synth,80s");
+
+        var createResponse = await Client.PostAsJsonAsync("api/catalog/moods", createRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var moodId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+
+        // Act 1 - Add English Translation
+        var addTransRequest = new AddOrUpdateMoodTranslationRequest(
+            LanguageCode: "en",
+            Name: "Retro Wave",
+            Description: "80s synthwave and neon atmosphere.",
+            VibeTags: "neon,synthwave,retro");
+
+        var addResponse = await Client.PostAsJsonAsync($"api/catalog/moods/{moodId}/translations", addTransRequest);
+        addResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Assert 1 - Active moods with lang=en returns English name
+        var getEnResponse = await Client.GetAsync("api/catalog/moods?lang=en");
+        var moodsEn = await getEnResponse.Content.ReadFromJsonAsync<IReadOnlyList<MoodResponse>>();
+        var moodEn = moodsEn!.FirstOrDefault(m => m.Id == moodId);
+        moodEn.Should().NotBeNull();
+        moodEn!.Name.Should().Be("Retro Wave");
+
+        // Act 2 - Remove English Translation
+        var deleteResponse = await Client.DeleteAsync($"api/catalog/moods/{moodId}/translations/en");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Assert 2 - Subsequent GET with lang=en falls back to Turkish (since EN is removed)
+        var getFallbackResponse = await Client.GetAsync("api/catalog/moods?lang=en");
+        var moodsFallback = await getFallbackResponse.Content.ReadFromJsonAsync<IReadOnlyList<MoodResponse>>();
+        var moodFallback = moodsFallback!.FirstOrDefault(m => m.Id == moodId);
+        moodFallback.Should().NotBeNull();
+        moodFallback!.Name.Should().Be("Retro Dalgası");
+    }
+
+    [Fact]
+    public async Task AddAndRemoveGenreTranslation_ShouldPersist_AndInvalidateCache()
+    {
+        // Arrange - Create a genre with default TR translation
+        var createRequest = new CreateGenreRequest(
+            Code: "post-apocalyptic",
+            Name: "Kıyamet Sonrası",
+            LanguageCode: "tr",
+            Description: "Medeniyetin çöktüğü distopik dünyalar.");
+
+        var createResponse = await Client.PostAsJsonAsync("api/catalog/genres", createRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var genreId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+
+        // Act 1 - Add English Translation
+        var addTransRequest = new AddOrUpdateGenreTranslationRequest(
+            LanguageCode: "en",
+            Name: "Post-Apocalyptic",
+            Description: "Dystopian worlds after civilization collapse.");
+
+        var addResponse = await Client.PostAsJsonAsync($"api/catalog/genres/{genreId}/translations", addTransRequest);
+        addResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Assert 1 - Active genres with lang=en returns English name
+        var getEnResponse = await Client.GetAsync("api/catalog/genres?lang=en");
+        var genresEn = await getEnResponse.Content.ReadFromJsonAsync<IReadOnlyList<GenreResponse>>();
+        var genreEn = genresEn!.FirstOrDefault(g => g.Id == genreId);
+        genreEn.Should().NotBeNull();
+        genreEn!.Name.Should().Be("Post-Apocalyptic");
+
+        // Act 2 - Remove English Translation
+        var deleteResponse = await Client.DeleteAsync($"api/catalog/genres/{genreId}/translations/en");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Assert 2 - Subsequent GET with lang=en falls back to Turkish (since EN is removed)
+        var getFallbackResponse = await Client.GetAsync("api/catalog/genres?lang=en");
+        var genresFallback = await getFallbackResponse.Content.ReadFromJsonAsync<IReadOnlyList<GenreResponse>>();
+        var genreFallback = genresFallback!.FirstOrDefault(g => g.Id == genreId);
+        genreFallback.Should().NotBeNull();
+        genreFallback!.Name.Should().Be("Kıyamet Sonrası");
+    }
 }

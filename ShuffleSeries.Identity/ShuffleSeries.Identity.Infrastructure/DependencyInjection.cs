@@ -48,11 +48,24 @@ public static class DependencyInjection
 
             busConfigurator.UsingRabbitMq((context, configurator) =>
             {
-                configurator.Host(configuration["MessageBroker:Host"] ?? "localhost", "/", host =>
+                var host = configuration["MessageBroker:Host"] ?? "localhost";
+                var portStr = configuration["MessageBroker:Port"];
+                if (ushort.TryParse(portStr, out var port))
                 {
-                    host.Username(configuration["MessageBroker:Username"] ?? "guest");
-                    host.Password(configuration["MessageBroker:Password"] ?? "guest");
-                });
+                    configurator.Host(host, port, "/", h =>
+                    {
+                        h.Username(configuration["MessageBroker:Username"] ?? "guest");
+                        h.Password(configuration["MessageBroker:Password"] ?? "guest");
+                    });
+                }
+                else
+                {
+                    configurator.Host(host, "/", h =>
+                    {
+                        h.Username(configuration["MessageBroker:Username"] ?? "guest");
+                        h.Password(configuration["MessageBroker:Password"] ?? "guest");
+                    });
+                }
 
                 configurator.ConfigureEndpoints(context);
             });
