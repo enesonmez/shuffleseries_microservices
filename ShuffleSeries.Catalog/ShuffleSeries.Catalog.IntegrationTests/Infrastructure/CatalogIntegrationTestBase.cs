@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
+using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 
@@ -34,14 +35,21 @@ public abstract class CatalogIntegrationTestBase : IAsyncLifetime
         return client;
     }
 
-    // Her test metodundan önce veritabanı şemasını silmeden tabloları temizle ve seed verisini tazele
+    // Her test metodundan önce veritabanı şemasını silmeden tabloları temizle, Redis'i flush'la ve seed verisini tazele
     public virtual async Task InitializeAsync()
     {
-        await Factory.ResetDatabaseAsync();
+        await Factory.ResetStateAsync();
         await EnsureCatalogDataSeededAsync();
     }
 
     public virtual Task DisposeAsync() => Task.CompletedTask;
+
+    protected async Task TriggerOutboxJobAsync()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var job = scope.ServiceProvider.GetRequiredService<ProcessOutboxMessagesJob>();
+        await job.Execute(null!);
+    }
 
     protected async Task EnsureCatalogDataSeededAsync()
     {

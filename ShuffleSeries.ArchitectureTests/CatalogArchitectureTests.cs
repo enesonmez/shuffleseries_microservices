@@ -421,6 +421,23 @@ public class CatalogArchitectureTests
         }
     }
 
+    [Fact]
+    public void CacheServices_Implementing_ICatalogCacheService_ShouldBeSealed()
+    {
+        var cacheServiceTypes = _infrastructureAssembly.GetTypes()
+            .Where(t => typeof(ShuffleSeries.Catalog.Application.Common.Interfaces.ICatalogCacheService).IsAssignableFrom(t)
+                        && t is { IsClass: true, IsAbstract: false })
+            .ToList();
+
+        cacheServiceTypes.Should().NotBeEmpty("Altyapıda ICatalogCacheService uygulayan en az bir servis bulunmalıdır.");
+
+        foreach (var service in cacheServiceTypes)
+        {
+            service.IsSealed.Should().BeTrue(
+                $"ICatalogCacheService uygulayan '{service.Name}' sınıfı performans ve güvenlik için 'sealed' olmalıdır.");
+        }
+    }
+
     #endregion
 }
 

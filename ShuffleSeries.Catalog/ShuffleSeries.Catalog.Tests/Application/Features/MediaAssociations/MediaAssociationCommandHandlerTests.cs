@@ -1,12 +1,17 @@
 using Moq;
 using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Genres.AddMediaGenre;
+using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Genres.RemoveMediaGenre;
 using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Moods.AddMediaMood;
+using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Moods.RemoveMediaMood;
 using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Platforms.AddMediaPlatform;
+using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Platforms.RemoveMediaPlatform;
 using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Translations.AddOrUpdateMediaTranslation;
+using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Translations.RemoveMediaTranslation;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Domain.ValueObjects;
 
 namespace ShuffleSeries.Catalog.Tests.Application.Features.MediaAssociations;
 
@@ -17,6 +22,8 @@ public class MediaAssociationCommandHandlerTests
     private readonly Mock<IMoodRepository> _moodRepositoryMock = new();
     private readonly Mock<IGenreRepository> _genreRepositoryMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
+
+    #region Add Operations
 
     [Fact]
     public async Task AddOrUpdateTranslation_Should_ThrowMediaNotFoundException_When_MediaDoesNotExist()
@@ -102,4 +109,146 @@ public class MediaAssociationCommandHandlerTests
 
         await action.Should().ThrowAsync<GenreNotFoundException>();
     }
+
+    #endregion
+
+    #region Remove Operations
+
+    [Fact]
+    public async Task RemoveMediaPlatform_Should_RemovePlatformAndSave_When_MediaExists()
+    {
+        var handler = new RemoveMediaPlatformCommandHandler(_mediaRepositoryMock.Object, _unitOfWorkMock.Object);
+        var movie = Movie.Create(550, "tt0137523", 2020, 100, "https://example.com/p.jpg");
+        var platformId = Guid.NewGuid();
+        movie.AddPlatform(platformId, "https://netflix.com/watch");
+
+        var command = new RemoveMediaPlatformCommand(movie.Id, platformId);
+
+        _mediaRepositoryMock.Setup(x => x.GetByIdWithPlatformsAsync(command.MediaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(movie);
+
+        await handler.Handle(command, CancellationToken.None);
+
+        movie.MediaPlatforms.Should().BeEmpty();
+        _mediaRepositoryMock.Verify(x => x.Update(movie), Times.Once);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveMediaPlatform_Should_ThrowMediaNotFoundException_When_MediaDoesNotExist()
+    {
+        var handler = new RemoveMediaPlatformCommandHandler(_mediaRepositoryMock.Object, _unitOfWorkMock.Object);
+        var command = new RemoveMediaPlatformCommand(Guid.NewGuid(), Guid.NewGuid());
+
+        _mediaRepositoryMock.Setup(x => x.GetByIdWithPlatformsAsync(command.MediaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Media?)null);
+
+        var action = async () => await handler.Handle(command, CancellationToken.None);
+
+        await action.Should().ThrowAsync<MediaNotFoundException>();
+    }
+
+    [Fact]
+    public async Task RemoveMediaMood_Should_RemoveMoodAndSave_When_MediaExists()
+    {
+        var handler = new RemoveMediaMoodCommandHandler(_mediaRepositoryMock.Object, _unitOfWorkMock.Object);
+        var movie = Movie.Create(550, "tt0137523", 2020, 100, "https://example.com/p.jpg");
+        var moodId = Guid.NewGuid();
+        movie.AddMood(moodId);
+
+        var command = new RemoveMediaMoodCommand(movie.Id, moodId);
+
+        _mediaRepositoryMock.Setup(x => x.GetByIdWithMoodsAsync(command.MediaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(movie);
+
+        await handler.Handle(command, CancellationToken.None);
+
+        movie.MediaMoods.Should().BeEmpty();
+        _mediaRepositoryMock.Verify(x => x.Update(movie), Times.Once);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveMediaMood_Should_ThrowMediaNotFoundException_When_MediaDoesNotExist()
+    {
+        var handler = new RemoveMediaMoodCommandHandler(_mediaRepositoryMock.Object, _unitOfWorkMock.Object);
+        var command = new RemoveMediaMoodCommand(Guid.NewGuid(), Guid.NewGuid());
+
+        _mediaRepositoryMock.Setup(x => x.GetByIdWithMoodsAsync(command.MediaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Media?)null);
+
+        var action = async () => await handler.Handle(command, CancellationToken.None);
+
+        await action.Should().ThrowAsync<MediaNotFoundException>();
+    }
+
+    [Fact]
+    public async Task RemoveMediaGenre_Should_RemoveGenreAndSave_When_MediaExists()
+    {
+        var handler = new RemoveMediaGenreCommandHandler(_mediaRepositoryMock.Object, _unitOfWorkMock.Object);
+        var movie = Movie.Create(550, "tt0137523", 2020, 100, "https://example.com/p.jpg");
+        var genreId = Guid.NewGuid();
+        movie.AddGenre(genreId);
+
+        var command = new RemoveMediaGenreCommand(movie.Id, genreId);
+
+        _mediaRepositoryMock.Setup(x => x.GetByIdWithGenresAsync(command.MediaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(movie);
+
+        await handler.Handle(command, CancellationToken.None);
+
+        movie.MediaGenres.Should().BeEmpty();
+        _mediaRepositoryMock.Verify(x => x.Update(movie), Times.Once);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveMediaGenre_Should_ThrowMediaNotFoundException_When_MediaDoesNotExist()
+    {
+        var handler = new RemoveMediaGenreCommandHandler(_mediaRepositoryMock.Object, _unitOfWorkMock.Object);
+        var command = new RemoveMediaGenreCommand(Guid.NewGuid(), Guid.NewGuid());
+
+        _mediaRepositoryMock.Setup(x => x.GetByIdWithGenresAsync(command.MediaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Media?)null);
+
+        var action = async () => await handler.Handle(command, CancellationToken.None);
+
+        await action.Should().ThrowAsync<MediaNotFoundException>();
+    }
+
+    [Fact]
+    public async Task RemoveMediaTranslation_Should_RemoveTranslationAndSave_When_MediaExists()
+    {
+        var handler = new RemoveMediaTranslationCommandHandler(_mediaRepositoryMock.Object, _unitOfWorkMock.Object);
+        var movie = Movie.Create(550, "tt0137523", 2020, 100, "https://example.com/p.jpg");
+        movie.AddOrUpdateTranslation(LanguageCode.Turkish, "Türkçe", "Özet");
+        movie.AddOrUpdateTranslation(LanguageCode.English, "English", "Overview");
+
+        var command = new RemoveMediaTranslationCommand(movie.Id, "en");
+
+        _mediaRepositoryMock.Setup(x => x.GetByIdWithTranslationsAsync(command.MediaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(movie);
+
+        await handler.Handle(command, CancellationToken.None);
+
+        movie.Translations.Should().NotContain(t => t.LanguageCode == LanguageCode.English);
+        _mediaRepositoryMock.Verify(x => x.Update(movie), Times.Once);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveMediaTranslation_Should_ThrowMediaNotFoundException_When_MediaDoesNotExist()
+    {
+        var handler = new RemoveMediaTranslationCommandHandler(_mediaRepositoryMock.Object, _unitOfWorkMock.Object);
+        var command = new RemoveMediaTranslationCommand(Guid.NewGuid(), "tr");
+
+        _mediaRepositoryMock.Setup(x => x.GetByIdWithTranslationsAsync(command.MediaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Media?)null);
+
+        var action = async () => await handler.Handle(command, CancellationToken.None);
+
+        await action.Should().ThrowAsync<MediaNotFoundException>();
+    }
+
+    #endregion
 }

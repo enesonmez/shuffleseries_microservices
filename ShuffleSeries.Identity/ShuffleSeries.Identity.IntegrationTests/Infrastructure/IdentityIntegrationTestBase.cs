@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Identity.Domain.Entities;
+using ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Identity.Infrastructure.Persistence;
 
 namespace ShuffleSeries.Identity.IntegrationTests.Infrastructure;
@@ -19,11 +20,18 @@ public abstract class IdentityIntegrationTestBase : IAsyncLifetime
 
     public virtual async Task InitializeAsync()
     {
-        await Factory.ResetDatabaseAsync();
+        await Factory.ResetStateAsync();
         await EnsureRolesAndPermissionsSeededAsync();
     }
 
     public virtual Task DisposeAsync() => Task.CompletedTask;
+
+    protected async Task TriggerOutboxJobAsync()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var job = scope.ServiceProvider.GetRequiredService<ProcessOutboxMessagesJob>();
+        await job.Execute(null!);
+    }
 
     protected async Task ExecuteDbContextAsync(Func<IdentityDbContext, Task> action)
     {
