@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Enums;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
@@ -19,4 +18,4 @@ public sealed record CreateSeriesCommand(
     int TotalSeasons = 0,
     IReadOnlyList<Guid>? PlatformIds = null,
     IReadOnlyList<Guid>? MoodIds = null,
-    IReadOnlyList<Guid>? GenreIds = null) : IRequest<Guid>;
+    IReadOnlyList<Guid>? GenreIds = null);

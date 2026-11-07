@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Identity.Api.Contracts.Requests.Auth;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.ChangePassword;
@@ -14,6 +13,7 @@ using ShuffleSeries.Identity.Application.Features.Auth.Commands.SocialLogin;
 using ShuffleSeries.Identity.Application.Features.Auth.Queries.GetCurrentUser;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Identity.Api.Endpoints;
 
@@ -28,12 +28,12 @@ public static class AuthEndpoints
         group.MapPost("/register", async (
                 [FromBody] RegisterRequest request,
                 HttpContext httpContext,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
                 var command = new RegisterCommand(request.Email, request.Password, ip);
-                var response = await sender.Send(command, cancellationToken);
+                var response = await bus.InvokeAsync<AuthResponse>(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("Register")
@@ -47,12 +47,12 @@ public static class AuthEndpoints
         group.MapPost("/login", async (
                 [FromBody] LoginRequest request,
                 HttpContext httpContext,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
                 var command = new LoginCommand(request.Email, request.Password, ip);
-                var response = await sender.Send(command, cancellationToken);
+                var response = await bus.InvokeAsync<AuthResponse>(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("Login")
@@ -66,12 +66,12 @@ public static class AuthEndpoints
         group.MapPost("/refresh", async (
                 [FromBody] RefreshTokenRequest request,
                 HttpContext httpContext,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
                 var command = new RefreshTokenCommand(request.RefreshToken, ip);
-                var response = await sender.Send(command, cancellationToken);
+                var response = await bus.InvokeAsync<TokenResponse>(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("RefreshToken")
@@ -86,7 +86,7 @@ public static class AuthEndpoints
                 [FromBody] RevokeTokenRequest request,
                 ClaimsPrincipal user,
                 HttpContext httpContext,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var accessToken = request.AccessToken;
@@ -103,7 +103,7 @@ public static class AuthEndpoints
                 var jwtId = user.GetJwtId();
                 var callerUserId = user.TryGetUserId();
                 var command = new RevokeTokenCommand(request.RefreshToken, accessToken, jwtId, callerUserId);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync<bool>(command, cancellationToken);
                 return Results.NoContent();
             })
             .WithName("RevokeToken")
@@ -116,11 +116,11 @@ public static class AuthEndpoints
         // 5. POST: Create Guest Session
         group.MapPost("/guest", async (
                 HttpContext httpContext,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
-                var response = await sender.Send(new CreateGuestSessionCommand(ip), cancellationToken);
+                var response = await bus.InvokeAsync<AuthResponse>(new CreateGuestSessionCommand(ip), cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("CreateGuestSession")
@@ -132,12 +132,12 @@ public static class AuthEndpoints
         group.MapPost("/social-login", async (
                 [FromBody] SocialLoginRequest request,
                 HttpContext httpContext,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
                 var command = new SocialLoginCommand(request.Provider, request.IdToken, ip);
-                var response = await sender.Send(command, cancellationToken);
+                var response = await bus.InvokeAsync<AuthResponse>(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("SocialLogin")
@@ -152,12 +152,12 @@ public static class AuthEndpoints
                 [FromBody] ConvertGuestRequest request,
                 ClaimsPrincipal user,
                 HttpContext httpContext,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var ip = GetClientIp(httpContext);
                 var command = new ConvertGuestCommand(user.GetUserId(), request.Email, request.Password, ip, user.GetJwtId());
-                var response = await sender.Send(command, cancellationToken);
+                var response = await bus.InvokeAsync<AuthResponse>(command, cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("ConvertGuest")
@@ -172,11 +172,11 @@ public static class AuthEndpoints
         group.MapPost("/change-password", async (
                 [FromBody] ChangePasswordRequest request,
                 ClaimsPrincipal user,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new ChangePasswordCommand(user.GetUserId(), request.CurrentPassword, request.NewPassword);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync<bool>(command, cancellationToken);
                 return Results.NoContent();
             })
             .WithName("ChangePassword")
@@ -189,10 +189,10 @@ public static class AuthEndpoints
         // 9. GET: Get current user profile & effective permissions
         group.MapGet("/me", async (
                 ClaimsPrincipal user,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
-                var response = await sender.Send(new GetCurrentUserQuery(user.GetUserId()), cancellationToken);
+                var response = await bus.InvokeAsync<CurrentUserResponse>(new GetCurrentUserQuery(user.GetUserId()), cancellationToken);
                 return Results.Ok(response);
             })
             .WithName("GetCurrentUser")
@@ -204,10 +204,10 @@ public static class AuthEndpoints
         // 10. DELETE: Delete User Account (GDPR / Apple Guideline 5.1.1(v))
         group.MapDelete("/account", async (
                 ClaimsPrincipal user,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
-                await sender.Send(new DeleteAccountCommand(user.GetUserId()), cancellationToken);
+                await bus.InvokeAsync<bool>(new DeleteAccountCommand(user.GetUserId()), cancellationToken);
                 return Results.NoContent();
             })
             .WithName("DeleteAccount")

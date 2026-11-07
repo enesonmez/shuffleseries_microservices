@@ -42,14 +42,14 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
-    public async Task TryHandleAsync_ValidationException_ShouldReturn400WithErrors()
+    public async Task TryHandleAsync_FluentValidationException_ShouldReturn400WithErrors()
     {
         var (context, stream) = CreateHttpContext();
-        var errors = new Dictionary<string, string[]>
+        var failures = new[]
         {
-            ["Name"] = ["Name is required"]
+            new FluentValidation.Results.ValidationFailure("Name", "Name is required")
         };
-        var ex = new ValidationException(errors);
+        var ex = new FluentValidation.ValidationException(failures);
 
         var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
 

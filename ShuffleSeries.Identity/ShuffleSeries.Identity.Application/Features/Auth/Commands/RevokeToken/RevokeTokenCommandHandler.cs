@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
@@ -7,7 +6,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.RevokeToken;
 
-internal sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenCommand, bool>
+public sealed class RevokeTokenCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;

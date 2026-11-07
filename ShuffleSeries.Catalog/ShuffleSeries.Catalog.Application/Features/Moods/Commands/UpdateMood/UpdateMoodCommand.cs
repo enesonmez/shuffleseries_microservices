@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Commands.UpdateMood;
 
 public sealed record UpdateMoodCommand(
@@ -7,4 +5,4 @@ public sealed record UpdateMoodCommand(
     string Code,
     string AmbientColorHex,
     string? IconUrl = null,
-    int DisplayOrder = 0) : IRequest;
+    int DisplayOrder = 0);

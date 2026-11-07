@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.Platforms.RemoveEpisodePlatform;
 
-internal sealed class RemoveEpisodePlatformCommandHandler : IRequestHandler<RemoveEpisodePlatformCommand>
+public sealed class RemoveEpisodePlatformCommandHandler
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly IUnitOfWork _unitOfWork;

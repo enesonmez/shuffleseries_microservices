@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Extensions;
 using ShuffleSeries.Catalog.Application.Features.AdminMedia.Responses;
 using ShuffleSeries.Catalog.Domain.Repositories;
@@ -6,7 +5,7 @@ using ShuffleSeries.Shared.Core.Application.Responses;
 
 namespace ShuffleSeries.Catalog.Application.Features.AdminMedia.Queries.GetAdminMediaList;
 
-internal sealed class GetAdminMediaListQueryHandler : IRequestHandler<GetAdminMediaListQuery, PaginatedList<AdminMediaListItemResponse>>
+public sealed class GetAdminMediaListQueryHandler
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly ILanguageContext _languageContext;

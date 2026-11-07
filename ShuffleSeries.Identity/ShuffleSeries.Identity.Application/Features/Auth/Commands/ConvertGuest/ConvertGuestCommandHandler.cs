@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Exceptions;
@@ -8,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.ConvertGuest;
 
-internal sealed class ConvertGuestCommandHandler : IRequestHandler<ConvertGuestCommand, AuthResponse>
+public sealed class ConvertGuestCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;

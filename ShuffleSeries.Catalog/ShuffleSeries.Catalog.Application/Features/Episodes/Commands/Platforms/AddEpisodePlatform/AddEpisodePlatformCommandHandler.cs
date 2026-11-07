@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.Platforms.AddEpisodePlatform;
 
-internal sealed class AddEpisodePlatformCommandHandler : IRequestHandler<AddEpisodePlatformCommand>
+public sealed class AddEpisodePlatformCommandHandler
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly IPlatformRepository _platformRepository;

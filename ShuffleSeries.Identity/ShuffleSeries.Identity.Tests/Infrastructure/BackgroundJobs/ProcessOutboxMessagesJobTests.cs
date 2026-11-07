@@ -1,5 +1,4 @@
 using System.Text.Json;
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -9,6 +8,7 @@ using ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Identity.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Domain.Events;
 using ShuffleSeries.Shared.Core.Domain.Outbox;
+using Wolverine;
 
 namespace ShuffleSeries.Identity.Tests.Infrastructure.BackgroundJobs;
 
@@ -28,7 +28,7 @@ public class ProcessOutboxMessagesJobTests
     {
         // Arrange
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
@@ -39,7 +39,7 @@ public class ProcessOutboxMessagesJobTests
         await job.Execute(mockContext.Object);
 
         // Assert
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.IsAny<Type>(), It.IsAny<CancellationToken>()), Times.Never);
+        mockPublish.Verify(p => p.PublishAsync(It.IsAny<object>(), It.IsAny<DeliveryOptions>()), Times.Never);
     }
 
     [Fact]
@@ -47,7 +47,7 @@ public class ProcessOutboxMessagesJobTests
     {
         // Arrange
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
@@ -75,14 +75,14 @@ public class ProcessOutboxMessagesJobTests
         await job.Execute(mockContext.Object);
 
         // Assert
-        mockPublish.Verify(p => p.Publish(
+        mockPublish.Verify(p => p.PublishAsync(
             It.Is<UserRegisteredEvent>(e =>
                 e.Id == outboxMessageId &&
                 e.UserId == userId &&
                 e.Email == "test@shuffleseries.com" &&
                 !e.IsGuest &&
                 e.OccurredOnUtc == occurredAt),
-            It.IsAny<CancellationToken>()),
+            It.IsAny<DeliveryOptions>()),
             Times.Once);
 
         var updated = await dbContext.OutboxMessages.FirstAsync(m => m.Id == outboxMessageId);
@@ -90,13 +90,12 @@ public class ProcessOutboxMessagesJobTests
         updated.Error.Should().BeNull();
     }
 
-
     [Fact]
     public async Task Execute_WhenUserAccountDeletedDomainEvent_ShouldPublishUserAccountDeletedIntegrationEventAndMarkProcessed()
     {
         // Arrange
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
@@ -124,13 +123,13 @@ public class ProcessOutboxMessagesJobTests
         await job.Execute(mockContext.Object);
 
         // Assert
-        mockPublish.Verify(p => p.Publish(
+        mockPublish.Verify(p => p.PublishAsync(
             It.Is<UserAccountDeletedEvent>(e =>
                 e.Id == outboxMessageId &&
                 e.UserId == userId &&
                 e.Email == "deleted@shuffleseries.com" &&
                 e.OccurredOnUtc == occurredAt),
-            It.IsAny<CancellationToken>()),
+            It.IsAny<DeliveryOptions>()),
             Times.Once);
 
         var updated = await dbContext.OutboxMessages.FirstAsync(m => m.Id == outboxMessageId);
@@ -143,7 +142,7 @@ public class ProcessOutboxMessagesJobTests
     {
         // Arrange
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
@@ -166,7 +165,7 @@ public class ProcessOutboxMessagesJobTests
         await job.Execute(mockContext.Object);
 
         // Assert
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.IsAny<Type>(), It.IsAny<CancellationToken>()), Times.Never);
+        mockPublish.Verify(p => p.PublishAsync(It.IsAny<object>(), It.IsAny<DeliveryOptions>()), Times.Never);
 
         var updated = await dbContext.OutboxMessages.FirstAsync(m => m.Id == message.Id);
         updated.ProcessedOnUtc.Should().BeNull();
@@ -179,7 +178,7 @@ public class ProcessOutboxMessagesJobTests
     {
         // Arrange
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
@@ -202,7 +201,7 @@ public class ProcessOutboxMessagesJobTests
         await job.Execute(mockContext.Object);
 
         // Assert
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.IsAny<Type>(), It.IsAny<CancellationToken>()), Times.Never);
+        mockPublish.Verify(p => p.PublishAsync(It.IsAny<object>(), It.IsAny<DeliveryOptions>()), Times.Never);
 
         var updated = await dbContext.OutboxMessages.FirstAsync(m => m.Id == message.Id);
         updated.ProcessedOnUtc.Should().BeNull();
@@ -215,12 +214,12 @@ public class ProcessOutboxMessagesJobTests
     {
         // Arrange
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
-        mockPublish.Setup(p => p.Publish(It.IsAny<UserRegisteredEvent>(), It.IsAny<CancellationToken>()))
+        mockPublish.Setup(p => p.PublishAsync(It.IsAny<UserRegisteredEvent>(), It.IsAny<DeliveryOptions>()))
             .ThrowsAsync(new InvalidOperationException("RabbitMQ connection down"));
 
         var domainEvent = new UserRegisteredDomainEvent(Guid.NewGuid(), "test@shuffleseries.com", IsGuest: false);
@@ -253,7 +252,7 @@ public class ProcessOutboxMessagesJobTests
     {
         // Arrange
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         var mockLogger = new Mock<ILogger<ProcessOutboxMessagesJob>>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
@@ -278,7 +277,7 @@ public class ProcessOutboxMessagesJobTests
         await job.Execute(mockContext.Object);
 
         // Assert
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.IsAny<Type>(), It.IsAny<CancellationToken>()), Times.Never);
+        mockPublish.Verify(p => p.PublishAsync(It.IsAny<object>(), It.IsAny<DeliveryOptions>()), Times.Never);
 
         var unchanged = await dbContext.OutboxMessages.FirstAsync(m => m.Id == message.Id);
         unchanged.ProcessedOnUtc.Should().BeNull();

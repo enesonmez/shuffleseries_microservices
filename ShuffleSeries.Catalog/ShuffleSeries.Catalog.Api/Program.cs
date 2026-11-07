@@ -13,6 +13,7 @@ using ShuffleSeries.Shared.Core.Web.Localization;
 using ShuffleSeries.Shared.Core.Web.Logging;
 using ShuffleSeries.Shared.Core.Web.Observability;
 using ShuffleSeries.Shared.Core.Web.Swagger;
+using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,12 @@ builder.Host.UseSharedSerilog("Catalog.Api");
 
 // Configure HashiCorp Vault Secrets Management
 builder.Configuration.AddVault("catalog");
+
+builder.Host.UseWolverine(opts =>
+{
+    opts.AddCatalogApplicationMessaging();
+    opts.AddCatalogMessagingTransport(builder.Configuration);
+});
 
 // Add Distributed Correlation ID Tracking
 builder.Services.AddSharedCorrelation();

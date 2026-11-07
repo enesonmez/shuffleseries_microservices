@@ -102,27 +102,4 @@ public class CustomExceptionTests
         exDefault.Code.Should().Be("BUSINESS_RULE_VIOLATION");
         exDefault.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
-
-    [Fact]
-    public void ValidationException_ShouldStoreErrorsProperly()
-    {
-        var errors = new Dictionary<string, string[]>
-        {
-            ["Title"] = new[] { "Title is required" },
-            ["Year"] = new[] { "Year must be positive" }
-        };
-
-        var ex = new ValidationException(errors);
-        ex.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        ex.Errors.Should().BeEquivalentTo(errors);
-
-        var exDefault = new ValidationException();
-        exDefault.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        exDefault.Errors.Should().BeEmpty();
-
-        var exSingle = new ValidationException("Title", "Title is required");
-        exSingle.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        exSingle.Errors.Should().ContainKey("Title");
-        exSingle.Errors["Title"].Should().Contain("Title is required");
-    }
 }

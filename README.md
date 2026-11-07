@@ -170,7 +170,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 │   └── ShuffleSeries.Shared.Core.Tests/           # Unit test suite for shared core primitives
 ├── ShuffleSeries.Catalog/              # Catalog bounded context
 │   ├── ShuffleSeries.Catalog.Domain/              # Rich Domain entities, Aggregates, Domain Services
-│   ├── ShuffleSeries.Catalog.Application/         # CQRS Commands, Queries, MediatR Handlers, Validators
+│   ├── ShuffleSeries.Catalog.Application/         # CQRS Commands, Queries, Wolverine Handlers, Validators
 │   ├── ShuffleSeries.Catalog.Infrastructure/      # EF Core PostgreSQL persistence, Outbox jobs, Repositories
 │   ├── ShuffleSeries.Catalog.Api/                 # Minimal API endpoints & OpenAPI specification
 │   ├── ShuffleSeries.Catalog.Tests/               # Unit test suite (Moq, Domain, Validators)
@@ -201,10 +201,11 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 | Category | Technology |
 | :--- | :--- |
 | **Framework & Language** | .NET 10, C# 14 |
-| **Architecture** | Onion Architecture, Domain-Driven Design (DDD), CQRS |
+| **Architecture** | Onion Architecture, Domain-Driven Design (DDD), CQRS (Wolverine POCO) |
 | **API & Networking** | Minimal APIs, YARP API Gateway, gRPC |
+| **Messaging & CQRS Bus** | Wolverine (WolverineFx, Native AOT Source Generators, MIT License) |
 | **API Documentation** | OpenAPI v3 (Microsoft.AspNetCore.OpenApi), Swagger UI, Scalar API Reference |
-| **Event Streaming** | RabbitMQ (Outbox & InBox patterns for guaranteed delivery) |
+| **Event Streaming** | RabbitMQ (WolverineFx.RabbitMQ, Outbox & InBox patterns for guaranteed delivery) |
 | **Databases & Stores** | PostgreSQL, MongoDB, Redis, Elasticsearch |
 | **Secret Management** | HashiCorp Vault (KV-v2 engine, automated seeding) |
 | **Resilience** | Microsoft.Extensions.Http.Resilience (Hedging, Retry, Circuit Breaker, Timeout, RateLimiter) |
@@ -231,8 +232,8 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 - **`BadRequestException`**: HTTP 400 for client contract mismatches, malformed IDs, or parameter violations.
 - **`BusinessException`**: HTTP 422 for domain rule violations.
 - **`NotFoundException`**: HTTP 404 for missing resources, with `(entityName, key)` formatting.
-- **`ValidationException`**: HTTP 400 for FluentValidation failure dictionaries.
 - **`ConflictException`**: HTTP 409 for duplicate key / conflicting states.
+- **`Validation (RFC 7807)`**: Native `FluentValidation.ValidationException` intercepted directly by `GlobalExceptionHandler` with zero redundant wrapping (Ponytail YAGNI).
 - **`UnauthorizedException` & `ForbiddenException`**: HTTP 401 and HTTP 403 access control exceptions.
 - **`InternalServerException`**: HTTP 500 for internal server failures.
 
@@ -272,7 +273,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 - **Distributed Correlation ID Tracking**: `CorrelationIdMiddleware` and `ICorrelationIdContext` intercept incoming `X-Correlation-ID` headers (or generate new unique trace IDs), echoing them back on responses and injecting them into Serilog `LogContext` and W3C `Activity` tags. `CorrelationIdDelegatingHandler` automatically propagates correlation headers across downstream HTTP calls.
 - **Extensible Serilog Sinks Architecture**: Pluggable `ILogSinkConfigurator` strategy pattern supporting Console (JSON & Text), Rolling File, and PostgreSQL sinks via `appsettings.json`, ready to accept future sinks (Seq, Loki, Elastic) with zero core modifications.
 - **OWASP API8 PII Sensitive Data Masking**: `ISensitiveDataMasker` and `[MaskSensitiveData]` attribute recursively traverse complex object hierarchies via `JsonNode`, replacing passwords, JWT tokens, API keys, CVV, and SSN with `***MASKED***`, backed by a thread-safe reflection cache.
-- **MediatR Telemetry & Performance Detection**: `LoggingBehavior` logs masked request and response payloads, while `PerformanceBehavior` measures execution durations and raises warning alerts for requests exceeding 500 ms.
+- **Wolverine Compile-Time Pipeline & Observability**: Native compile-time source-generated middleware (`opts.UseFluentValidation()`, `LoggingMiddleware`, `PerformanceMiddleware`) with automatic RFC 7807 ProblemDetails mapping, recursive PII masking (`***MASKED***`), and 500ms slow-request thresholds. Clean Architecture separation is enforced via `Add{Service}ApplicationMessaging` (handlers, middleware, validation) and `Add{Service}MessagingTransport` (RabbitMQ transport). Observability and correlation IDs propagate seamlessly through Wolverine `IMessageBus` and Serilog.
 - **Standardized Health Checks**: Exposes `/health/live` (Liveness probe for process health) and `/health/ready` (Readiness probe with JSON component status breakdown for PostgreSQL, Redis, and queues).
 - **Idempotency & Inbox Foundation**: `IIntegrationEvent` contract and `InboxMessage` entity in `Shared.Core.Domain` providing the bedrock for duplicate-free distributed event consumption.
 

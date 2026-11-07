@@ -1,5 +1,4 @@
 using System.Text.Json;
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -10,13 +9,14 @@ using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Domain.Events;
 using ShuffleSeries.Shared.Core.Domain.Outbox;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Tests.Infrastructure.BackgroundJobs;
 
 public class ProcessOutboxMessagesJobTests
 {
-    private static ProcessOutboxMessagesJob CreateJob(CatalogDbContext dbContext, IPublishEndpoint publishEndpoint) =>
-        new(dbContext, publishEndpoint, TimeProvider.System, NullLogger<ProcessOutboxMessagesJob>.Instance);
+    private static ProcessOutboxMessagesJob CreateJob(CatalogDbContext dbContext, IMessageBus messageBus) =>
+        new(dbContext, messageBus, TimeProvider.System, NullLogger<ProcessOutboxMessagesJob>.Instance);
 
     private static CatalogDbContext CreateInMemoryDbContext()
     {
@@ -31,7 +31,7 @@ public class ProcessOutboxMessagesJobTests
     public async Task Execute_WhenNoMessages_ShouldDoNothing()
     {
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
@@ -39,14 +39,14 @@ public class ProcessOutboxMessagesJobTests
 
         await job.Execute(mockContext.Object);
 
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.IsAny<Type>(), It.IsAny<CancellationToken>()), Times.Never);
+        mockPublish.Verify(p => p.PublishAsync(It.IsAny<object>(), It.IsAny<DeliveryOptions>()), Times.Never);
     }
 
     [Fact]
     public async Task Execute_WhenValidMessage_ShouldPublishAndMarkProcessed()
     {
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
@@ -67,7 +67,7 @@ public class ProcessOutboxMessagesJobTests
 
         await job.Execute(mockContext.Object);
 
-        mockPublish.Verify(p => p.Publish(It.Is<MediaCreatedEvent>(e => e.MediaId == seriesId && e.MediaType == "Series"), It.IsAny<CancellationToken>()), Times.Once);
+        mockPublish.Verify(p => p.PublishAsync(It.Is<MediaCreatedEvent>(e => e.MediaId == seriesId && e.MediaType == "Series"), It.IsAny<DeliveryOptions>()), Times.Once);
 
         var processed = await dbContext.OutboxMessages.FirstAsync(m => m.Id == message.Id);
         processed.ProcessedOnUtc.Should().NotBeNull();
@@ -78,7 +78,7 @@ public class ProcessOutboxMessagesJobTests
     public async Task Execute_WhenUnknownEventType_ShouldRecordError()
     {
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
@@ -106,11 +106,11 @@ public class ProcessOutboxMessagesJobTests
     public async Task Execute_WhenPublishThrows_ShouldRecordExceptionMessageInError()
     {
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
-        mockPublish.Setup(p => p.Publish(It.IsAny<MediaCreatedEvent>(), It.IsAny<CancellationToken>()))
+        mockPublish.Setup(p => p.PublishAsync(It.IsAny<MediaCreatedEvent>(), It.IsAny<DeliveryOptions>()))
             .ThrowsAsync(new InvalidOperationException("RabbitMQ connection refused"));
 
         var seriesId = Guid.NewGuid();
@@ -140,7 +140,7 @@ public class ProcessOutboxMessagesJobTests
     public async Task Execute_WhenMessageExceedsMaxRetries_ShouldSkipPoisonMessage()
     {
         await using var dbContext = CreateInMemoryDbContext();
-        var mockPublish = new Mock<IPublishEndpoint>();
+        var mockPublish = new Mock<IMessageBus>();
         var mockContext = new Mock<IJobExecutionContext>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
@@ -173,7 +173,7 @@ public class ProcessOutboxMessagesJobTests
         await job.Execute(mockContext.Object);
 
         // The poison message should not be attempted again
-        mockPublish.Verify(p => p.Publish(It.Is<MediaCreatedEvent>(e => e.MediaId == seriesId && e.MediaType == "Series"), It.IsAny<CancellationToken>()), Times.Once);
+        mockPublish.Verify(p => p.PublishAsync(It.Is<MediaCreatedEvent>(e => e.MediaId == seriesId && e.MediaType == "Series"), It.IsAny<DeliveryOptions>()), Times.Once);
 
         var poisonResult = await dbContext.OutboxMessages.FirstAsync(m => m.Id == poisonMessage.Id);
         poisonResult.RetryCount.Should().Be(3);

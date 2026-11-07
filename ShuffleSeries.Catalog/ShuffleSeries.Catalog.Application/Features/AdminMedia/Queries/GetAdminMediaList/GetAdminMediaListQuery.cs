@@ -1,12 +1,9 @@
-using MediatR;
-using ShuffleSeries.Catalog.Application.Features.AdminMedia.Responses;
 using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Shared.Core.Application.Requests;
-using ShuffleSeries.Shared.Core.Application.Responses;
 
 namespace ShuffleSeries.Catalog.Application.Features.AdminMedia.Queries.GetAdminMediaList;
 
-public sealed record GetAdminMediaListQuery : PaginationRequest, IRequest<PaginatedList<AdminMediaListItemResponse>>
+public sealed record GetAdminMediaListQuery : PaginationRequest
 {
     public MediaType? MediaType { get; init; }
     public string? Search { get; init; }

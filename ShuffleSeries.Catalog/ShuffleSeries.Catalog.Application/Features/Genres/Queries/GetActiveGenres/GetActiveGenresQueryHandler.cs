@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Extensions;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
@@ -8,7 +7,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Queries.GetActiveGenres;
 
-internal sealed class GetActiveGenresQueryHandler : IRequestHandler<GetActiveGenresQuery, IReadOnlyList<GenreResponse>>
+public sealed class GetActiveGenresQueryHandler
 {
     private readonly IGenreRepository _genreRepository;
     private readonly ICatalogCacheService _cacheService;

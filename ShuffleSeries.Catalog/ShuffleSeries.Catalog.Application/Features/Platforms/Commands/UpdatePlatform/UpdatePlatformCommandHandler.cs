@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -7,7 +6,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Commands.UpdatePlatform;
 
-internal sealed class UpdatePlatformCommandHandler : IRequestHandler<UpdatePlatformCommand>
+public sealed class UpdatePlatformCommandHandler
 {
     private readonly IPlatformRepository _platformRepository;
     private readonly ICatalogCacheService _cacheService;

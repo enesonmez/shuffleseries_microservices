@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.MediaAssociations;
 using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Genres.AddMediaGenre;
@@ -11,6 +10,7 @@ using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Tran
 using ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Translations.RemoveMediaTranslation;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -25,11 +25,11 @@ public static class MediaAssociationEndpoints
         group.MapPost("/platforms", async (
                 Guid id,
                 [FromBody] AddMediaPlatformRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new AddMediaPlatformCommand(id, request.PlatformId, request.WebUrl, request.AppSchemeUrl);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -45,11 +45,11 @@ public static class MediaAssociationEndpoints
         group.MapDelete("/platforms/{platformId:guid}", async (
                 Guid id,
                 Guid platformId,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new RemoveMediaPlatformCommand(id, platformId);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -63,11 +63,11 @@ public static class MediaAssociationEndpoints
         group.MapPost("/moods", async (
                 Guid id,
                 [FromBody] AddMediaMoodRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new AddMediaMoodCommand(id, request.MoodId);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -83,11 +83,11 @@ public static class MediaAssociationEndpoints
         group.MapDelete("/moods/{moodId:guid}", async (
                 Guid id,
                 Guid moodId,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new RemoveMediaMoodCommand(id, moodId);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -101,11 +101,11 @@ public static class MediaAssociationEndpoints
         group.MapPost("/genres", async (
                 Guid id,
                 [FromBody] AddMediaGenreRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new AddMediaGenreCommand(id, request.GenreId);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -121,11 +121,11 @@ public static class MediaAssociationEndpoints
         group.MapDelete("/genres/{genreId:guid}", async (
                 Guid id,
                 Guid genreId,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new RemoveMediaGenreCommand(id, genreId);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -139,7 +139,7 @@ public static class MediaAssociationEndpoints
         group.MapPost("/translations", async (
                 Guid id,
                 [FromBody] AddOrUpdateTranslationRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new AddOrUpdateMediaTranslationCommand(
@@ -149,7 +149,7 @@ public static class MediaAssociationEndpoints
                     request.Overview,
                     request.Tagline);
 
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -159,16 +159,17 @@ public static class MediaAssociationEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesSecurityAndErrorProblems();
 
         group.MapDelete("/translations/{languageCode}", async (
                 Guid id,
                 string languageCode,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new RemoveMediaTranslationCommand(id, languageCode);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)

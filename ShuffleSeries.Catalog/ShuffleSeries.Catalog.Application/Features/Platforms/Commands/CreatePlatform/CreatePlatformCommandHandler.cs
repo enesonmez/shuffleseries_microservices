@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
 using ShuffleSeries.Catalog.Domain.Entities;
@@ -8,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Commands.CreatePlatform;
 
-internal sealed class CreatePlatformCommandHandler : IRequestHandler<CreatePlatformCommand, Guid>
+public sealed class CreatePlatformCommandHandler
 {
     private readonly IPlatformRepository _platformRepository;
     private readonly ICatalogCacheService _cacheService;

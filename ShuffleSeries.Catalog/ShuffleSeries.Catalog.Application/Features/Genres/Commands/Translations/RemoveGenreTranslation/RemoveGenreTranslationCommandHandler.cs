@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -7,7 +6,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Commands.Translations.RemoveGenreTranslation;
 
-internal sealed class RemoveGenreTranslationCommandHandler : IRequestHandler<RemoveGenreTranslationCommand>
+public sealed class RemoveGenreTranslationCommandHandler
 {
     private readonly IGenreRepository _genreRepository;
     private readonly ICatalogCacheService _cacheService;

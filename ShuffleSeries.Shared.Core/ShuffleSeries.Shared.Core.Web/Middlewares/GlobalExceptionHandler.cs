@@ -61,12 +61,15 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
         switch (exception)
         {
-            case ValidationException validationException:
-                status = (int)validationException.StatusCode;
-                title = validationException.Title ?? "Validation Error";
-                detail = validationException.Message;
-                code = !string.IsNullOrWhiteSpace(validationException.Code) ? validationException.Code : "VALIDATION_ERROR";
-                errors = validationException.Errors;
+            case FluentValidation.ValidationException fluentValidationException:
+                status = StatusCodes.Status400BadRequest;
+                title = "Validation Error";
+                detail = "One or more validation errors occurred.";
+                code = "VALIDATION_ERROR";
+                errors = fluentValidationException.Errors
+                    .Where(f => f is not null)
+                    .GroupBy(f => f.PropertyName)
+                    .ToDictionary(g => g.Key, g => g.Select(f => f.ErrorMessage).Distinct().ToArray());
                 break;
 
             case CustomException customException:

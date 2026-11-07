@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Enums;
@@ -7,7 +6,7 @@ using ShuffleSeries.Identity.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.Login;
 
-internal sealed class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponse>
+public sealed class LoginCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;

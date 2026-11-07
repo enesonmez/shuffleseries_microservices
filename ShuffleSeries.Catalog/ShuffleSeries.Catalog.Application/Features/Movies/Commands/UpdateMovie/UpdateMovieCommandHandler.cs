@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Commands.UpdateMovie;
 
-internal sealed class UpdateMovieCommandHandler : IRequestHandler<UpdateMovieCommand>
+public sealed class UpdateMovieCommandHandler
 {
     private readonly IMovieRepository _movieRepository;
     private readonly IUnitOfWork _unitOfWork;

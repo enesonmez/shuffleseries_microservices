@@ -102,14 +102,13 @@ public abstract class MicroserviceArchitectureTestBase
 
     #endregion
 
-    #region CQRS & MediatR Rules
+    #region CQRS & Wolverine Rules
 
     private List<Type> GetHandlerTypes() =>
         ApplicationAssembly.GetTypes()
             .Where(t => t is { IsClass: true, IsAbstract: false, IsNested: false } && !t.Name.Contains('<')
-                && t.GetInterfaces().Any(i => i.IsGenericType &&
-                    (i.GetGenericTypeDefinition() == typeof(MediatR.IRequestHandler<,>) ||
-                     i.GetGenericTypeDefinition() == typeof(MediatR.IRequestHandler<>))))
+                && t.Name.EndsWith("Handler")
+                && t.GetMethods().Any(m => m.Name is "Handle" or "Consume"))
             .ToList();
 
     [Fact]
@@ -121,7 +120,7 @@ public abstract class MicroserviceArchitectureTestBase
         foreach (var type in handlerTypes)
         {
             type.Name.Should().EndWith("Handler",
-                $"{ServiceNamespacePrefix} MediatR request handler sınıfı '{type.FullName}' 'Handler' soneki ile bitmelidir.");
+                $"{ServiceNamespacePrefix} CQRS request handler sınıfı '{type.FullName}' 'Handler' soneki ile bitmelidir.");
         }
     }
 
@@ -134,20 +133,20 @@ public abstract class MicroserviceArchitectureTestBase
         foreach (var type in handlerTypes)
         {
             type.IsSealed.Should().BeTrue(
-                $"{ServiceNamespacePrefix} MediatR handler sınıfı '{type.FullName}' performans ve güvenlik için 'sealed' olmalıdır.");
+                $"{ServiceNamespacePrefix} CQRS handler sınıfı '{type.FullName}' performans ve güvenlik için 'sealed' olmalıdır.");
         }
     }
 
     [Fact]
-    public void Handlers_ShouldBeInternal()
+    public void Handlers_ShouldBePublic()
     {
         var handlerTypes = GetHandlerTypes();
         if (handlerTypes.Count == 0) return;
 
         foreach (var type in handlerTypes)
         {
-            type.IsNotPublic.Should().BeTrue(
-                $"{ServiceNamespacePrefix} MediatR handler sınıfı '{type.FullName}' kapsülleme gereği 'internal' olmalıdır (dış katmanlar yalnızca ISender kullanmalıdır).");
+            type.IsPublic.Should().BeTrue(
+                $"{ServiceNamespacePrefix} Wolverine message handler sınıfı '{type.FullName}' Wolverine Roslyn codegen ve convention scanning gereği 'public' olmalıdır.");
         }
     }
 
@@ -156,7 +155,9 @@ public abstract class MicroserviceArchitectureTestBase
     {
         var requestTypes = ApplicationAssembly.GetTypes()
             .Where(t => t is { IsClass: true, IsAbstract: false } && !t.Name.Contains("<>")
-                && t.GetInterfaces().Any(i => i == typeof(MediatR.IRequest) || (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>))))
+                && t.Namespace != null
+                && (t.Namespace.Contains(".Commands.") || t.Namespace.Contains(".Queries."))
+                && (t.Name.EndsWith("Command") || t.Name.EndsWith("Query")))
             .ToList();
 
         if (requestTypes.Count == 0) return;
@@ -200,9 +201,10 @@ public abstract class MicroserviceArchitectureTestBase
     public void Commands_ShouldHaveNameEndingWith_Command()
     {
         var commandTypes = ApplicationAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && !t.Name.Contains("<>")
-                && t.GetInterfaces().Any(i => i == typeof(MediatR.IRequest) || (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>)))
-                && t.Namespace != null && t.Namespace.Contains(".Commands."))
+            .Where(t => t is { IsClass: true, IsAbstract: false } && !t.Name.Contains("<>")
+                && t.Namespace != null
+                && t.Namespace.Contains(".Commands.")
+                && t.Name.EndsWith("Command"))
             .ToList();
 
         if (commandTypes.Count == 0) return;
@@ -217,9 +219,10 @@ public abstract class MicroserviceArchitectureTestBase
     public void Queries_ShouldHaveNameEndingWith_Query()
     {
         var queryTypes = ApplicationAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && !t.Name.Contains("<>")
-                && t.GetInterfaces().Any(i => i == typeof(MediatR.IRequest) || (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>)))
-                && t.Namespace != null && t.Namespace.Contains(".Queries."))
+            .Where(t => t is { IsClass: true, IsAbstract: false } && !t.Name.Contains("<>")
+                && t.Namespace != null
+                && t.Namespace.Contains(".Queries.")
+                && t.Name.EndsWith("Query"))
             .ToList();
 
         if (queryTypes.Count == 0) return;
@@ -234,9 +237,10 @@ public abstract class MicroserviceArchitectureTestBase
     public void Commands_ShouldHave_CorrespondingValidator()
     {
         var commandTypes = ApplicationAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && !t.Name.Contains("<>")
-                && t.GetInterfaces().Any(i => i == typeof(MediatR.IRequest) || (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(MediatR.IRequest<>)))
-                && t.Namespace != null && t.Namespace.Contains(".Commands."))
+            .Where(t => t is { IsClass: true, IsAbstract: false } && !t.Name.Contains("<>")
+                && t.Namespace != null
+                && t.Namespace.Contains(".Commands.")
+                && t.Name.EndsWith("Command"))
             .ToList();
 
         var validatorTypes = ApplicationAssembly.GetTypes()
@@ -454,7 +458,7 @@ public abstract class MicroserviceArchitectureTestBase
             .GetResult();
 
         testResult.IsSuccessful.Should().BeTrue(
-            $"{ServiceNamespacePrefix} API Endpoint sınıfları doğrudan Repository veya DbContext kullanamaz. CQRS MediatR ISender kullanılmalıdır. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
+            $"{ServiceNamespacePrefix} API Endpoint sınıfları doğrudan Repository veya DbContext kullanamaz. CQRS Wolverine IMessageBus kullanılmalıdır. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
     }
 
     [Fact]

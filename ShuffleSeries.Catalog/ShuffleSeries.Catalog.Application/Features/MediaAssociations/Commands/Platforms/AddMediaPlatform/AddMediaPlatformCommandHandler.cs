@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Platforms.AddMediaPlatform;
 
-internal sealed class AddMediaPlatformCommandHandler : IRequestHandler<AddMediaPlatformCommand>
+public sealed class AddMediaPlatformCommandHandler
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IPlatformRepository _platformRepository;

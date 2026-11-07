@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.Platforms;
 using ShuffleSeries.Catalog.Application.Features.Platforms.Commands.CreatePlatform;
@@ -9,6 +8,7 @@ using ShuffleSeries.Catalog.Application.Features.Platforms.Queries.GetPlatformBy
 using ShuffleSeries.Catalog.Application.Features.Platforms.Responses;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -21,11 +21,11 @@ public static class PlatformEndpoints
 
         // 1. GET: Get active platforms (Cached, with Permission)
         group.MapGet("/", async (
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var query = new GetActivePlatformsQuery();
-                var response = await sender.Send(query, cancellationToken);
+                var response = await bus.InvokeAsync<IReadOnlyList<PlatformResponse>>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogPlatforms)
@@ -38,11 +38,11 @@ public static class PlatformEndpoints
         // 2. GET: Get platform by ID
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var query = new GetPlatformByIdQuery(id);
-                var response = await sender.Send(query, cancellationToken);
+                var response = await bus.InvokeAsync<PlatformResponse>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogPlatforms)
@@ -55,7 +55,7 @@ public static class PlatformEndpoints
         // 3. POST: Create platform (Admin)
         group.MapPost("/", async (
                 [FromBody] CreatePlatformRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new CreatePlatformCommand(
@@ -68,7 +68,7 @@ public static class PlatformEndpoints
                     request.DisplayOrder,
                     request.IsActive);
 
-                var platformId = await sender.Send(command, cancellationToken);
+                var platformId = await bus.InvokeAsync<Guid>(command, cancellationToken);
                 return Results.CreatedAtRoute("GetPlatformById", new { id = platformId }, platformId);
             })
             .RequireAuthorization(SystemPolicies.CanCreateCatalogPlatforms)
@@ -84,7 +84,7 @@ public static class PlatformEndpoints
         group.MapPut("/{id:guid}", async (
                 Guid id,
                 [FromBody] UpdatePlatformRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new UpdatePlatformCommand(
@@ -97,7 +97,7 @@ public static class PlatformEndpoints
                     request.BaseAppSchemeUrl,
                     request.DisplayOrder);
 
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogPlatforms)
@@ -110,14 +110,14 @@ public static class PlatformEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesSecurityAndErrorProblems();
 
-        // 4. DELETE: Delete platform (Admin)
+        // 5. DELETE: Delete platform (Admin)
         group.MapDelete("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new DeletePlatformCommand(id);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanDeleteCatalogPlatforms)

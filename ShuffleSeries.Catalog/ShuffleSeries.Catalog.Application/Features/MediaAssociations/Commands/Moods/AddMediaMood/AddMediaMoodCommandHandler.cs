@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Moods.AddMediaMood;
 
-internal sealed class AddMediaMoodCommandHandler : IRequestHandler<AddMediaMoodCommand>
+public sealed class AddMediaMoodCommandHandler
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IMoodRepository _moodRepository;

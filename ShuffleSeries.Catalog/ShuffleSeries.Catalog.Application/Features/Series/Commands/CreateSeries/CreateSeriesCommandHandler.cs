@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Services;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
@@ -6,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
 
-internal sealed class CreateSeriesCommandHandler : IRequestHandler<CreateSeriesCommand, Guid>
+public sealed class CreateSeriesCommandHandler
 {
     private readonly ISeriesRepository _seriesRepository;
     private readonly IPlatformRepository _platformRepository;

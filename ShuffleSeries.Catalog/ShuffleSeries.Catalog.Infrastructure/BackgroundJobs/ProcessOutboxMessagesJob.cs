@@ -1,5 +1,4 @@
 using System.Reflection;
-using MassTransit;
 using Microsoft.Extensions.Logging;
 using Quartz;
 using ShuffleSeries.Catalog.Domain.Events;
@@ -8,6 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Events;
 using ShuffleSeries.Shared.Core.Domain.Outbox;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
 using ShuffleSeries.Shared.Core.Infrastructure.Outbox;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 
@@ -17,7 +17,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
     private static readonly Assembly _catalogDomainAssembly = typeof(MediaCreatedDomainEvent).Assembly;
 
     private readonly CatalogDbContext _dbContext;
-    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly IMessageBus _messageBus;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ProcessOutboxMessagesJob> _logger;
 
@@ -25,12 +25,12 @@ public sealed class ProcessOutboxMessagesJob : IJob
 
     public ProcessOutboxMessagesJob(
         CatalogDbContext dbContext,
-        IPublishEndpoint publishEndpoint,
+        IMessageBus messageBus,
         TimeProvider timeProvider,
         ILogger<ProcessOutboxMessagesJob> logger)
     {
         _dbContext = dbContext;
-        _publishEndpoint = publishEndpoint;
+        _messageBus = messageBus;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -56,6 +56,9 @@ public sealed class ProcessOutboxMessagesJob : IJob
         OutboxMessage outboxMessage,
         CancellationToken cancellationToken)
     {
+        Task PublishWithTimeoutAsync<T>(T message) =>
+            _messageBus.PublishAsync(message).AsTask().WaitAsync(cancellationToken);
+
         switch (domainEvent)
         {
             case MediaCreatedDomainEvent e:
@@ -64,7 +67,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     e.MediaId,
                     e.MediaType.ToString(),
                     outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(mediaCreated, cancellationToken);
+                await PublishWithTimeoutAsync(mediaCreated);
                 return nameof(MediaCreatedEvent);
 
             case MediaUpdatedDomainEvent e:
@@ -73,7 +76,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     e.MediaId,
                     e.MediaType.ToString(),
                     outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(mediaUpdated, cancellationToken);
+                await PublishWithTimeoutAsync(mediaUpdated);
                 return nameof(MediaUpdatedEvent);
 
             case MediaDeletedDomainEvent e:
@@ -82,7 +85,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     e.MediaId,
                     e.MediaType.ToString(),
                     outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(mediaDeleted, cancellationToken);
+                await PublishWithTimeoutAsync(mediaDeleted);
                 return nameof(MediaDeletedEvent);
 
             case EpisodeCreatedDomainEvent e:
@@ -94,7 +97,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     e.EpisodeNumber,
                     e.IsStandalone,
                     outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(epCreated, cancellationToken);
+                await PublishWithTimeoutAsync(epCreated);
                 return nameof(EpisodeCreatedEvent);
 
             case EpisodeUpdatedDomainEvent e:
@@ -106,7 +109,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     e.RuntimeMinutes,
                     e.ImdbRating,
                     outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(epUpdated, cancellationToken);
+                await PublishWithTimeoutAsync(epUpdated);
                 return nameof(EpisodeUpdatedEvent);
 
             case EpisodeDeletedDomainEvent e:
@@ -114,7 +117,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     outboxMessage.Id,
                     e.EpisodeId,
                     outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(epDeleted, cancellationToken);
+                await PublishWithTimeoutAsync(epDeleted);
                 return nameof(EpisodeDeletedEvent);
 
             case PlatformCreatedDomainEvent:
@@ -139,12 +142,12 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     _ => ("Genre", ((GenreDeletedDomainEvent)domainEvent).GenreId, "Deleted")
                 };
                 var taxEvent = new CatalogTaxonomyChangedEvent(outboxMessage.Id, taxType, entityId, action, outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(taxEvent, cancellationToken);
+                await PublishWithTimeoutAsync(taxEvent);
                 return nameof(CatalogTaxonomyChangedEvent);
 
             default:
-                await _publishEndpoint.Publish(domainEvent, domainEvent.GetType(), cancellationToken);
-                return domainEvent.GetType().Name;
+                throw new InvalidOperationException(
+                    $"Domain event '{domainEvent.GetType().Name}' has no mapped integration event contract. Direct publishing of internal domain events across service boundaries is strictly prohibited.");
         }
     }
 }

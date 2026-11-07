@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Commands.UpdatePlatform;
 
 public sealed record UpdatePlatformCommand(
@@ -10,4 +8,4 @@ public sealed record UpdatePlatformCommand(
     string InactiveLogoUrl,
     string BaseWebUrl,
     string? BaseAppSchemeUrl = null,
-    int DisplayOrder = 0) : IRequest;
+    int DisplayOrder = 0);

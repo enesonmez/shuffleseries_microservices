@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Entities;
@@ -10,7 +9,7 @@ using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.SocialLogin;
 
-internal sealed class SocialLoginCommandHandler : IRequestHandler<SocialLoginCommand, AuthResponse>
+public sealed class SocialLoginCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;

@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Services;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -7,7 +6,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Commands.CreateMovie;
 
-internal sealed class CreateMovieCommandHandler : IRequestHandler<CreateMovieCommand, Guid>
+public sealed class CreateMovieCommandHandler
 {
     private readonly IMovieRepository _movieRepository;
     private readonly IPlatformRepository _platformRepository;

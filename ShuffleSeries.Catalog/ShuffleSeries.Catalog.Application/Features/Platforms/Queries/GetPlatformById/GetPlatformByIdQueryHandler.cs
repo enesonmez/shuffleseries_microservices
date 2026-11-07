@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Features.Platforms.Responses;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Queries.GetPlatformById;
 
-internal sealed class GetPlatformByIdQueryHandler : IRequestHandler<GetPlatformByIdQuery, PlatformResponse>
+public sealed class GetPlatformByIdQueryHandler
 {
     private readonly IPlatformRepository _platformRepository;
 

@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Exceptions;
@@ -6,7 +5,7 @@ using ShuffleSeries.Identity.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Queries.GetCurrentUser;
 
-internal sealed class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, CurrentUserResponse>
+public sealed class GetCurrentUserQueryHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IPermissionResolver _permissionResolver;

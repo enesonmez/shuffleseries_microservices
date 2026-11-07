@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.Moods;
 using ShuffleSeries.Catalog.Application.Features.Moods.Commands.CreateMood;
@@ -11,6 +10,7 @@ using ShuffleSeries.Catalog.Application.Features.Moods.Queries.GetMoodById;
 using ShuffleSeries.Catalog.Application.Features.Moods.Responses;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -23,12 +23,12 @@ public static class MoodEndpoints
 
         // 1. GET: Get active moods (Cached, Localized, with Permission)
         group.MapGet("/", async (
-                ISender sender,
+                IMessageBus bus,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
                 var query = new GetActiveMoodsQuery(languageContext.CurrentLanguage);
-                var response = await sender.Send(query, cancellationToken);
+                var response = await bus.InvokeAsync<IReadOnlyList<MoodResponse>>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogMoods)
@@ -41,12 +41,12 @@ public static class MoodEndpoints
         // 2. GET: Get mood by ID (Localized, with Permission)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
                 var query = new GetMoodByIdQuery(id, languageContext.CurrentLanguage);
-                var response = await sender.Send(query, cancellationToken);
+                var response = await bus.InvokeAsync<MoodResponse>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogMoods)
@@ -59,7 +59,7 @@ public static class MoodEndpoints
         // 3. POST: Create mood (Admin)
         group.MapPost("/", async (
                 [FromBody] CreateMoodRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new CreateMoodCommand(
@@ -73,7 +73,7 @@ public static class MoodEndpoints
                     request.DisplayOrder,
                     request.IsActive);
 
-                var moodId = await sender.Send(command, cancellationToken);
+                var moodId = await bus.InvokeAsync<Guid>(command, cancellationToken);
                 return Results.CreatedAtRoute("GetMoodById", new { id = moodId }, moodId);
             })
             .RequireAuthorization(SystemPolicies.CanCreateCatalogMoods)
@@ -89,7 +89,7 @@ public static class MoodEndpoints
         group.MapPut("/{id:guid}", async (
                 Guid id,
                 [FromBody] UpdateMoodRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new UpdateMoodCommand(
@@ -99,7 +99,7 @@ public static class MoodEndpoints
                     request.IconUrl,
                     request.DisplayOrder);
 
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogMoods)
@@ -115,11 +115,11 @@ public static class MoodEndpoints
         // 4. DELETE: Delete mood (Admin)
         group.MapDelete("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new DeleteMoodCommand(id);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanDeleteCatalogMoods)
@@ -134,11 +134,11 @@ public static class MoodEndpoints
         group.MapPost("/{id:guid}/translations", async (
                 Guid id,
                 [FromBody] AddOrUpdateMoodTranslationRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new AddOrUpdateMoodTranslationCommand(id, request.LanguageCode, request.Name, request.Description, request.VibeTags);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogMoods)
@@ -154,11 +154,11 @@ public static class MoodEndpoints
         group.MapDelete("/{id:guid}/translations/{languageCode}", async (
                 Guid id,
                 string languageCode,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new RemoveMoodTranslationCommand(id, languageCode);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogMoods)

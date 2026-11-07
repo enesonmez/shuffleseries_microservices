@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Commands.CreateMovie;
 
 public sealed record CreateMovieCommand(
@@ -18,4 +16,4 @@ public sealed record CreateMovieCommand(
     int? ImdbVotes = null,
     IReadOnlyList<Guid>? PlatformIds = null,
     IReadOnlyList<Guid>? MoodIds = null,
-    IReadOnlyList<Guid>? GenreIds = null) : IRequest<Guid>;
+    IReadOnlyList<Guid>? GenreIds = null);

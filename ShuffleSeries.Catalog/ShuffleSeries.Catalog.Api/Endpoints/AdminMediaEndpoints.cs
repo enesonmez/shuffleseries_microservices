@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Application.Features.AdminMedia.Queries.GetAdminMediaList;
 using ShuffleSeries.Catalog.Application.Features.AdminMedia.Responses;
@@ -6,6 +5,7 @@ using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Shared.Core.Application.Responses;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -28,7 +28,7 @@ public static class AdminMediaEndpoints
                 [FromQuery] bool? isDeleted,
                 [FromQuery] string? sortBy,
                 [FromQuery] bool? sortDescending,
-                ISender sender,
+                IMessageBus bus,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
@@ -45,7 +45,7 @@ public static class AdminMediaEndpoints
                     sortBy: sortBy,
                     sortDescending: sortDescending ?? true);
 
-                var response = await sender.Send(query, cancellationToken);
+                var response = await bus.InvokeAsync<PaginatedList<AdminMediaListItemResponse>>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadAdminMedia)

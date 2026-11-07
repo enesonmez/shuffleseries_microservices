@@ -6,7 +6,7 @@ namespace ShuffleSeries.Identity.Tests.Application;
 public class DependencyInjectionTests
 {
     [Fact]
-    public void AddApplication_ShouldRegisterMediatRAndValidators()
+    public void AddApplication_ShouldRegisterValidatorsAndApplicationServices()
     {
         var services = new ServiceCollection();
 

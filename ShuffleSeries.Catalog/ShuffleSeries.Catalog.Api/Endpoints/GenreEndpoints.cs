@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.Genres;
 using ShuffleSeries.Catalog.Application.Features.Genres.Commands.CreateGenre;
@@ -11,6 +10,7 @@ using ShuffleSeries.Catalog.Application.Features.Genres.Queries.GetGenreById;
 using ShuffleSeries.Catalog.Application.Features.Genres.Responses;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -23,12 +23,12 @@ public static class GenreEndpoints
 
         // 1. GET: Get active genres (Cached, Localized, with Permission)
         group.MapGet("/", async (
-                ISender sender,
+                IMessageBus bus,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
                 var query = new GetActiveGenresQuery(languageContext.CurrentLanguage);
-                var response = await sender.Send(query, cancellationToken);
+                var response = await bus.InvokeAsync<IReadOnlyList<GenreResponse>>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogGenres)
@@ -41,12 +41,12 @@ public static class GenreEndpoints
         // 2. GET: Get genre by ID (Localized, with Permission)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
                 var query = new GetGenreByIdQuery(id, languageContext.CurrentLanguage);
-                var response = await sender.Send(query, cancellationToken);
+                var response = await bus.InvokeAsync<GenreResponse>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogGenres)
@@ -59,7 +59,7 @@ public static class GenreEndpoints
         // 3. POST: Create genre (Admin)
         group.MapPost("/", async (
                 [FromBody] CreateGenreRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new CreateGenreCommand(
@@ -70,7 +70,7 @@ public static class GenreEndpoints
                     request.DisplayOrder,
                     request.IsActive);
 
-                var genreId = await sender.Send(command, cancellationToken);
+                var genreId = await bus.InvokeAsync<Guid>(command, cancellationToken);
                 return Results.CreatedAtRoute("GetGenreById", new { id = genreId }, genreId);
             })
             .RequireAuthorization(SystemPolicies.CanCreateCatalogGenres)
@@ -86,7 +86,7 @@ public static class GenreEndpoints
         group.MapPut("/{id:guid}", async (
                 Guid id,
                 [FromBody] UpdateGenreRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new UpdateGenreCommand(
@@ -94,7 +94,7 @@ public static class GenreEndpoints
                     request.Code,
                     request.DisplayOrder);
 
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogGenres)
@@ -110,11 +110,11 @@ public static class GenreEndpoints
         // 4. DELETE: Delete genre (Admin)
         group.MapDelete("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new DeleteGenreCommand(id);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanDeleteCatalogGenres)
@@ -129,11 +129,11 @@ public static class GenreEndpoints
         group.MapPost("/{id:guid}/translations", async (
                 Guid id,
                 [FromBody] AddOrUpdateGenreTranslationRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new AddOrUpdateGenreTranslationCommand(id, request.LanguageCode, request.Name, request.Description);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogGenres)
@@ -149,11 +149,11 @@ public static class GenreEndpoints
         group.MapDelete("/{id:guid}/translations/{languageCode}", async (
                 Guid id,
                 string languageCode,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new RemoveGenreTranslationCommand(id, languageCode);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogGenres)

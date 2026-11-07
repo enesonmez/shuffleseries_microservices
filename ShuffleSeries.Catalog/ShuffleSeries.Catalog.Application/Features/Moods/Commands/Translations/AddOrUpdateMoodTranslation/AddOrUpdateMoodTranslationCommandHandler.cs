@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -7,7 +6,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Commands.Translations.AddOrUpdateMoodTranslation;
 
-internal sealed class AddOrUpdateMoodTranslationCommandHandler : IRequestHandler<AddOrUpdateMoodTranslationCommand>
+public sealed class AddOrUpdateMoodTranslationCommandHandler
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Extensions;
 using ShuffleSeries.Catalog.Application.Features.Movies.Responses;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -6,7 +5,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Queries.GetMovieById;
 
-internal sealed class GetMovieByIdQueryHandler : IRequestHandler<GetMovieByIdQuery, MovieDetailResponse>
+public sealed class GetMovieByIdQueryHandler
 {
     private readonly IMovieRepository _movieRepository;
     private readonly ILanguageContext _languageContext;

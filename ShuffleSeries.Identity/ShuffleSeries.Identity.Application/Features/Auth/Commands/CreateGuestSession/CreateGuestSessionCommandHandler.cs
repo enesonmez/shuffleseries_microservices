@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Entities;
@@ -7,7 +6,7 @@ using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.CreateGuestSession;
 
-internal sealed class CreateGuestSessionCommandHandler : IRequestHandler<CreateGuestSessionCommand, AuthResponse>
+public sealed class CreateGuestSessionCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;

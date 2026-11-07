@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Enums;
@@ -9,7 +8,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.RefreshToken;
 
-internal sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, TokenResponse>
+public sealed class RefreshTokenCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;

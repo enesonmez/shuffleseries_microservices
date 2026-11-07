@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
@@ -7,7 +6,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.ChangePassword;
 
-internal sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordCommand, bool>
+public sealed class ChangePasswordCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;

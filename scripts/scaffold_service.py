@@ -22,15 +22,17 @@ from pathlib import Path
 PKG_VERSIONS = {
     "FluentValidation": "12.1.1",
     "FluentValidation.DependencyInjectionExtensions": "12.1.1",
-    "MediatR": "14.1.0",
+    "WolverineFx": "6.62.0",
+    "WolverineFx.RabbitMQ": "6.62.0",
+    "WolverineFx.HealthChecks": "6.62.0",
+    "WolverineFx.FluentValidation": "6.62.0",
+    "WolverineFx.RuntimeCompilation": "6.62.0",
     "Microsoft.AspNetCore.OpenApi": "10.0.1",
     "Microsoft.EntityFrameworkCore": "10.0.4",
     "Microsoft.EntityFrameworkCore.Design": "10.0.4",
     "Npgsql.EntityFrameworkCore.PostgreSQL": "10.0.2",
     "Npgsql": "10.0.3",
     "Scalar.AspNetCore": "2.16.6",
-    "MassTransit": "8.3.7",
-    "MassTransit.RabbitMQ": "8.3.7",
     "Quartz": "3.19.1",
     "Quartz.Extensions.DependencyInjection": "3.19.1",
     "Quartz.Extensions.Hosting": "3.19.1",
@@ -101,6 +103,7 @@ class ScaffoldEngine:
         manifest = {}
         prefix = f"ShuffleSeries.{self.service_name}"
         s = self.service_name
+        s_lower = self.service_name.lower()
 
         # -------------------------------------------------------------
         # 1. DOMAIN LAYER
@@ -160,7 +163,8 @@ namespace {prefix}.Domain.Events;
 
 public sealed record {s}ItemCreatedDomainEvent(Guid Id, string Name) : IDomainEvent;
 """
-        manifest[f"{prefix}/{prefix}.Domain/Repositories/I{s}Repository.cs"] = f"""using ShuffleSeries.Shared.Core.Domain.Repositories;
+        manifest[f"{prefix}/{prefix}.Domain/Repositories/I{s}Repository.cs"] = f"""using ShuffleSeries.Shared.Core.Domain.Primitives;
+using ShuffleSeries.Shared.Core.Domain.Repositories;
 using {prefix}.Domain.Entities;
 
 namespace {prefix}.Domain.Repositories;
@@ -187,7 +191,8 @@ public interface I{s}Repository : IRepository
     <ItemGroup>
         <PackageReference Include="FluentValidation" Version="{PKG_VERSIONS['FluentValidation']}" />
         <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="{PKG_VERSIONS['FluentValidation.DependencyInjectionExtensions']}" />
-        <PackageReference Include="MediatR" Version="{PKG_VERSIONS['MediatR']}" />
+        <PackageReference Include="WolverineFx" Version="{PKG_VERSIONS['WolverineFx']}" />
+        <PackageReference Include="WolverineFx.FluentValidation" Version="{PKG_VERSIONS['WolverineFx.FluentValidation']}" />
     </ItemGroup>
 
     <ItemGroup>
@@ -200,8 +205,12 @@ public interface I{s}Repository : IRepository
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="{prefix}.Api" />
         <InternalsVisibleTo Include="{prefix}.Tests" />
         <InternalsVisibleTo Include="{prefix}.IntegrationTests" />
+        <InternalsVisibleTo Include="WolverineHandlers" />
+        <InternalsVisibleTo Include="Wolverine" />
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
     </ItemGroup>
 
 </Project>
@@ -209,7 +218,9 @@ public interface I{s}Repository : IRepository
         manifest[f"{prefix}/{prefix}.Application/DependencyInjection.cs"] = f"""using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Shared.Core.Application;
-using ShuffleSeries.Shared.Core.Application.Behaviors;
+using ShuffleSeries.Shared.Core.Application.Middlewares;
+using Wolverine;
+using Wolverine.FluentValidation;
 
 namespace {prefix}.Application;
 
@@ -220,19 +231,20 @@ public static class DependencyInjection
         var assembly = typeof(DependencyInjection).Assembly;
 
         services.AddSharedApplication();
-
-        services.AddMediatR(config =>
-        {s_open(3)}
-            config.RegisterServicesFromAssembly(assembly);
-
-            config.AddOpenBehavior(typeof(LoggingBehavior<,>));
-            config.AddOpenBehavior(typeof(PerformanceBehavior<,>));
-            config.AddOpenBehavior(typeof(ValidationBehavior<,>));
-        {s_close(3)});
-
         services.AddValidatorsFromAssembly(assembly);
 
         return services;
+    {s_close(2)}
+
+    public static WolverineOptions Add{s}ApplicationMessaging(this WolverineOptions opts)
+    {s_open(2)}
+        opts.UseFluentValidation();
+        opts.Discovery.IncludeAssembly(typeof(DependencyInjection).Assembly);
+        opts.RestoreV5Defaults();
+        opts.Policies.AddMiddleware(typeof(PerformanceMiddleware));
+        opts.Policies.AddMiddleware(typeof(LoggingMiddleware));
+
+        return opts;
     {s_close(2)}
 {s_close(1)}
 """
@@ -244,11 +256,9 @@ public interface I{s}CacheService
     Task SetAsync<T>(string key, T value, TimeSpan? ttl = null, CancellationToken cancellationToken = default);
 {s_close(1)}
 """
-        manifest[f"{prefix}/{prefix}.Application/Features/{s}Items/Commands/Create{s}Item/Create{s}ItemCommand.cs"] = f"""using MediatR;
+        manifest[f"{prefix}/{prefix}.Application/Features/{s}Items/Commands/Create{s}Item/Create{s}ItemCommand.cs"] = f"""namespace {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
 
-namespace {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
-
-public sealed record Create{s}ItemCommand(string Name) : IRequest<Guid>;
+public sealed record Create{s}ItemCommand(string Name);
 """
         manifest[f"{prefix}/{prefix}.Application/Features/{s}Items/Commands/Create{s}Item/Create{s}ItemCommandValidator.cs"] = f"""using FluentValidation;
 
@@ -264,15 +274,14 @@ public sealed class Create{s}ItemCommandValidator : AbstractValidator<Create{s}I
     {s_close(2)}
 {s_close(1)}
 """
-        manifest[f"{prefix}/{prefix}.Application/Features/{s}Items/Commands/Create{s}Item/Create{s}ItemCommandHandler.cs"] = f"""using MediatR;
-using {prefix}.Domain.Entities;
+        manifest[f"{prefix}/{prefix}.Application/Features/{s}Items/Commands/Create{s}Item/Create{s}ItemCommandHandler.cs"] = f"""using {prefix}.Domain.Entities;
 using {prefix}.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Domain.Primitives;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
 
-internal sealed class Create{s}ItemCommandHandler(I{s}Repository repository, IUnitOfWork unitOfWork) 
-    : IRequestHandler<Create{s}ItemCommand, Guid>
+public sealed class Create{s}ItemCommandHandler(I{s}Repository repository, IUnitOfWork unitOfWork)
 {s_open(1)}
     public async Task<Guid> Handle(Create{s}ItemCommand request, CancellationToken cancellationToken)
     {s_open(2)}
@@ -297,18 +306,22 @@ internal sealed class Create{s}ItemCommandHandler(I{s}Repository repository, IUn
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="{prefix}.Api" />
         <InternalsVisibleTo Include="{prefix}.Tests" />
         <InternalsVisibleTo Include="{prefix}.IntegrationTests" />
+        <InternalsVisibleTo Include="WolverineHandlers" />
+        <InternalsVisibleTo Include="Wolverine" />
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="MassTransit" Version="{PKG_VERSIONS['MassTransit']}" />
-        <PackageReference Include="MassTransit.RabbitMQ" Version="{PKG_VERSIONS['MassTransit.RabbitMQ']}" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="{PKG_VERSIONS['Microsoft.EntityFrameworkCore']}" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="{PKG_VERSIONS['Npgsql.EntityFrameworkCore.PostgreSQL']}" />
         <PackageReference Include="Quartz" Version="{PKG_VERSIONS['Quartz']}" />
         <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="{PKG_VERSIONS['Quartz.Extensions.DependencyInjection']}" />
         <PackageReference Include="Quartz.Extensions.Hosting" Version="{PKG_VERSIONS['Quartz.Extensions.Hosting']}" />
+        <PackageReference Include="WolverineFx.RabbitMQ" Version="{PKG_VERSIONS['WolverineFx.RabbitMQ']}" />
+        <PackageReference Include="WolverineFx.HealthChecks" Version="{PKG_VERSIONS['WolverineFx.HealthChecks']}" />
     </ItemGroup>
 
     <ItemGroup>
@@ -322,11 +335,15 @@ internal sealed class Create{s}ItemCommandHandler(I{s}Repository repository, IUn
         manifest[f"{prefix}/{prefix}.Infrastructure/DependencyInjection.cs"] = f"""using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ShuffleSeries.Shared.Core.Domain.Primitives;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
 using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
+using Wolverine;
+using Wolverine.HealthChecks;
+using Wolverine.RabbitMQ;
 using {prefix}.Domain.Repositories;
 using {prefix}.Infrastructure.Persistence;
 using {prefix}.Infrastructure.Persistence.Repositories;
@@ -355,13 +372,33 @@ public static class DependencyInjection
         services.AddScoped<I{s}Repository, {s}Repository>();
         services.AddSharedRedis(configuration);
         services.AddSharedRedisHealthCheck();
+        services.AddSharedRabbitMqHealthCheck(configuration);
+        services.AddHealthChecks()
+            .AddWolverine(tags: ["messaging", "wolverine", "ready"]);
 
         return services;
+    {s_close(2)}
+
+    public static void Add{s}MessagingTransport(this WolverineOptions opts, IConfiguration configuration)
+    {s_open(2)}
+        var rabbitMqConnectionString = configuration.GetConnectionString("RabbitMQ")
+            ?? configuration["RabbitMQ:ConnectionString"]
+            ?? "amqp://guest:guest@localhost:5672";
+
+        opts.UseRabbitMq(new Uri(rabbitMqConnectionString)).AutoProvision();
+
+        // RabbitMQ Outbound Event Routing (Strictly IIntegrationEvent to prevent internal domain event leakage)
+        opts.Publish(rule =>
+        {{
+            rule.MessagesImplementing<IIntegrationEvent>()
+                .ToRabbitExchange("shuffleseries.{s_lower}");
+        }});
     {s_close(2)}
 {s_close(1)}
 """
         manifest[f"{prefix}/{prefix}.Infrastructure/Persistence/{s}DbContext.cs"] = f"""using Microsoft.EntityFrameworkCore;
 using {prefix}.Domain.Entities;
+using ShuffleSeries.Shared.Core.Domain.Primitives;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure.Persistence.Configurations;
 using ShuffleSeries.Shared.Core.Infrastructure.Persistence.Extensions;
@@ -441,13 +478,16 @@ internal sealed class {s}Repository({s}DbContext context) : I{s}Repository
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="MediatR" Version="{PKG_VERSIONS['MediatR']}" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="{PKG_VERSIONS['Microsoft.AspNetCore.OpenApi']}" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="{PKG_VERSIONS['Microsoft.EntityFrameworkCore.Design']}">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
         <PackageReference Include="Scalar.AspNetCore" Version="{PKG_VERSIONS['Scalar.AspNetCore']}" />
+        <PackageReference Include="WolverineFx" Version="{PKG_VERSIONS['WolverineFx']}" />
+        <PackageReference Include="WolverineFx.FluentValidation" Version="{PKG_VERSIONS['WolverineFx.FluentValidation']}" />
+        <PackageReference Include="WolverineFx.RabbitMQ" Version="{PKG_VERSIONS['WolverineFx.RabbitMQ']}" />
+        <PackageReference Include="WolverineFx.RuntimeCompilation" Version="{PKG_VERSIONS['WolverineFx.RuntimeCompilation']}" />
     </ItemGroup>
 
     <ItemGroup>
@@ -466,9 +506,9 @@ internal sealed class {s}Repository({s}DbContext context) : I{s}Repository
 
 public sealed record Create{s}ItemRequest(string Name);
 """
-        manifest[f"{prefix}/{prefix}.Api/Endpoints/{s}Endpoints.cs"] = f"""using MediatR;
-using Microsoft.AspNetCore.Http;
+        manifest[f"{prefix}/{prefix}.Api/Endpoints/{s}Endpoints.cs"] = f"""using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Wolverine;
 using {prefix}.Api.Contracts.Requests;
 using {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
 
@@ -483,11 +523,11 @@ public static class {s}Endpoints
 
         group.MapPost("/", async (
             [FromBody] Create{s}ItemRequest request,
-            ISender sender,
+            IMessageBus bus,
             CancellationToken ct) =>
         {s_open(3)}
             var command = new Create{s}ItemCommand(request.Name);
-            var id = await sender.Send(command, ct);
+            var id = await bus.InvokeAsync<Guid>(command, ct);
             return Results.Created($"/api/{s.lower()}-items/{{id}}", new {s_open(4)} Id = id {s_close(4)});
         {s_close(3)})
         .WithName("Create{s}Item")
@@ -497,7 +537,8 @@ public static class {s}Endpoints
     {s_close(2)}
 {s_close(1)}
 """
-        manifest[f"{prefix}/{prefix}.Api/Program.cs"] = f"""using {prefix}.Api.Endpoints;
+        manifest[f"{prefix}/{prefix}.Api/Program.cs"] = f"""using Wolverine;
+using {prefix}.Api.Endpoints;
 using {prefix}.Application;
 using {prefix}.Infrastructure;
 using {prefix}.Infrastructure.Persistence;
@@ -517,6 +558,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSharedSerilog("{s}.Api");
 builder.Configuration.AddVault("{s.lower()}");
+
+builder.Host.UseWolverine(opts =>
+{{
+    opts.Add{s}ApplicationMessaging();
+    opts.Add{s}MessagingTransport(builder.Configuration);
+}});
 
 builder.Services.AddSharedCorrelation();
 builder.Services.AddSharedOpenTelemetry(builder.Configuration, "{s}.Api");
@@ -682,6 +729,7 @@ Content-Type: application/json
         <PackageReference Include="coverlet.collector" Version="{PKG_VERSIONS['coverlet.collector']}" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="{PKG_VERSIONS['Microsoft.NET.Test.Sdk']}" />
         <PackageReference Include="Moq" Version="{PKG_VERSIONS['Moq']}" />
+        <PackageReference Include="WolverineFx.RuntimeCompilation" Version="{PKG_VERSIONS['WolverineFx.RuntimeCompilation']}" />
         <PackageReference Include="xunit" Version="{PKG_VERSIONS['xunit']}" />
         <PackageReference Include="xunit.runner.visualstudio" Version="{PKG_VERSIONS['xunit.runner.visualstudio']}" />
     </ItemGroup>
@@ -702,7 +750,6 @@ Content-Type: application/json
 </Project>
 """
         manifest[f"{prefix}/{prefix}.Tests/Application/DependencyInjectionTests.cs"] = f"""using FluentValidation;
-using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using {prefix}.Application;
 
@@ -711,14 +758,13 @@ namespace {prefix}.Tests.Application;
 public class DependencyInjectionTests
 {s_open(1)}
     [Fact]
-    public void AddApplication_ShouldRegister_MediatRAndValidators()
+    public void AddApplication_ShouldRegisterValidatorsAndApplicationServices()
     {s_open(2)}
         var services = new ServiceCollection();
         services.AddLogging();
 
         services.AddApplication();
 
-        services.Any(s => s.ServiceType == typeof(IMediator)).Should().BeTrue();
         services.Any(s => typeof(IValidator).IsAssignableFrom(s.ServiceType)).Should().BeTrue();
     {s_close(2)}
 {s_close(1)}

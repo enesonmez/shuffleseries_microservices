@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
 using ShuffleSeries.Catalog.Application.Features.Platforms.Responses;
@@ -6,7 +5,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Queries.GetActivePlatforms;
 
-internal sealed class GetActivePlatformsQueryHandler : IRequestHandler<GetActivePlatformsQuery, IReadOnlyList<PlatformResponse>>
+public sealed class GetActivePlatformsQueryHandler
 {
     private readonly IPlatformRepository _platformRepository;
     private readonly ICatalogCacheService _cacheService;

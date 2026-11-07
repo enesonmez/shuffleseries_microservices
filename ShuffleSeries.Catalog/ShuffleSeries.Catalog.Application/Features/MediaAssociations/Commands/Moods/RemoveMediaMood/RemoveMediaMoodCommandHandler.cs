@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Moods.RemoveMediaMood;
 
-internal sealed class RemoveMediaMoodCommandHandler : IRequestHandler<RemoveMediaMoodCommand>
+public sealed class RemoveMediaMoodCommandHandler
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IUnitOfWork _unitOfWork;

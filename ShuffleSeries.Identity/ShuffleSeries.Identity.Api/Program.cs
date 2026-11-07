@@ -13,6 +13,7 @@ using ShuffleSeries.Shared.Core.Web.Health;
 using ShuffleSeries.Shared.Core.Web.Logging;
 using ShuffleSeries.Shared.Core.Web.Observability;
 using ShuffleSeries.Shared.Core.Web.Swagger;
+using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,12 @@ builder.Host.UseSharedSerilog("Identity.Api");
 
 // Configure HashiCorp Vault Secrets Management
 builder.Configuration.AddVault("identity");
+
+builder.Host.UseWolverine(opts =>
+{
+    opts.AddIdentityApplicationMessaging();
+    opts.AddIdentityMessagingTransport(builder.Configuration);
+});
 
 // Add Distributed Correlation ID Tracking
 builder.Services.AddSharedCorrelation();

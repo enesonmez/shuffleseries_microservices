@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Commands.UpdateMovie;
 
 public sealed record UpdateMovieCommand(
@@ -12,4 +10,4 @@ public sealed record UpdateMovieCommand(
     double? ImdbRating = null,
     int? ImdbVotes = null,
     string? PosterUrl = null,
-    string? BackdropUrl = null) : IRequest;
+    string? BackdropUrl = null);
