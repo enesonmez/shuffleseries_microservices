@@ -33,6 +33,8 @@ public static class ClaimsPrincipalExtensions
     public static bool IsGuest(this ClaimsPrincipal principal) =>
         bool.TryParse(principal.FindFirst("is_guest")?.Value, out var isGuest) && isGuest;
 
+    public const string PermissionClaimType = "permission";
+
     public static IEnumerable<string> GetRoles(this ClaimsPrincipal principal) =>
         principal.FindAll(ClaimTypes.Role)
             .Concat(principal.FindAll("role"))
@@ -40,20 +42,28 @@ public static class ClaimsPrincipalExtensions
             .Distinct();
 
     public static IEnumerable<string> GetPermissions(this ClaimsPrincipal principal) =>
-        principal.FindAll("permissions")
+        principal.FindAll(PermissionClaimType)
+            .Concat(principal.FindAll("permissions"))
             .Select(c => c.Value)
             .Distinct();
 
     public static bool HasPermission(this ClaimsPrincipal principal, string permission) =>
-        principal.FindAll("permissions")
+        principal.FindAll(PermissionClaimType)
+            .Concat(principal.FindAll("permissions"))
             .Any(c => c.Value.Equals(permission, StringComparison.OrdinalIgnoreCase));
 
     public static string? GetJwtId(this ClaimsPrincipal principal) =>
         principal.FindFirst("jti")?.Value
-        ?? principal.FindFirst(ClaimTypes.SerialNumber)?.Value;
+            ?? principal.FindFirst(ClaimTypes.SerialNumber)?.Value;
 
     public static DateTime? GetIssuedAtUtc(this ClaimsPrincipal principal)
     {
+        var iatMsValue = principal.FindFirst("iat_ms")?.Value;
+        if (long.TryParse(iatMsValue, out var iatMs))
+        {
+            return DateTimeOffset.FromUnixTimeMilliseconds(iatMs).UtcDateTime;
+        }
+
         var iatValue = principal.FindFirst("iat")?.Value;
         if (long.TryParse(iatValue, out var iatSeconds))
         {

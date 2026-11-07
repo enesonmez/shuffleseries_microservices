@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Commands.DeleteMood;
 
-public sealed class DeleteMoodCommandHandler : IRequestHandler<DeleteMoodCommand>
+internal sealed class DeleteMoodCommandHandler : IRequestHandler<DeleteMoodCommand>
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

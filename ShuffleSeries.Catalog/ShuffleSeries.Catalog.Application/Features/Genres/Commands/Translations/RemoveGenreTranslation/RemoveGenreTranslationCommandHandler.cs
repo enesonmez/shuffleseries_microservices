@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Commands.Translations.RemoveGenreTranslation;
 
-public sealed class RemoveGenreTranslationCommandHandler : IRequestHandler<RemoveGenreTranslationCommand>
+internal sealed class RemoveGenreTranslationCommandHandler : IRequestHandler<RemoveGenreTranslationCommand>
 {
     private readonly IGenreRepository _genreRepository;
     private readonly ICatalogCacheService _cacheService;

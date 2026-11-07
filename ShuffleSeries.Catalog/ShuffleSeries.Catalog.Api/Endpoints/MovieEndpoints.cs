@@ -57,12 +57,11 @@ public static class MovieEndpoints
         // 2. GET: Get movie by ID endpoint (with Content Negotiation & Permission)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                [FromQuery] string? lang,
                 ISender sender,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetMovieByIdQuery(id, lang ?? languageContext.CurrentLanguage);
+                var query = new GetMovieByIdQuery(id, languageContext.CurrentLanguage);
                 var response = await sender.Send(query, cancellationToken);
                 return Results.Ok(response);
             })

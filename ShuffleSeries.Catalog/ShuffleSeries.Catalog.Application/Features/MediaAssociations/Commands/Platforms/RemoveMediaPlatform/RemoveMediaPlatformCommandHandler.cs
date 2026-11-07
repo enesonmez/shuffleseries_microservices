@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Platforms.RemoveMediaPlatform;
 
-public sealed class RemoveMediaPlatformCommandHandler : IRequestHandler<RemoveMediaPlatformCommand>
+internal sealed class RemoveMediaPlatformCommandHandler : IRequestHandler<RemoveMediaPlatformCommand>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IUnitOfWork _unitOfWork;

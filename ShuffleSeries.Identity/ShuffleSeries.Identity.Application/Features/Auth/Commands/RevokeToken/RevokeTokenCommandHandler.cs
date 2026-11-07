@@ -1,5 +1,5 @@
 using MediatR;
-using ShuffleSeries.Identity.Application.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Application.Security;
@@ -45,18 +45,27 @@ internal sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenCom
 
         // Redis Token Blacklist integration for Access Token (OWASP API4)
         var targetJti = request.JwtId;
-        var targetTtl = TimeSpan.FromMinutes(60);
+        if (request.CallerUserId.HasValue && request.CallerUserId.Value != user.Id)
+        {
+            // Do not trust caller's JwtId if caller does not own the refresh token
+            targetJti = null;
+        }
+
+        var targetTtl = _tokenService.AccessTokenLifetime > TimeSpan.Zero
+            ? _tokenService.AccessTokenLifetime
+            : TimeSpan.FromMinutes(60);
 
         if (string.IsNullOrEmpty(targetJti) && !string.IsNullOrEmpty(request.AccessToken))
         {
-            var (parsedJti, parsedExp) = _tokenService.ExtractTokenInfo(request.AccessToken);
+            var (parsedJti, parsedExp) = _tokenService.ExtractTokenInfo(request.AccessToken, user.Id);
             targetJti = parsedJti;
             if (parsedExp.HasValue)
             {
                 var remaining = parsedExp.Value - now;
+                var maxTtl = targetTtl;
                 if (remaining > TimeSpan.Zero)
                 {
-                    targetTtl = remaining;
+                    targetTtl = remaining > maxTtl ? maxTtl : remaining;
                 }
             }
         }

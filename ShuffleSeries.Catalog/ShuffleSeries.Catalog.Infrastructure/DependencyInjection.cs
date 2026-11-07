@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
+using ShuffleSeries.Catalog.Application.Common.Interfaces;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
+using ShuffleSeries.Catalog.Infrastructure.Services;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
@@ -94,8 +96,8 @@ public static class DependencyInjection
 
         // Redis & Önbellek Yapılandırması (Distributed Cache - Multi-Replica Consistency)
         services.AddSharedRedis(configuration);
-        services.AddMemoryCache();
-        services.AddSingleton<ShuffleSeries.Catalog.Application.Common.Interfaces.ICatalogCacheService, ShuffleSeries.Catalog.Infrastructure.Services.RedisCatalogCacheService>();
+        services.AddSharedRedisHealthCheck();
+        services.AddSingleton<ICatalogCacheService, RedisCatalogCacheService>();
 
         // Interface - Somut Sınıf eşleşmeleri
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<CatalogDbContext>());

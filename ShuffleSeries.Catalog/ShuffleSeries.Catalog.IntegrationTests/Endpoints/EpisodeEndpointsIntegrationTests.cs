@@ -9,7 +9,6 @@ using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Catalog.IntegrationTests.Endpoints;
 
@@ -150,6 +149,48 @@ public class EpisodeEndpointsIntegrationTests : CatalogIntegrationTestBase
             episode.ImdbRating.Should().Be(8.8);
             episode.ThumbnailUrl.Should().Be("https://example.com/updated-thumb.jpg");
         });
+    }
+
+    [Fact]
+    public async Task UpdateEpisode_WithDuplicateEpisodeNumber_ShouldReturn409Conflict()
+    {
+        // Arrange: Create series and 2 episodes (Episode 1 and Episode 2) in Season 1
+        var seriesId = await CreateSampleSeriesAsync();
+        var ep1Request = new CreateEpisodeRequest(
+            SeriesId: seriesId,
+            SeasonNumber: 1,
+            EpisodeNumber: 1,
+            Title: "Episode One",
+            Overview: "Overview One",
+            LanguageCode: "tr");
+        var ep1Response = await Client.PostAsJsonAsync("api/catalog/episodes", ep1Request);
+        var ep1Id = await ep1Response.Content.ReadFromJsonAsync<Guid>();
+
+        var ep2Request = new CreateEpisodeRequest(
+            SeriesId: seriesId,
+            SeasonNumber: 1,
+            EpisodeNumber: 2,
+            Title: "Episode Two",
+            Overview: "Overview Two",
+            LanguageCode: "tr");
+        var ep2Response = await Client.PostAsJsonAsync("api/catalog/episodes", ep2Request);
+        var ep2Id = await ep2Response.Content.ReadFromJsonAsync<Guid>();
+
+        // Act: Try to update Episode 2's number to 1 (conflict!)
+        var updateRequest = new UpdateEpisodeRequest(
+            EpisodeNumber: 1,
+            IsStandalone: false,
+            RuntimeMinutes: 45);
+
+        var updateResponse = await Client.PutAsJsonAsync($"api/catalog/episodes/{ep2Id}", updateRequest);
+
+        // Assert: 409 Conflict with DUPLICATE_EPISODE
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        var problemDetails = await updateResponse.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+        problemDetails.Should().NotBeNull();
+        problemDetails!.Status.Should().Be((int)HttpStatusCode.Conflict);
+        problemDetails.Extensions.Should().ContainKey("code");
+        problemDetails.Extensions["code"]?.ToString().Should().Be("DUPLICATE_EPISODE");
     }
 
     [Fact]

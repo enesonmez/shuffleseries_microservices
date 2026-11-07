@@ -162,7 +162,7 @@ def run_all_tests():
     test_case("HEALTH", "Gateway Liveness Probe", "GET", "/health/live", 200)
     test_case("HEALTH", "Gateway Readiness Probe", "GET", "/health/ready", 200)
     test_case("HEALTH", "Identity Liveness Probe via Gateway", "GET", "/identity-api/health/live", 200)
-    test_case("HEALTH", "Identity Readiness Probe via Gateway (DB, Redis, Bus)", "GET", "/identity-api/health/ready", 200)
+    test_case("HEALTH", "Identity Readiness Probe Not Exposed via Gateway (404 - Security API8)", "GET", "/identity-api/health/ready", 404)
 
     # -------------------------------------------------------------
     # 2. Standard User Registration
@@ -222,6 +222,10 @@ def run_all_tests():
     test_case("LOGIN", "Empty Password -> 400 Bad Request", "POST", "/api/auth/login", 400,
               body={"email": reg_email, "password": ""})
 
+    # Oversized Email -> 400 Bad Request (SEC-V2-03)
+    test_case("LOGIN", "Login with Oversized Email (>256 chars) -> 400 Bad Request", "POST", "/api/auth/login", 400,
+              body={"email": "a" * 250 + "@example.com", "password": "Password123!"})
+
     # -------------------------------------------------------------
     # 4. Profile & Current User Inspection (/api/auth/me)
     # -------------------------------------------------------------
@@ -278,17 +282,19 @@ def run_all_tests():
 
     if guest_access_token:
         # Successful in-place elevation
-        test_case("CONVERT", "Convert Guest to Permanent Account (200 OK)", "POST", "/api/auth/convert-guest", 200,
-                  token=guest_access_token,
-                  body={"email": conv_email, "password": conv_pass},
-                  validate_fn=lambda r, h: (
-                      r.get("userId") == guest_user_id and r.get("isGuest") is False and r.get("email") == conv_email,
-                      f"Conversion failed or UserId changed: {r}"
-                  ))
+        conv_resp, _ = test_case("CONVERT", "Convert Guest to Permanent Account (200 OK)", "POST", "/api/auth/convert-guest", 200,
+                                 token=guest_access_token,
+                                 body={"email": conv_email, "password": conv_pass},
+                                 validate_fn=lambda r, h: (
+                                     r.get("userId") == guest_user_id and r.get("isGuest") is False and r.get("email") == conv_email,
+                                     f"Conversion failed or UserId changed: {r}"
+                                 ))
 
         # Attempt to convert already registered user -> 422 Unprocessable Entity
+        # Note: The old guest_access_token is now revoked & blacklisted; use the newly issued permanent user token.
+        conv_token = conv_resp.get("accessToken") if isinstance(conv_resp, dict) else access_token
         test_case("CONVERT", "Convert Already Registered User -> 422 Unprocessable Entity", "POST", "/api/auth/convert-guest", 422,
-                  token=guest_access_token,
+                  token=conv_token,
                   body={"email": f"another_{unique_suffix}@shuffleseries.com", "password": conv_pass})
 
     # Collision with existing email on convert
@@ -335,6 +341,10 @@ def run_all_tests():
     # Empty refresh token -> 400 Bad Request
     test_case("REFRESH", "Empty Refresh Token -> 400 Bad Request", "POST", "/api/auth/refresh", 400,
               body={"refreshToken": ""})
+
+    # Oversized Refresh Token -> 400 Bad Request (SEC-V2-03)
+    test_case("REFRESH", "Refresh with Oversized Token (>512 chars) -> 400 Bad Request", "POST", "/api/auth/refresh", 400,
+              body={"refreshToken": "a" * 513})
 
     # -------------------------------------------------------------
     # 8. Password Change & Session Invalidation
@@ -408,6 +418,10 @@ def run_all_tests():
     test_case("REVOKE", "Revoke with Empty Token -> 400 Bad Request", "POST", "/api/auth/revoke", 400,
               body={"refreshToken": ""})
 
+    # Oversized refresh token -> 400 Bad Request (SEC-V2-03)
+    test_case("REVOKE", "Revoke with Oversized Token (>512 chars) -> 400 Bad Request", "POST", "/api/auth/revoke", 400,
+              body={"refreshToken": "a" * 513})
+
     # -------------------------------------------------------------
     # 10. Social Login (/api/auth/social-login)
     # -------------------------------------------------------------
@@ -419,6 +433,10 @@ def run_all_tests():
     # Invalid external token -> 401 Unauthorized
     test_case("SOCIAL", "Invalid External Token (Google) -> 401 Unauthorized", "POST", "/api/auth/social-login", 401,
               body={"provider": "Google", "idToken": "invalid_unverifiable_mock_token"})
+
+    # Oversized IdToken -> 400 Bad Request (SEC-V2-03)
+    test_case("SOCIAL", "Social Login with Oversized IdToken (>8192 chars) -> 400 Bad Request", "POST", "/api/auth/social-login", 400,
+              body={"provider": "Google", "idToken": "a" * 8193})
 
     # -------------------------------------------------------------
     # 11. Account Deletion (GDPR / Apple Guideline 5.1.1(v))

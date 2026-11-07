@@ -6,7 +6,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Queries.GetMovieById;
 
-public sealed class GetMovieByIdQueryHandler : IRequestHandler<GetMovieByIdQuery, MovieDetailResponse>
+internal sealed class GetMovieByIdQueryHandler : IRequestHandler<GetMovieByIdQuery, MovieDetailResponse>
 {
     private readonly IMovieRepository _movieRepository;
     private readonly ILanguageContext _languageContext;

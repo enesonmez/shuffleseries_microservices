@@ -21,5 +21,6 @@ public interface IMediaRepository : IRepository<Media>
         bool sortDescending,
         int page,
         int pageSize,
+        string? targetLanguage = null,
         CancellationToken cancellationToken = default);
 }

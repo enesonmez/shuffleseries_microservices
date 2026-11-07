@@ -114,8 +114,8 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * gRPC sözleşmesinde çok dilli içerik sözlüklerinin (`map<string, LocalizedMediaPayload>`) taşınması.
 * [ ] Task 3.4: Transactional Outbox Pattern ve RabbitMQ Entegrasyonu
   * Dağıtık veri tutarlılığı için Transactional Outbox Pattern uygulanması.
-  * Çok dilli `MediaCreated/Updated/DeletedEvent`, `PlatformCreated/UpdatedEvent`, `MoodCreated/UpdatedEvent` ve `GenreCreated/Updated/DeletedEvent` mesajlarının RabbitMQ'ya asenkron fırlatılması (Search ve Shuffle servisleri beslemesi).
-  * Poison message korumalı (`MaxRetries = 3`) Quartz `ProcessOutboxMessagesJob` entegrasyonu.
+  * Çok dilli `MediaCreated/Updated/DeletedEvent`, `EpisodeCreated/Updated/DeletedEvent` ve `CatalogTaxonomyChangedEvent` mesajlarının RabbitMQ'ya asenkron fırlatılması (Search ve Shuffle servisleri beslemesi).
+  * Çoklu pod dağıtımlarında yarış durumlarını ve mükerrer mesaj iletimini önleyen `OutboxBatchProcessor` (PostgreSQL `FOR UPDATE SKIP LOCKED`), zehirli mesaj koruması (`MaxRetries = 3`) ve 7 günlük retention purge entegrasyonu.
 
 # Milestone 4: Shuffle Engine Service (The Core Engine)
 Sistemin en çok trafik alacak ana damarının performans, esneklik ve oyunlaştırma odaklı geliştirilmesi.

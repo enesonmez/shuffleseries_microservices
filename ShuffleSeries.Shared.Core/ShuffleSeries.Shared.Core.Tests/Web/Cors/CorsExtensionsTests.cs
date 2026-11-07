@@ -75,4 +75,28 @@ public class CorsExtensionsTests
         defaultPolicy.AllowAnyHeader.Should().BeTrue();
         defaultPolicy.SupportsCredentials.Should().BeFalse();
     }
+
+    [Fact]
+    public void AddSharedCors_WithCommaSeparatedAllowedOriginsScalarString_ShouldRestrictToOriginsAndSupportCredentials()
+    {
+        var services = new ServiceCollection();
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            ["Cors:AllowedOrigins"] = "https://shuffleseries.com, https://app.shuffleseries.com"
+        };
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        services.AddSharedCors(configuration);
+
+        var sp = services.BuildServiceProvider();
+        var corsOptions = sp.GetRequiredService<IOptions<CorsOptions>>().Value;
+
+        var defaultPolicy = corsOptions.GetPolicy(CorsExtensions.DefaultCorsPolicyName);
+        defaultPolicy.Should().NotBeNull();
+        defaultPolicy!.AllowAnyOrigin.Should().BeFalse();
+        defaultPolicy.Origins.Should().Contain(["https://shuffleseries.com", "https://app.shuffleseries.com"]);
+        defaultPolicy.SupportsCredentials.Should().BeTrue();
+    }
 }

@@ -8,8 +8,3 @@ public sealed record GenreResponse(
     string Name,
     string? Description,
     IReadOnlyList<GenreTranslationResponse> Translations);
-
-public sealed record GenreTranslationResponse(
-    string LanguageCode,
-    string Name,
-    string? Description);

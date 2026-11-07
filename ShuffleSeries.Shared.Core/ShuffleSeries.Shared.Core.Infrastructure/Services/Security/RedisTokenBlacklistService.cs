@@ -15,6 +15,7 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
     private readonly IConnectionMultiplexer _redis;
     private readonly RedisOptions _options;
     private readonly ILogger<RedisTokenBlacklistService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     private const string TokenKeyPrefix = "blacklist:token:";
     private const string UserKeyPrefix = "blacklist:user:";
@@ -22,11 +23,13 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
     public RedisTokenBlacklistService(
         IConnectionMultiplexer redis,
         IOptions<RedisOptions> options,
-        ILogger<RedisTokenBlacklistService> logger)
+        ILogger<RedisTokenBlacklistService> logger,
+        TimeProvider? timeProvider = null)
     {
         _redis = redis ?? throw new ArgumentNullException(nameof(redis));
         _options = options?.Value ?? new RedisOptions();
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task BlacklistTokenAsync(
@@ -66,6 +69,7 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
             {
                 _logger.LogError(ex, "[RedisTokenBlacklist] Failed to blacklist token {Jti} in Redis.", jti);
             }
+            throw;
         }
     }
 
@@ -90,9 +94,16 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
         }
     }
 
+    public Task BlacklistUserTokensAsync(
+        Guid userId,
+        TimeSpan maxTokenLifetime,
+        CancellationToken cancellationToken = default) =>
+        BlacklistUserTokensAsync(userId, maxTokenLifetime, revokedAt: null, cancellationToken);
+
     public async Task BlacklistUserTokensAsync(
         Guid userId,
         TimeSpan maxTokenLifetime,
+        DateTimeOffset? revokedAt,
         CancellationToken cancellationToken = default)
     {
         if (userId == Guid.Empty)
@@ -109,15 +120,15 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
         {
             var db = _redis.GetDatabase();
             var key = FormatKey(UserKeyPrefix + userId.ToString("N"));
-            var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var nowUnixMs = (revokedAt ?? _timeProvider.GetUtcNow()).ToUnixTimeMilliseconds();
 
-            await db.StringSetAsync(key, nowUnixSeconds.ToString(CultureInfo.InvariantCulture), maxTokenLifetime);
+            await db.StringSetAsync(key, nowUnixMs.ToString(CultureInfo.InvariantCulture), maxTokenLifetime);
 
             if (_logger.IsEnabled(LogLevel.Information))
             {
                 var ttlSeconds = (int)maxTokenLifetime.TotalSeconds;
-                _logger.LogInformation("[RedisTokenBlacklist] All tokens for User {UserId} revoked at Unix timestamp {Timestamp} with TTL {TtlSeconds}s",
-                    userId, nowUnixSeconds, ttlSeconds);
+                _logger.LogInformation("[RedisTokenBlacklist] All tokens for User {UserId} revoked at Unix timestamp (ms) {Timestamp} with TTL {TtlSeconds}s",
+                    userId, nowUnixMs, ttlSeconds);
             }
         }
         catch (Exception ex)
@@ -126,6 +137,7 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
             {
                 _logger.LogError(ex, "[RedisTokenBlacklist] Failed to write user revocation timestamp for User {UserId} in Redis.", userId);
             }
+            throw;
         }
     }
 
@@ -150,15 +162,16 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
                 return false;
             }
 
-            if (long.TryParse(value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var revokedAtUnixSeconds))
+            if (long.TryParse(value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var revokedAtRaw))
             {
-                var tokenIssuedAtSeconds = new DateTimeOffset(tokenIssuedAtUtc).ToUnixTimeSeconds();
-                var isRevoked = tokenIssuedAtSeconds <= revokedAtUnixSeconds;
+                var revokedAtMs = revokedAtRaw > 100_000_000_000L ? revokedAtRaw : revokedAtRaw * 1000;
+                var tokenIssuedAtMs = new DateTimeOffset(tokenIssuedAtUtc).ToUnixTimeMilliseconds();
+                var isRevoked = tokenIssuedAtMs <= revokedAtMs;
 
                 if (isRevoked && _logger.IsEnabled(LogLevel.Warning))
                 {
-                    _logger.LogWarning("[RedisTokenBlacklist] Token for User {UserId} issued at {IssuedAt} is revoked by user revocation timestamp {RevokedAt}",
-                        userId, tokenIssuedAtSeconds, revokedAtUnixSeconds);
+                    _logger.LogWarning("[RedisTokenBlacklist] Token for User {UserId} issued at {IssuedAtMs}ms is revoked by user revocation timestamp {RevokedAtMs}ms",
+                        userId, tokenIssuedAtMs, revokedAtMs);
                 }
 
                 return isRevoked;
@@ -171,6 +184,77 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
             if (_logger.IsEnabled(LogLevel.Warning))
             {
                 _logger.LogWarning(ex, "[RedisTokenBlacklist] Redis user revocation check failed for User {UserId}. Failing open to preserve availability.", userId);
+            }
+            return false;
+        }
+    }
+
+    public async Task<bool> IsSessionRevokedAsync(
+        string? jti,
+        Guid? userId,
+        DateTime? tokenIssuedAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var hasJti = !string.IsNullOrWhiteSpace(jti);
+        var hasUser = userId.HasValue && userId.Value != Guid.Empty && tokenIssuedAtUtc.HasValue;
+
+        if (!hasJti && !hasUser)
+        {
+            return false;
+        }
+
+        try
+        {
+            var db = _redis.GetDatabase();
+
+            if (hasJti && hasUser)
+            {
+                var tokenKey = (RedisKey)FormatKey(TokenKeyPrefix + jti);
+                var userKey = (RedisKey)FormatKey(UserKeyPrefix + userId!.Value.ToString("N"));
+
+                var values = await db.StringGetAsync([tokenKey, userKey]);
+                var tokenVal = values[0];
+                var userVal = values[1];
+
+                if (tokenVal.HasValue)
+                {
+                    if (_logger.IsEnabled(LogLevel.Warning))
+                    {
+                        _logger.LogWarning("[RedisTokenBlacklist] Token {Jti} is individually blacklisted.", jti);
+                    }
+                    return true;
+                }
+
+                if (userVal.HasValue && long.TryParse(userVal.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var revokedAtRaw))
+                {
+                    var revokedAtMs = revokedAtRaw > 100_000_000_000L ? revokedAtRaw : revokedAtRaw * 1000;
+                    var tokenIssuedAtMs = new DateTimeOffset(tokenIssuedAtUtc!.Value).ToUnixTimeMilliseconds();
+                    var isRevoked = tokenIssuedAtMs <= revokedAtMs;
+
+                    if (isRevoked && _logger.IsEnabled(LogLevel.Warning))
+                    {
+                        _logger.LogWarning("[RedisTokenBlacklist] Token for User {UserId} issued at {IssuedAtMs}ms is revoked by user revocation timestamp {RevokedAtMs}ms",
+                            userId.Value, tokenIssuedAtMs, revokedAtMs);
+                    }
+
+                    return isRevoked;
+                }
+
+                return false;
+            }
+
+            if (hasJti)
+            {
+                return await IsTokenBlacklistedAsync(jti!, cancellationToken);
+            }
+
+            return await IsUserBlacklistedAsync(userId!.Value, tokenIssuedAtUtc!.Value, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(ex, "[RedisTokenBlacklist] Session revocation check failed for JTI {Jti} / User {UserId}. Failing open to preserve availability.", jti, userId);
             }
             return false;
         }

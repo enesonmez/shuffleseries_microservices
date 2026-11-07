@@ -8,7 +8,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Commands.CreatePlatform;
 
-public sealed class CreatePlatformCommandHandler : IRequestHandler<CreatePlatformCommand, Guid>
+internal sealed class CreatePlatformCommandHandler : IRequestHandler<CreatePlatformCommand, Guid>
 {
     private readonly IPlatformRepository _platformRepository;
     private readonly ICatalogCacheService _cacheService;

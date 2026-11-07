@@ -14,7 +14,15 @@ internal sealed class MoodRepository : IMoodRepository
     }
 
     public void Add(Mood mood) => _context.Moods.Add(mood);
-    public void Update(Mood mood) => _context.Moods.Update(mood);
+
+    public void Update(Mood mood)
+    {
+        if (_context.Entry(mood).State == EntityState.Detached)
+        {
+            _context.Moods.Update(mood);
+        }
+    }
+
     public void Delete(Mood mood) => _context.Moods.Remove(mood);
 
     public async Task<Mood?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
@@ -47,4 +55,17 @@ internal sealed class MoodRepository : IMoodRepository
             .Where(x => x.IsActive)
             .OrderBy(x => x.DisplayOrder)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> GetExistingActiveIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        var idList = ids.ToList();
+        if (idList.Count == 0)
+            return [];
+
+        return await _context.Moods
+            .AsNoTracking()
+            .Where(x => x.IsActive && idList.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+    }
 }

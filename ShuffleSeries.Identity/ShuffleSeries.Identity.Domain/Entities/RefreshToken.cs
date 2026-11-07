@@ -2,7 +2,7 @@ using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Identity.Domain.Entities;
 
-public class RefreshToken : BaseEntity<Guid>
+public class RefreshToken : BaseEntity
 {
     public Guid UserId { get; private set; }
     public User User { get; private set; } = null!;
@@ -17,10 +17,11 @@ public class RefreshToken : BaseEntity<Guid>
     public bool IsExpired => IsExpiredAt(DateTime.UtcNow);
     public bool IsRevoked => RevokedAtUtc.HasValue;
     public bool IsActive => !IsRevoked && !IsExpired;
+    public bool IsActiveAt(DateTime utcNow) => !IsRevoked && !IsExpiredAt(utcNow);
 
     private RefreshToken() { }
 
-    public RefreshToken(Guid userId, string tokenHash, DateTime expiresAtUtc, string? createdByIp = null) : base(Guid.Empty)
+    internal RefreshToken(Guid userId, string tokenHash, DateTime expiresAtUtc, string? createdByIp = null) : base(Guid.Empty)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tokenHash);
 
@@ -34,5 +35,10 @@ public class RefreshToken : BaseEntity<Guid>
     {
         RevokedAtUtc = revokedAtUtc ?? DateTime.UtcNow;
         ReplacedByTokenHash = replacedByTokenHash;
+    }
+
+    public void ScrubCreatedByIp()
+    {
+        CreatedByIp = null;
     }
 }

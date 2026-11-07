@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.Platforms.RemoveEpisodePlatform;
 
-public sealed class RemoveEpisodePlatformCommandHandler : IRequestHandler<RemoveEpisodePlatformCommand>
+internal sealed class RemoveEpisodePlatformCommandHandler : IRequestHandler<RemoveEpisodePlatformCommand>
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly IUnitOfWork _unitOfWork;

@@ -24,10 +24,6 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .IsUnique()
             .HasFilter("\"IsDeleted\" = false");
 
-        builder.HasIndex(u => u.IsDeleted);
-
-        builder.HasIndex(u => u.Status);
-
         builder.Property(u => u.PasswordHash)
             .HasMaxLength(512);
 

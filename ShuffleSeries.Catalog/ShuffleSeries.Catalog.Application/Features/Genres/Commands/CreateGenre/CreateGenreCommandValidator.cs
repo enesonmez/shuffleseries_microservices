@@ -17,8 +17,8 @@ public sealed class CreateGenreCommandValidator : AbstractValidator<CreateGenreC
             .MaximumLength(100).WithMessage("Genre name cannot exceed 100 characters.");
 
         RuleFor(x => x.Description)
-            .MaximumLength(1000).When(x => !string.IsNullOrEmpty(x.Description))
-            .WithMessage("Genre description cannot exceed 1000 characters.");
+            .MaximumLength(500).When(x => !string.IsNullOrEmpty(x.Description))
+            .WithMessage("Genre description cannot exceed 500 characters.");
 
         RuleFor(x => x.LanguageCode)
             .NotEmpty().WithMessage("Language code is required.")

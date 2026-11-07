@@ -19,29 +19,3 @@ public sealed record MovieDetailResponse(
     IReadOnlyList<MovieMoodDto> Moods,
     IReadOnlyList<MovieGenreDto> Genres,
     IReadOnlyList<MovieTranslationDto> Translations);
-
-public sealed record MoviePlatformDto(
-    Guid PlatformId,
-    string Name,
-    string Slug,
-    string LogoUrl,
-    string WebUrl,
-    string? AppSchemeUrl);
-
-public sealed record MovieMoodDto(
-    Guid MoodId,
-    string Code,
-    string Name,
-    string AmbientColorHex,
-    string? IconUrl);
-
-public sealed record MovieGenreDto(
-    Guid GenreId,
-    string Code,
-    string Name);
-
-public sealed record MovieTranslationDto(
-    string LanguageCode,
-    string Title,
-    string Overview,
-    string? Tagline);

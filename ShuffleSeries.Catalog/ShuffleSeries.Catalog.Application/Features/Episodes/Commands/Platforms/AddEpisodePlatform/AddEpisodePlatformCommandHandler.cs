@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.Platforms.AddEpisodePlatform;
 
-public sealed class AddEpisodePlatformCommandHandler : IRequestHandler<AddEpisodePlatformCommand>
+internal sealed class AddEpisodePlatformCommandHandler : IRequestHandler<AddEpisodePlatformCommand>
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly IPlatformRepository _platformRepository;

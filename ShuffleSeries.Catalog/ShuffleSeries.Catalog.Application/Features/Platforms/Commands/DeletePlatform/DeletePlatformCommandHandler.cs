@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Commands.DeletePlatform;
 
-public sealed class DeletePlatformCommandHandler : IRequestHandler<DeletePlatformCommand>
+internal sealed class DeletePlatformCommandHandler : IRequestHandler<DeletePlatformCommand>
 {
     private readonly IPlatformRepository _platformRepository;
     private readonly ICatalogCacheService _cacheService;

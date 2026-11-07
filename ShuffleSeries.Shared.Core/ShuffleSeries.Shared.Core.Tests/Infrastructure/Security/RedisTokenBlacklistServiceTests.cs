@@ -356,4 +356,69 @@ public class RedisTokenBlacklistServiceTests
         // Assert
         result.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task IsSessionRevokedAsync_WhenBothProvidedAndNeitherRevoked_ShouldCallMGetAndReturnFalse()
+    {
+        // Arrange
+        var jti = "valid-jti-123";
+        var userId = Guid.NewGuid();
+        var tokenIssuedAt = DateTime.UtcNow;
+
+        _databaseMock.Setup(db => db.StringGetAsync(
+                It.Is<RedisKey[]>(keys => keys.Length == 2),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync([RedisValue.Null, RedisValue.Null]);
+
+        // Act
+        var result = await _sut.IsSessionRevokedAsync(jti, userId, tokenIssuedAt);
+
+        // Assert
+        result.Should().BeFalse();
+        _databaseMock.Verify(db => db.StringGetAsync(
+            It.Is<RedisKey[]>(keys => keys.Length == 2),
+            It.IsAny<CommandFlags>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task IsSessionRevokedAsync_WhenTokenIsBlacklisted_ShouldReturnTrue()
+    {
+        // Arrange
+        var jti = "revoked-jti-123";
+        var userId = Guid.NewGuid();
+        var tokenIssuedAt = DateTime.UtcNow;
+
+        _databaseMock.Setup(db => db.StringGetAsync(
+                It.Is<RedisKey[]>(keys => keys.Length == 2),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync(["revoked", RedisValue.Null]);
+
+        // Act
+        var result = await _sut.IsSessionRevokedAsync(jti, userId, tokenIssuedAt);
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task IsSessionRevokedAsync_WhenUserIsBlacklistedWithMillisecondPrecision_ShouldReturnTrue()
+    {
+        // Arrange
+        var jti = "some-jti";
+        var userId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var tokenIssuedAt = now.AddSeconds(-2).UtcDateTime;
+        var revokedAtMs = now.ToUnixTimeMilliseconds();
+
+        _databaseMock.Setup(db => db.StringGetAsync(
+                It.Is<RedisKey[]>(keys => keys.Length == 2),
+                It.IsAny<CommandFlags>()))
+            .ReturnsAsync([RedisValue.Null, revokedAtMs.ToString()]);
+
+        // Act
+        var result = await _sut.IsSessionRevokedAsync(jti, userId, tokenIssuedAt);
+
+        // Assert
+        result.Should().BeTrue();
+    }
 }

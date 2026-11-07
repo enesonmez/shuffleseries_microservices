@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Commands.UpdateMovie;
 
-public sealed class UpdateMovieCommandHandler : IRequestHandler<UpdateMovieCommand>
+internal sealed class UpdateMovieCommandHandler : IRequestHandler<UpdateMovieCommand>
 {
     private readonly IMovieRepository _movieRepository;
     private readonly IUnitOfWork _unitOfWork;

@@ -33,6 +33,12 @@ public sealed class LanguageContext : ILanguageContext
             {
                 return validCode.Value;
             }
+
+            var primaryCandidate = candidate.Split(['-', '_'])[0].Trim();
+            if (LanguageCode.TryFrom(primaryCandidate, out var normalizedCode))
+            {
+                return normalizedCode.Value;
+            }
         }
 
         // 2. Accept-Language header (e.g. "tr-TR,tr;q=0.9,en;q=0.8")

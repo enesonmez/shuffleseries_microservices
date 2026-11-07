@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 
-public sealed class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesCommand>
+internal sealed class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesCommand>
 {
     private readonly ISeriesRepository _seriesRepository;
     private readonly IUnitOfWork _unitOfWork;

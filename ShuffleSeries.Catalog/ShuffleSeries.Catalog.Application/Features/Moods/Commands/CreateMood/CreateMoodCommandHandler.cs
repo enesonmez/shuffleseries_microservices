@@ -8,7 +8,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Commands.CreateMood;
 
-public sealed class CreateMoodCommandHandler : IRequestHandler<CreateMoodCommand, Guid>
+internal sealed class CreateMoodCommandHandler : IRequestHandler<CreateMoodCommand, Guid>
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

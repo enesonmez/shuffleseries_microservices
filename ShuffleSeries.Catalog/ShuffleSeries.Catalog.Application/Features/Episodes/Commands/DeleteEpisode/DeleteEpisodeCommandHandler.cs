@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.DeleteEpisode;
 
-public sealed class DeleteEpisodeCommandHandler : IRequestHandler<DeleteEpisodeCommand>
+internal sealed class DeleteEpisodeCommandHandler : IRequestHandler<DeleteEpisodeCommand>
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly IUnitOfWork _unitOfWork;

@@ -8,7 +8,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Queries.GetActiveMoods;
 
-public sealed class GetActiveMoodsQueryHandler : IRequestHandler<GetActiveMoodsQuery, IReadOnlyList<MoodResponse>>
+internal sealed class GetActiveMoodsQueryHandler : IRequestHandler<GetActiveMoodsQuery, IReadOnlyList<MoodResponse>>
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

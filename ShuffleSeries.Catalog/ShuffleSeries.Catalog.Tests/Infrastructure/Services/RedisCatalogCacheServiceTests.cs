@@ -172,17 +172,6 @@ public class RedisCatalogCacheServiceTests
     }
 
     [Fact]
-    public void Remove_Should_CallKeyDelete()
-    {
-        _databaseMock.Setup(db => db.KeyDelete("test:sync-key", CommandFlags.None))
-            .Returns(true);
-
-        _service.Remove("sync-key");
-
-        _databaseMock.Verify(db => db.KeyDelete("test:sync-key", CommandFlags.None), Times.Once);
-    }
-
-    [Fact]
     public async Task RemoveAsync_Should_NotThrow_WhenRedisFails()
     {
         _databaseMock.Setup(db => db.KeyDeleteAsync("test:fail-key", CommandFlags.None))

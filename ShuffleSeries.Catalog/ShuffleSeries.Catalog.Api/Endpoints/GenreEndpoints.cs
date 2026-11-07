@@ -23,12 +23,11 @@ public static class GenreEndpoints
 
         // 1. GET: Get active genres (Cached, Localized, with Permission)
         group.MapGet("/", async (
-                [FromQuery] string? lang,
                 ISender sender,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetActiveGenresQuery(lang ?? languageContext.CurrentLanguage);
+                var query = new GetActiveGenresQuery(languageContext.CurrentLanguage);
                 var response = await sender.Send(query, cancellationToken);
                 return Results.Ok(response);
             })
@@ -42,12 +41,11 @@ public static class GenreEndpoints
         // 2. GET: Get genre by ID (Localized, with Permission)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                [FromQuery] string? lang,
                 ISender sender,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetGenreByIdQuery(id, lang ?? languageContext.CurrentLanguage);
+                var query = new GetGenreByIdQuery(id, languageContext.CurrentLanguage);
                 var response = await sender.Send(query, cancellationToken);
                 return Results.Ok(response);
             })

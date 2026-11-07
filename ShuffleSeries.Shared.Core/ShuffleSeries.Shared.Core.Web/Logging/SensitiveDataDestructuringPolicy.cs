@@ -28,7 +28,11 @@ public sealed class SensitiveDataDestructuringPolicy : IDestructuringPolicy
         "cardnumber",
         "cvv",
         "ssn",
-        "privatekey"
+        "privatekey",
+        "email",
+        "ipaddress",
+        "ip_address",
+        "clientip"
     ];
 
     public bool TryDestructure(
@@ -75,6 +79,9 @@ public sealed class SensitiveDataDestructuringPolicy : IDestructuringPolicy
 
         if (typeof(Delegate).IsAssignableFrom(type) || typeof(Stream).IsAssignableFrom(type) || type == typeof(CancellationToken))
             return true;
+
+        if (value is System.Collections.IDictionary)
+            return false;
 
         return value is IEnumerable;
     }

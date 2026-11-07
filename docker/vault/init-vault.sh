@@ -23,6 +23,8 @@ vault kv put -mount=secret shuffleseries/shared \
   "Jwt:Issuer=${JWT_ISSUER:-ShuffleSeries.Identity}" \
   "Jwt:Audience=${JWT_AUDIENCE:-ShuffleSeries.Microservices}" \
   "Jwt:ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}" \
+  "Jwt:RefreshTokenExpirationDays=${JWT_REFRESH_TOKEN_DAYS:-14}" \
+  "Jwt:GuestRefreshTokenExpirationDays=${JWT_GUEST_REFRESH_TOKEN_DAYS:-30}" \
   "Logging:Sinks:Console:Enabled=${LOGGING_CONSOLE_ENABLED:-true}" \
   "Logging:Sinks:Console:UseJsonFormat=${LOGGING_CONSOLE_JSON:-true}" \
   "Logging:Sinks:File:Enabled=${LOGGING_FILE_ENABLED:-false}" \
@@ -32,7 +34,8 @@ vault kv put -mount=secret shuffleseries/shared \
   "Logging:Sinks:PostgreSql:TableName=${LOGGING_POSTGRESQL_TABLE:-AppLogs}" \
   "OpenTelemetry:Enabled=${OTEL_ENABLED:-true}" \
   "OpenTelemetry:OtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}" \
-  "Cors:AllowedOrigins=${CORS_ALLOWED_ORIGINS:-*}"
+  "Cors:AllowedOrigins=${CORS_ALLOWED_ORIGINS:-*}" \
+  "ForwardedHeaders:KnownProxies:0=${FORWARDED_HEADERS_KNOWN_PROXIES:-127.0.0.1}"
 
 # 2. Catalog Service Specific Secrets & Config
 vault kv put -mount=secret shuffleseries/catalog \

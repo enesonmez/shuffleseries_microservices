@@ -12,7 +12,7 @@ public class UserRole
 
     private UserRole() { }
 
-    public UserRole(Guid userId, Guid roleId, DateTime? assignedAtUtc = null)
+    internal UserRole(Guid userId, Guid roleId, DateTime? assignedAtUtc = null)
     {
         UserId = userId;
         RoleId = roleId;

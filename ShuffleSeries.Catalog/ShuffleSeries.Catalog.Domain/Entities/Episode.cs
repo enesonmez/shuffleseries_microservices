@@ -10,10 +10,35 @@ public class Episode : BaseEntity, IHaveDomainEvents
     private readonly List<IDomainEvent> _domainEvents = [];
     private readonly List<EpisodeTranslation> _translations = [];
     private readonly List<EpisodePlatform> _episodePlatforms = [];
+    private Guid? _pendingCreatedSeriesId;
 
-    public IReadOnlyCollection<IDomainEvent> GetDomainEvents() => _domainEvents.AsReadOnly();
+    public IReadOnlyCollection<IDomainEvent> GetDomainEvents()
+    {
+        if (_pendingCreatedSeriesId.HasValue)
+        {
+            var events = new List<IDomainEvent>
+            {
+                new EpisodeCreatedDomainEvent(_pendingCreatedSeriesId.Value, SeasonId, Id, EpisodeNumber, IsStandalone)
+            };
+            events.AddRange(_domainEvents);
+            return events.AsReadOnly();
+        }
+
+        return _domainEvents.AsReadOnly();
+    }
+
     protected void RaiseDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
-    public void ClearDomainEvents() => _domainEvents.Clear();
+
+    public void ClearDomainEvents()
+    {
+        _domainEvents.Clear();
+        _pendingCreatedSeriesId = null;
+    }
+
+    internal void MarkCreated(Guid seriesId)
+    {
+        _pendingCreatedSeriesId = seriesId;
+    }
 
     public Guid SeasonId { get; private set; }
     public int EpisodeNumber { get; private set; }
@@ -173,7 +198,7 @@ public class Episode : BaseEntity, IHaveDomainEvents
 
     private void RaiseUpdatedEvent()
     {
-        if (GetDomainEvents().Any(e => e is EpisodeCreatedDomainEvent or EpisodeUpdatedDomainEvent or EpisodeDeletedDomainEvent))
+        if (_pendingCreatedSeriesId.HasValue || GetDomainEvents().Any(e => e is EpisodeCreatedDomainEvent or EpisodeUpdatedDomainEvent or EpisodeDeletedDomainEvent))
             return;
 
         RaiseDomainEvent(new EpisodeUpdatedDomainEvent(Id, EpisodeNumber, IsStandalone, RuntimeMinutes, ImdbRating));

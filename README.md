@@ -207,7 +207,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 | **Event Streaming** | RabbitMQ (Outbox & InBox patterns for guaranteed delivery) |
 | **Databases & Stores** | PostgreSQL, MongoDB, Redis, Elasticsearch |
 | **Secret Management** | HashiCorp Vault (KV-v2 engine, automated seeding) |
-| **Resilience** | Polly (Retry, Circuit Breaker, Fallback) |
+| **Resilience** | Microsoft.Extensions.Http.Resilience (Hedging, Retry, Circuit Breaker, Timeout, RateLimiter) |
 | **Observability** | OpenTelemetry, Serilog, Prometheus, Jaeger |
 | **Testing Architecture** | xUnit, AwesomeAssertions, Moq, NetArchTest.Rules, Testcontainers (PostgreSQL, Redis, RabbitMQ), WebApplicationFactory, Respawn, Coverlet |
 | **CI/CD & Quality** | GitHub Actions, SonarQube / SonarCloud, Docker Buildx |
@@ -279,9 +279,11 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 ### 10. Identity & Access Management (`ShuffleSeries.Identity`)
 - **Hybrid RBAC + PBAC Architecture**: Enterprise authorization where standard roles (`Guest`, `Standard`, `Premium`, `Admin`) bundle granular permissions, while `UserPermission` enables user-specific exception overrides (grant or revoke). Dynamic permission resolution bakes effective permissions into JWT claims (`permissions: ["catalog:read"]`), enabling zero-database-lookup authorization checks at the API Gateway level.
 - **OWASP API4 Refresh Token Rotation (RTR) & Reuse Detection**: Single-use, cryptographically secure refresh tokens stored as SHA-256 hashes. Presentation of an already revoked token triggers automated **Token Family Invalidation**, terminating all active user sessions immediately.
-- **Dedicated External SSO Linking (`UserLogins`)**: Supports Apple & Google SSO without polluting core user profiles. Retains Apple refresh tokens to support automated provider revocation during account deletion per Apple App Store Guideline 5.1.1(v) and GDPR.
+- **Dedicated External SSO Linking (`UserLogins`)**: Supports Apple & Google SSO without polluting core user profiles. Seamlessly manages external provider identities (`Provider`, `ProviderKey`) with zero plaintext credential storage, strictly complying with YAGNI and OWASP API8.
+- **Dedicated `IAuthResponseService`**: Centralizes JWT access token generation, cryptographically secure refresh token creation, role/permission resolution, and standard/guest token lifetime rules across all 5 authentication commands (`Register`, `Login`, `SocialLogin`, `ConvertGuest`, `CreateGuestSession`), adhering strictly to DRY and single-responsibility principles.
 - **Frictionless Guest Sessions & In-Place Elevation (`ConvertFromGuest`)**: Instant anonymous session creation (`POST /api/auth/guest`) issuing a guest JWT and initial tickets; seamless conversion to a registered account (`POST /api/auth/convert-guest`) preserving the exact `UserId` in-place, eliminating distributed data migrations across downstream microservices and raising `UserRegisteredDomainEvent`.
-- **Password Management & Timing Attack Defense**: Secure password updates (`POST /api/auth/change-password`) revoking active tokens and updating Redis blacklist. Constant-time dummy PBKDF2 hash verification in `LoginCommandHandler` neutralizes user enumeration timing attacks.
+- **GDPR & KVKK Compliance on Account Deletion (`DELETE /api/auth/account`)**: Immediately scrubs external SSO identities (`UserLogin.Anonymize()` clearing `ProviderKey` and `ProviderEmail`) and bulk-zeroes historical IP addresses on refresh tokens (`CreatedByIp = "0.0.0.0"`) via EF Core `ExecuteUpdateAsync()` without loading entities into memory.
+- **Password Management & Timing Attack Defense**: Pure .NET 10 BCL `Rfc2898DeriveBytes.Pbkdf2` (HMAC-SHA512, 100,000 iterations) password hashing with zero ASP.NET Core web framework coupling in `Infrastructure`. Secure password updates (`POST /api/auth/change-password`) revoke active tokens and update the Redis blacklist, while constant-time dummy PBKDF2 hash verification in `LoginCommandHandler` neutralizes user enumeration timing attacks.
 - **Pre-Account Takeover Defense**: Strict `email_verified == "true"` validation on all incoming external social ID tokens (Google, Apple).
 - **Periodic Background Token Purge**: Efficient 30-day retention cleanup of expired/revoked refresh tokens via Quartz `PurgeExpiredRefreshTokensJob` utilizing EF Core `ExecuteDeleteAsync()` for zero-heap-allocation bulk deletion.
 
@@ -289,12 +291,16 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 - **Two-Tier Revocation Strategy (OWASP API4)**:
   - **Single Token Revocation (`blacklist:token:{jti}`)**: Clean logouts (`POST /api/auth/revoke`) write the token's unique ID (`jti`) to Redis with TTL equal to the token's remaining lifetime (`exp - now`). Expired keys are automatically purged by Redis with zero memory leaks.
   - **Bulk User Revocation (`blacklist:user:{userId}`)**: Account deletion (`DELETE /api/auth/account`) and token reuse attacks store the current Unix timestamp in Redis. Any token presented with `iat <= user.revokedAt` is immediately rejected, invalidating all devices in a single O(1) Redis write.
+  - **Atomic Multi-Key Evaluation (`MGET`) & Millisecond Accuracy (`iat_ms`)**: Token and session revocation checks are executed concurrently via a single roundtrip Redis `MGET` (`StringGetAsync([tokenKey, userKey])`). Tokens embed high-precision `iat_ms` timestamps to eliminate same-second revocation race conditions.
 - **Zero Clock Skew Enforcement**: Eliminates the default 5-minute ASP.NET Core tolerance (`ClockSkew = TimeSpan.Zero`), preventing revoked or expired tokens from being honored past their exact expiration.
+- **Fail-Open Read / Fail-Closed Write Strategy**: Redis blacklist read outages fail-open with diagnostic warning alerts (`_logger.LogWarning`) to prevent catastrophic cascading outages on edge ingress traffic, preserving 99.99% availability. In contrast, revocation writes (`POST /api/auth/revoke`, password changes, deletions) fail-closed by re-throwing on Redis exceptions to guarantee untrusted revoked sessions are never silently acknowledged.
 - **Perimeter Defense at API Gateway Edge**: Token validation hook (`JwtBearerEvents.OnTokenValidated`) inspects the Redis blacklist directly at the gateway, returning RFC 7807 `401 Unauthorized` (`AUTH_TOKEN_REVOKED`) before malicious or stale requests can consume downstream microservice CPU, memory, or database connections.
-- **Fail-Open Resilience**: Redis connection degradation fails open with diagnostic warnings (`_logger.LogWarning`) to prevent complete system outages, balancing stringent security with 99.99% high availability.
+- **Strict IP Partitioning for Brute-Force Rate Limiting (`RateLimitingExtensions`)**: Auth rate limiters partition strictly by client IP (`$"ip:{RemoteIpAddress}"`) rather than authenticated user identity, effectively closing guest-token brute-force credential stuffing vectors.
 
 ### 12. Transactional Outbox & Identity Event Choreography (`Shared.Core.Domain.Events` & `Identity.Infrastructure`)
-- **Dual-Write Prevention & Transactional Outbox**: All entity state mutations and event dispatches are committed within a single PostgreSQL ACID transaction via `InsertOutboxMessagesInterceptor`. A resilient Quartz background job (`ProcessOutboxMessagesJob`) polls and publishes integration events to RabbitMQ.
+- **Dual-Write Prevention & Transactional Outbox**: All entity state mutations and event dispatches are committed within a single PostgreSQL ACID transaction via `InsertOutboxMessagesInterceptor`. A resilient Quartz background job (`ProcessOutboxMessagesJob`) powered by `OutboxBatchProcessor` polls and publishes integration events to RabbitMQ.
+- **Multi-Replica Non-Blocking Queueing (`FOR UPDATE SKIP LOCKED`)**: Multi-pod worker deployments select pending outbox messages without deadlock or message duplication using relational `FOR UPDATE SKIP LOCKED` query batching.
+- **Automatic 7-Day Outbox Retention Purge**: Background outbox batch processors automatically purge successfully processed outbox records older than 7 days using high-performance EF Core `ExecuteDeleteAsync()` bulk deletions.
 - **Anti-Corruption Layer (ACL) Domain-to-Integration Translation**: Identity domain events (`UserRegisteredDomainEvent`, `UserAccountDeletedDomainEvent`) remain strictly private to the Identity Bounded Context and are translated into standardized public integration event contracts (`UserRegisteredEvent`, `UserAccountDeletedEvent`) in `ShuffleSeries.Shared.Core.Domain.Events`.
 - **1-to-1 Outbox to InBox Idempotency Mapping**: The integration event's `Id` directly mirrors `outboxMessage.Id`, providing downstream consumers (`Notification`, `TicketEconomy`, `Profile`, `UserLibrary`, `History`) with deterministic deduplication keys against network duplicates.
 - **Poison Message Quarantine**: Configured with `MaxRetries = 3` and automated failure tracking to prevent corrupted payloads from halting background processing queues.
@@ -309,7 +315,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 - **PRD 9 Vibe-Centric Moods (3x3 Grid)**: Ambient colors, vector icons, and multi-language descriptors for all 9 launch moods covering 100% of entertainment tastes (`kafa-dagitmalik`, `icini-isitanlar`, `beyin-yakanlar`, `zeka-oyunlari`, `gaza-getirenler`, `gerim-gerim-gerenler`, `dunyadan-uzaklas`, `gozyasi-garantili`, `ufkunu-genislet`).
 - **Cartesian Explosion Prevention (`AsSplitQuery`)**: All repository queries loading multi-level child collections strictly utilize split queries to guarantee linear database I/O and minimal memory allocations.
 - **Idempotent Automated Database Seeder**: Seamlessly initializes 9 launch moods, standard genres, top streaming platforms, and sample media (*Inception*, *Black Mirror*) across startup and integration test lifecycles.
-- **TMDb & IMDb Industry Standards & Title Uniqueness Elimination**: Movies and Series strictly enforce external identifiers (`TmdbId` > 0 and `ImdbId` regex `^tt\d{7,10}$`) protected by PostgreSQL conditional partial indexes (`HasFilter("\"IsDeleted\" = false")`) for duplicate prevention (`409 Conflict`), while eliminating artificial Title uniqueness constraints to seamlessly support independent works and remakes sharing identical names.
+- **TMDb & IMDb External Identifier Deduplication**: Media entities enforce external identifiers (`TmdbId` > 0 and `ImdbId` regex `^tt\d{7,10}$`). `TmdbId` is governed by a composite partial unique index `(MediaType, TmdbId) WHERE "IsDeleted" = false` allowing identical IDs across movies and series (as TMDB maintains independent ID sequences for movies vs TV shows), while eliminating artificial Title uniqueness constraints to seamlessly support independent works and remakes sharing identical names.
 
 ### 14. Catalog CQRS, Minimal APIs & Content Negotiation (`ShuffleSeries.Catalog`)
 - **End-to-End CQRS Architecture (MediatR & FluentValidation)**: Fully segregated Read and Write models for Movies, Series, Episodes, Platforms, Moods, Genres, Media Associations, and CMS Admin Backoffice.
@@ -325,18 +331,33 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
   - `GET /api/catalog/movies/{id}` & `/series/{id}`: Localized media detail pages with content negotiation (`SeriesDetailResponse`).
   - `GET /api/catalog/episodes/{id}`: Standalone episode detail page for Episode Roulette.
   - `GET /api/catalog/admin/media`: Paginated, filtered, culture-safe searchable CMS backoffice list.
-- **Distributed Redis Caching & Plug-and-Play Architecture (`ICatalogCacheService`)**: Eliminates multi-replica cache inconsistencies (stale reads) across horizontal scaling by serving platforms, moods, and genres via centralized `StackExchange.Redis` with sub-millisecond ping latency (~0.3ms). Features per-key `SemaphoreSlim` double-checked locking against Cache Stampede (thundering herd), random TTL Jitter (+0..180s) against Cache Avalanche, fail-open resilience to preserve 99.99% database fallback availability, and full Liskov Substitution Principle (LSP) compliance allowing zero-code-change plug-and-play switching between `RedisCatalogCacheService` and `MemoryCatalogCacheService`. Automated asynchronous cache invalidation (`RemoveAsync`) is triggered on every taxonomy create, update, or delete mutation.
+- **Distributed Redis Caching Architecture (`ICatalogCacheService` & `RedisCatalogCacheService`)**: Eliminates multi-replica cache inconsistencies (stale reads) across horizontal scaling by serving platforms, moods, and genres via centralized `StackExchange.Redis` with sub-millisecond ping latency (~0.3ms). Features zero-copy direct UTF-8 byte deserialization (`SerializeToUtf8Bytes` and `(byte[])` reads) eliminating intermediate string allocations, per-key `SemaphoreSlim` double-checked locking against Cache Stampede (thundering herd), random TTL Jitter (+0..180s) against Cache Avalanche, and fail-open resilience to preserve 99.99% database fallback availability. Synchronous blocking operations and in-memory caching layers were removed to eliminate memory pressure and thread pool starvation. Automated asynchronous cache invalidation (`RemoveAsync`) is triggered on every taxonomy create, update, or delete mutation.
 - **Language Content Negotiation (`ILanguageContext`)**: Resolves client language requests with zero 404s via a 5-step fallback hierarchy: `?lang=` -> `Accept-Language` header -> `tr` -> `en` -> first available translation.
 - **Culture-Safe PostgreSQL Search (`EF.Functions.ILike`)**: Employs native database-level case-insensitive matching to permanently eliminate Turkish culture casing anomalies (`İ/ı/i/I`).
 - **Episode Domain Events & Outbox Integration (Symmetric Coarse-Grained Model)**: Integrated `Episode` with the Transactional Outbox pattern via the `IHaveDomainEvents` interface without forcing it into an unnatural aggregate root. Maintained architectural symmetry with `Media`, `Platform`, `Mood`, and `Genre` using coarse-grained lifecycle events (`EpisodeCreatedDomainEvent`, `EpisodeUpdatedDomainEvent`, `EpisodeDeletedDomainEvent`). Implemented the `RaiseUpdatedEvent` deduplication guard to eliminate outbox message stampedes across multi-field mutations within a single unit of work.
 - **Security by Design, Granular PBAC & Vault SSOT**: Every endpoint—including client reads—is strictly enforced via JWT Bearer authentication and fine-grained resource policies (`CanReadCatalogMovies`, `CanCreateCatalogMovies`, `CanReadCatalogSeries`, `CanReadCatalogEpisodes`, `CanManageCatalogAssociations`, etc., and `CanReadAdminMedia` for CMS). In strict compliance with OWASP API8, zero hardcoded secrets exist in `appsettings.json`; all JWT signing keys (`Jwt:Secret`, `Jwt:Issuer`, `Jwt:Audience`) are dynamically pulled at bootstrap from HashiCorp Vault (`shuffleseries/shared`) matching the Identity Service pattern.
 - **Performance Guard & High-Concurrency Hardening**:
-  - **Cache Stampede (Thundering Herd) Defense**: `MemoryCatalogCacheService` enforces per-key `SemaphoreSlim` double-checked locking, guaranteeing lock-free $O(1)$ reads on cache hits and single-flight execution on cache misses.
+  - **Cache Stampede (Thundering Herd) Defense**: `RedisCatalogCacheService` enforces per-key `SemaphoreSlim` double-checked locking, guaranteeing lock-free $O(1)$ reads on cache hits and single-flight execution on cache misses.
   - **Cache Avalanche Prevention**: Dynamic $+ \text{Random}(0, 180\text{s})$ TTL jitter applied across all cached taxonomy keys.
   - **Over-Fetching Elimination & Focused Aggregate Loading**: Avoids loading full aggregate deep graphs; `CreateEpisode` uses lightweight `GetByIdWithSeasonsAsync`, and media associations load focused collections (`GetByIdWithPlatforms/Moods/Genres/Translations`).
   - **ChangeTracker Snapshot Isolation (`GetByIdForDetailAsync`)**: Read-only detail queries strictly encapsulate EF Core `.AsNoTracking()` within infrastructure repository implementations without leaking ORM flags into domain contracts, eliminating ChangeTracker overhead.
   - **Optimized Partial Outbox Indexing**: Composite filtered index `(OccurredOnUtc) WHERE "ProcessedOnUtc" IS NULL AND "RetryCount" < 3` (`IX_OutboxMessages_Pending`) guarantees index-only scans for background outbox message dispatchers.
   - **MassTransit Pod OOM Guard**: RabbitMQ endpoint consumer configured with strict `PrefetchCount = 16` and standard `.NET 10 TimeProvider`.
+
+---
+
+### 15. Architecture Governance, Scaffolding & Universal Fitness Tests (The 3-Pillar Defense)
+
+```mermaid
+flowchart LR
+    Rule["📜 Declarative Standard\n(.agents/rules/architecture-standard.md)"] --> Scaffold["⚙️ Deterministic CLI\n(scripts/scaffold_service.py)"]
+    Scaffold --> Onion["🧅 5-Layer Symmetric Service\n(Domain, App, Infra, Api, Tests)"]
+    Onion --> Fitness["🛡️ Executable Governance\n(MicroserviceArchitectureTestBase - 59 Tests)"]
+```
+
+- **Declarative Guard (`.agents/rules/architecture-standard.md` & `AGENTS.md`)**: Complete architectural specification for all ShuffleSeries microservices, enforcing 5-layer Onion anatomy (`Domain`, `Application`, `Infrastructure`, `Api`, `Tests`, `IntegrationTests`), strict **1-Class-1-File** discipline, **1:1 SUT test folder mirroring**, pure BCL `Infrastructure` isolation (zero `Microsoft.AspNetCore.*` coupling), and standardized `Program.cs` middleware ordering.
+- **Universal Architecture Test Base (`MicroserviceArchitectureTestBase`)**: Reusable `NetArchTest.Rules` fitness function base class enforcing **26+ automated invariants** per service (**59 total architecture tests**): layer dependency boundaries, zero `Microsoft.AspNetCore` references in `Infrastructure`, `internal sealed` CQRS handlers, repositories & EF Core configurations, `public sealed` commands & queries, command-validator pairings, aggregate root encapsulation, async `CancellationToken` parameters, and Quartz concurrency controls.
+- **Deterministic Microservice Scaffolding Engine (`scripts/scaffold_service.py`)**: Production-ready Python CLI generating full 6-project Onion + Test suites in 2 seconds, pre-configured with `<InternalsVisibleTo>`, MediatR, FluentValidation, EF Core `IX_OutboxMessages_Pending` partial index, Redis health checks, OpenAPI, symmetric multi-layer `Dockerfile`, `launchSettings` ports, solution registration, and immediate `MicroserviceArchitectureTestBase` derivation.
 
 ---
 
@@ -401,15 +422,29 @@ docker compose -f docker-compose.apps.yml down
 dotnet build
 ```
 
+### ⚙️ Scaffolding a New Microservice (Deterministic CLI)
+To generate a new Bounded Context microservice with 100% architectural symmetry:
+```bash
+# Preview generated 35-file tree without touching disk
+python3 scripts/scaffold_service.py ShuffleEngine --dry-run
+
+# Scaffold all 5 layers + 2 test suites, link to solution and ArchitectureTests
+python3 scripts/scaffold_service.py ShuffleEngine --port 5003
+
+# Verify build and universal architectural compliance
+dotnet build
+dotnet test --filter FullyQualifiedName~ShuffleEngine
+```
+
 ### 🧪 Test Execution (Unit, Architecture, Real Integration & Pentest E2E)
 ShuffleSeries enforces a strict, multi-tiered testing strategy:
 - **Unit Tests (`ShuffleSeries.Shared.Core.Tests`, `ShuffleSeries.Catalog.Tests`, `ShuffleSeries.Identity.Tests`):** Fast, isolated tests for domain entities, validation logic, and CQRS handlers.
-- **Architecture Dependency Tests (`ShuffleSeries.ArchitectureTests`):** Architectural Fitness Functions via `NetArchTest.Rules` verifying layer boundaries (Domain, Application, Infrastructure, Api), command-validator pairings, aggregate root encapsulation, and CQRS/DDD conventions across all microservices.
+- **Architecture Dependency Tests (`ShuffleSeries.ArchitectureTests`):** Universal Architectural Fitness Functions via `NetArchTest.Rules` and `MicroserviceArchitectureTestBase` verifying layer boundaries (Domain, Application, Infrastructure, Api), command-validator pairings, aggregate root encapsulation, sealed handlers/validators, and CQRS/DDD conventions across all microservices.
 - **Real Infrastructure Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`, `ShuffleSeries.Identity.IntegrationTests`, `ShuffleSeries.ApiGateway.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (**PostgreSQL, Redis & RabbitMQ**), `Respawn` and Redis `allowAdmin` database flushes for clean isolation, plus deterministic on-demand outbox message dispatching.
-- **Master E2E & Penetration Testing Suite (`e2e_tests/`):** 175 comprehensive integration and adversarial penetration tests through YARP API Gateway covering SSRF, SQLi/Trigram blind fuzzing, BOLA/IDOR, ReDoS/DoS, HTTP Parameter Pollution, and JWT Algorithm Confusion.
+- **Master E2E & Penetration Testing Suite (`e2e_tests/`):** 214 comprehensive integration and adversarial penetration tests through YARP API Gateway covering SSRF, SQLi/Trigram blind fuzzing, BOLA/IDOR, ReDoS/DoS, HTTP Parameter Pollution, and JWT Algorithm Confusion.
 
 ```bash
-# Run all 858 tests across the entire solution
+# Run all 1,022+ tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)
@@ -455,13 +490,13 @@ The platform is fortified with an automated, multi-stage GitHub Actions pipeline
 ```mermaid
 flowchart LR
     A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
-    B --> C["🧪 Automated Tests\n(563 Tests + Real Testcontainers)"]
+    B --> C["🧪 Automated Tests\n(1,022+ Tests + Real Testcontainers)"]
     D --> E["🐳 Docker Integrity Gate\n(Non-Root 'app' Containers)"]
     C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 100% Safe)"]
 ```
 
 - **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
-- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **842 automated tests** (Unit, Architecture, and real PostgreSQL Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **1,022 automated tests** (Unit, 63 Architecture Fitness Functions, and real PostgreSQL/Redis/RabbitMQ Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
 - **SonarQube Quality Gate:** Validates **0 Bugs**, **0 Vulnerabilities**, **0 Code Smells**, and **100% Security Hotspots Reviewed**.
 - **Container Verification:** Validates Docker builds for microservices and API Gateway on every push and pull request, enforcing the non-root `USER app` security standard.
 - **Fine-Grained Permission-Based Access Control (PBAC):** Every Catalog endpoint is secured via resource-level granular permissions (`catalog:movies:*`, `catalog:series:*`, `catalog:episodes:*`, `catalog:platforms:*`, `catalog:moods:*`, `catalog:genres:*`, `catalog:associations:manage`, `catalog:admin:read`) backed by idempotent database seeding (`IdentityDbSeeder`).

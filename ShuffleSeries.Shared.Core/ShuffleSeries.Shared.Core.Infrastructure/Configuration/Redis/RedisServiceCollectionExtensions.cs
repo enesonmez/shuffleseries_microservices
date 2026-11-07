@@ -47,18 +47,4 @@ public static class RedisServiceCollectionExtensions
         services.TryAddSingleton<ITokenBlacklistService, RedisTokenBlacklistService>();
         return services;
     }
-
-    /// <summary>
-    /// ITokenBlacklistService uygulamasını (RedisTokenBlacklistService) DI konteynerine kaydeder.
-    /// Geriye dönük uyumluluk için configuration ile birlikte Redis kaydını da destekler.
-    /// </summary>
-    public static IServiceCollection AddSharedTokenBlacklist(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        services.AddSharedRedis(configuration);
-        services.TryAddSingleton<ITokenBlacklistService, RedisTokenBlacklistService>();
-
-        return services;
-    }
 }

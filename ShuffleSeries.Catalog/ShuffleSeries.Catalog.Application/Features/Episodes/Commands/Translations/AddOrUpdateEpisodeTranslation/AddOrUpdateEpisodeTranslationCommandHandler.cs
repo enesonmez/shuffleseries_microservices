@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.Translations.AddOrUpdateEpisodeTranslation;
 
-public sealed class AddOrUpdateEpisodeTranslationCommandHandler : IRequestHandler<AddOrUpdateEpisodeTranslationCommand>
+internal sealed class AddOrUpdateEpisodeTranslationCommandHandler : IRequestHandler<AddOrUpdateEpisodeTranslationCommand>
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly IUnitOfWork _unitOfWork;

@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Translations.AddOrUpdateMediaTranslation;
 
-public sealed class AddOrUpdateMediaTranslationCommandHandler : IRequestHandler<AddOrUpdateMediaTranslationCommand>
+internal sealed class AddOrUpdateMediaTranslationCommandHandler : IRequestHandler<AddOrUpdateMediaTranslationCommand>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IUnitOfWork _unitOfWork;

@@ -22,7 +22,17 @@ public interface ITokenBlacklistService
     Task BlacklistUserTokensAsync(Guid userId, TimeSpan maxTokenLifetime, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Kullanıcının o ana kadar üretilmiş tüm token'larını geçersiz kılmak için belirtilen damga zamanıyla (revokedAt) iptal damgası atar.
+    /// </summary>
+    Task BlacklistUserTokensAsync(Guid userId, TimeSpan maxTokenLifetime, DateTimeOffset? revokedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Kullanıcının verilen token'ının üretim tarihi (iat), kullanıcının iptal damgasından önce mi kontrol eder.
     /// </summary>
     Task<bool> IsUserBlacklistedAsync(Guid userId, DateTime tokenIssuedAtUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Hem jti hem de userId bazlı iptalleri tek bir Redis MGET sorgusuyla doğrular (1 RTT ağ optimizasyonu).
+    /// </summary>
+    Task<bool> IsSessionRevokedAsync(string? jti, Guid? userId, DateTime? tokenIssuedAtUtc, CancellationToken cancellationToken = default);
 }

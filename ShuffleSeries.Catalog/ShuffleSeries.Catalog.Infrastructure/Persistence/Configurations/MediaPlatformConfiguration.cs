@@ -4,7 +4,7 @@ using ShuffleSeries.Catalog.Domain.Entities;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class MediaPlatformConfiguration : IEntityTypeConfiguration<MediaPlatform>
+internal sealed class MediaPlatformConfiguration : IEntityTypeConfiguration<MediaPlatform>
 {
     public void Configure(EntityTypeBuilder<MediaPlatform> builder)
     {

@@ -17,7 +17,8 @@ internal sealed class PermissionConfiguration : IEntityTypeConfiguration<Permiss
             .HasMaxLength(128);
 
         builder.HasIndex(p => p.Code)
-            .IsUnique();
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
 
         builder.Property(p => p.Group)
             .IsRequired()

@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Commands.UpdatePlatform;
 
-public sealed class UpdatePlatformCommandHandler : IRequestHandler<UpdatePlatformCommand>
+internal sealed class UpdatePlatformCommandHandler : IRequestHandler<UpdatePlatformCommand>
 {
     private readonly IPlatformRepository _platformRepository;
     private readonly ICatalogCacheService _cacheService;

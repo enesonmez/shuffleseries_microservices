@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
-using ShuffleSeries.Identity.Application.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Domain.Repositories;
 using ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Identity.Infrastructure.Configuration;
@@ -23,6 +23,7 @@ public static class DependencyInjection
 {
     public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddMemoryCache();
         services.AddSharedInfrastructure();
         services.AddSharedRedis(configuration);
         services.AddSharedRedisHealthCheck();
@@ -67,6 +68,8 @@ public static class DependencyInjection
                     });
                 }
 
+                configurator.PrefetchCount = 16;
+
                 configurator.ConfigureEndpoints(context);
             });
         });
@@ -93,6 +96,16 @@ public static class DependencyInjection
                         .WithSimpleSchedule(schedule =>
                             schedule.WithIntervalInHours(24)
                                 .RepeatForever()));
+
+            var purgeGuestsJobKey = new JobKey(nameof(PurgeAbandonedGuestAccountsJob));
+
+            configure.AddJob<PurgeAbandonedGuestAccountsJob>(purgeGuestsJobKey)
+                .AddTrigger(trigger =>
+                    trigger.ForJob(purgeGuestsJobKey)
+                        .WithIdentity($"{nameof(PurgeAbandonedGuestAccountsJob)}-Trigger")
+                        .WithSimpleSchedule(schedule =>
+                            schedule.WithIntervalInHours(24)
+                                .RepeatForever()));
         });
 
         services.AddQuartzHostedService(options =>
@@ -113,9 +126,14 @@ public static class DependencyInjection
 
         // External Social Auth Providers (Strategy / Provider Pattern)
         services.AddHttpClient();
+        services.AddHttpClient("OidcJwks", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(5);
+        })
+        .AddStandardResilienceHandler();
         services.Configure<ExternalAuthOptions>(configuration.GetSection(ExternalAuthOptions.SectionName));
-        services.AddScoped<ISocialAuthProvider, GoogleAuthProvider>();
-        services.AddScoped<ISocialAuthProvider, AppleAuthProvider>();
-        services.AddScoped<IExternalAuthService, ExternalAuthService>();
+        services.AddSingleton<ISocialAuthProvider, GoogleAuthProvider>();
+        services.AddSingleton<ISocialAuthProvider, AppleAuthProvider>();
+        services.AddSingleton<IExternalAuthService, ExternalAuthService>();
     }
 }

@@ -4,7 +4,6 @@ using ShuffleSeries.Catalog.Api.Contracts.Requests.Movies;
 using ShuffleSeries.Catalog.Application.Features.AdminMedia.Responses;
 using ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
 using ShuffleSeries.Shared.Core.Application.Responses;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Catalog.IntegrationTests.Endpoints;
 

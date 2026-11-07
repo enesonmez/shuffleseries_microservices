@@ -6,7 +6,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Queries.GetActivePlatforms;
 
-public sealed class GetActivePlatformsQueryHandler : IRequestHandler<GetActivePlatformsQuery, IReadOnlyList<PlatformResponse>>
+internal sealed class GetActivePlatformsQueryHandler : IRequestHandler<GetActivePlatformsQuery, IReadOnlyList<PlatformResponse>>
 {
     private readonly IPlatformRepository _platformRepository;
     private readonly ICatalogCacheService _cacheService;

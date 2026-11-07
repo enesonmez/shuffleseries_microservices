@@ -42,7 +42,13 @@ internal sealed class PermissionRepository : IPermissionRepository
 
     public void Add(Permission permission) => _context.Permissions.Add(permission);
 
-    public void Update(Permission permission) => _context.Permissions.Update(permission);
+    public void Update(Permission permission)
+    {
+        if (_context.Entry(permission).State == EntityState.Detached)
+        {
+            _context.Permissions.Update(permission);
+        }
+    }
 
     public void Delete(Permission permission) => _context.Permissions.Remove(permission);
 }

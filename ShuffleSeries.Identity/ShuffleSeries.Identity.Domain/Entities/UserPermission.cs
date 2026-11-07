@@ -13,7 +13,7 @@ public class UserPermission
 
     private UserPermission() { }
 
-    public UserPermission(Guid userId, Guid permissionId, bool isGranted, DateTime? assignedAtUtc = null)
+    internal UserPermission(Guid userId, Guid permissionId, bool isGranted, DateTime? assignedAtUtc = null)
     {
         UserId = userId;
         PermissionId = permissionId;

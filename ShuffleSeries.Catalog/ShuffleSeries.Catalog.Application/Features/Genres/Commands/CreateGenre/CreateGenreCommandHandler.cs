@@ -8,7 +8,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Commands.CreateGenre;
 
-public sealed class CreateGenreCommandHandler : IRequestHandler<CreateGenreCommand, Guid>
+internal sealed class CreateGenreCommandHandler : IRequestHandler<CreateGenreCommand, Guid>
 {
     private readonly IGenreRepository _genreRepository;
     private readonly ICatalogCacheService _cacheService;

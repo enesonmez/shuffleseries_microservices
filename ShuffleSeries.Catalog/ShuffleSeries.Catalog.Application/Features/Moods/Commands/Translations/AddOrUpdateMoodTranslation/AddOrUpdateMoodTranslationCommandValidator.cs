@@ -23,7 +23,7 @@ public sealed class AddOrUpdateMoodTranslationCommandValidator : AbstractValidat
             .Must(LanguageCode.IsSupported).WithMessage("Language code must be a supported ISO 639-1 code (e.g. 'tr', 'en').");
 
         RuleFor(x => x.VibeTags)
-            .MaximumLength(300).When(x => !string.IsNullOrEmpty(x.VibeTags))
-            .WithMessage("Vibe tags cannot exceed 300 characters.");
+            .MaximumLength(500).When(x => !string.IsNullOrEmpty(x.VibeTags))
+            .WithMessage("Vibe tags cannot exceed 500 characters.");
     }
 }

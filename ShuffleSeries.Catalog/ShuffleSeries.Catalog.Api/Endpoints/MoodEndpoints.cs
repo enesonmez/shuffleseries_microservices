@@ -23,12 +23,11 @@ public static class MoodEndpoints
 
         // 1. GET: Get active moods (Cached, Localized, with Permission)
         group.MapGet("/", async (
-                [FromQuery] string? lang,
                 ISender sender,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetActiveMoodsQuery(lang ?? languageContext.CurrentLanguage);
+                var query = new GetActiveMoodsQuery(languageContext.CurrentLanguage);
                 var response = await sender.Send(query, cancellationToken);
                 return Results.Ok(response);
             })
@@ -42,12 +41,11 @@ public static class MoodEndpoints
         // 2. GET: Get mood by ID (Localized, with Permission)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                [FromQuery] string? lang,
                 ISender sender,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetMoodByIdQuery(id, lang ?? languageContext.CurrentLanguage);
+                var query = new GetMoodByIdQuery(id, languageContext.CurrentLanguage);
                 var response = await sender.Send(query, cancellationToken);
                 return Results.Ok(response);
             })

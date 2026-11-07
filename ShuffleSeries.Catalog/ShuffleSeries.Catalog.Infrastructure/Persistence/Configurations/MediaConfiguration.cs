@@ -5,7 +5,7 @@ using ShuffleSeries.Catalog.Domain.Enums;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class MediaConfiguration : IEntityTypeConfiguration<Media>
+internal sealed class MediaConfiguration : IEntityTypeConfiguration<Media>
 {
     public void Configure(EntityTypeBuilder<Media> builder)
     {
@@ -20,7 +20,7 @@ public class MediaConfiguration : IEntityTypeConfiguration<Media>
         builder.Property(x => x.TmdbId)
             .IsRequired();
 
-        builder.HasIndex(x => x.TmdbId)
+        builder.HasIndex(x => new { x.MediaType, x.TmdbId })
             .IsUnique()
             .HasFilter("\"IsDeleted\" = false");
 

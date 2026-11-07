@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Commands.DeleteGenre;
 
-public sealed class DeleteGenreCommandHandler : IRequestHandler<DeleteGenreCommand>
+internal sealed class DeleteGenreCommandHandler : IRequestHandler<DeleteGenreCommand>
 {
     private readonly IGenreRepository _genreRepository;
     private readonly ICatalogCacheService _cacheService;

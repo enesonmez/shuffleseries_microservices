@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Moods.RemoveMediaMood;
 
-public sealed class RemoveMediaMoodCommandHandler : IRequestHandler<RemoveMediaMoodCommand>
+internal sealed class RemoveMediaMoodCommandHandler : IRequestHandler<RemoveMediaMoodCommand>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IUnitOfWork _unitOfWork;

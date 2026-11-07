@@ -6,7 +6,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Queries.GetGenreById;
 
-public sealed class GetGenreByIdQueryHandler : IRequestHandler<GetGenreByIdQuery, GenreResponse>
+internal sealed class GetGenreByIdQueryHandler : IRequestHandler<GetGenreByIdQuery, GenreResponse>
 {
     private readonly IGenreRepository _genreRepository;
     private readonly ILanguageContext _languageContext;

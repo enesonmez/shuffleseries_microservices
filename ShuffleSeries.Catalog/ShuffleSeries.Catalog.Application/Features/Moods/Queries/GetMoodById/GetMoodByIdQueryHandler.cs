@@ -6,7 +6,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Queries.GetMoodById;
 
-public sealed class GetMoodByIdQueryHandler : IRequestHandler<GetMoodByIdQuery, MoodResponse>
+internal sealed class GetMoodByIdQueryHandler : IRequestHandler<GetMoodByIdQuery, MoodResponse>
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ILanguageContext _languageContext;

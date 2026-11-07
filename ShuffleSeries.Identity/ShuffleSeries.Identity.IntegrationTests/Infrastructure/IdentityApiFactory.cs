@@ -71,6 +71,7 @@ public class IdentityApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         using var scope = Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         await dbContext.Database.MigrateAsync();
+        await IdentityDbSeeder.SeedAsync(dbContext);
 
         // 5. Respawner nesnesini başlat (migration ve seed tablolarını sıfırlama dışında tutabiliriz)
         _respawner = await Respawner.CreateAsync(_dbConnection, new RespawnerOptions
@@ -103,23 +104,13 @@ public class IdentityApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["Jwt:Secret"] = "SuperSecretSecureKeyForIdentityIntegrationTesting2026!!",
                 ["Jwt:Issuer"] = "ShuffleSeries.Identity",
                 ["Jwt:Audience"] = "ShuffleSeries.Clients",
-                ["Jwt:ExpirationMinutes"] = "60"
+                ["Jwt:ExpirationMinutes"] = "60",
+                ["ExternalAuth:ValidateSignatures"] = "false"
             });
         });
 
         builder.ConfigureServices(services =>
         {
-            services.AddProblemDetails(options =>
-            {
-                options.CustomizeProblemDetails = context =>
-                {
-                    if (context.Exception is not null)
-                    {
-                        Console.WriteLine($"[TEST_DEBUG_EXCEPTION] {context.Exception}");
-                    }
-                };
-            });
-
             // Otonom Quartz sayacını test ortamında kaldırıyoruz (Respawn ile deadlock olmaması için).
             var quartzHostedServices = services
                 .Where(d => d.ServiceType == typeof(IHostedService) &&

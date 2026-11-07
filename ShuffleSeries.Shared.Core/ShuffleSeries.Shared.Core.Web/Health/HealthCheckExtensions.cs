@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting;
 
 namespace ShuffleSeries.Shared.Core.Web.Health;
 
@@ -50,11 +51,13 @@ public static class HealthCheckExtensions
     {
         context.Response.ContentType = "application/json; charset=utf-8";
 
+        var timeProvider = context.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System;
+
         var response = new
         {
             status = report.Status.ToString(),
             type = "Liveness",
-            timestamp = DateTime.UtcNow
+            timestamp = timeProvider.GetUtcNow().UtcDateTime
         };
 
         await context.Response.WriteAsync(JsonSerializer.Serialize(response, _jsonOptions));
@@ -64,20 +67,23 @@ public static class HealthCheckExtensions
     {
         context.Response.ContentType = "application/json; charset=utf-8";
 
+        var isDevelopment = context.RequestServices.GetService<IHostEnvironment>()?.IsDevelopment() == true;
+        var timeProvider = context.RequestServices.GetService<TimeProvider>() ?? TimeProvider.System;
+
         var response = new
         {
             status = report.Status.ToString(),
             type = "Readiness",
             totalDurationMs = report.TotalDuration.TotalMilliseconds,
-            timestamp = DateTime.UtcNow,
+            timestamp = timeProvider.GetUtcNow().UtcDateTime,
             checks = report.Entries.Select(entry => new
             {
                 name = entry.Key,
                 status = entry.Value.Status.ToString(),
                 durationMs = entry.Value.Duration.TotalMilliseconds,
                 description = entry.Value.Description,
-                data = entry.Value.Data.Count != 0 ? entry.Value.Data : null,
-                error = entry.Value.Exception?.Message
+                data = isDevelopment && entry.Value.Data.Count != 0 ? entry.Value.Data : null,
+                error = isDevelopment ? entry.Value.Exception?.Message : null
             })
         };
 

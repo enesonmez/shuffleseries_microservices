@@ -45,6 +45,9 @@ public static class SerilogExtensions
                 .Enrich.WithProperty("MachineName", Environment.MachineName)
                 .Enrich.WithProperty("ProcessId", Environment.ProcessId)
                 .Destructure.With<SensitiveDataDestructuringPolicy>()
+                .Destructure.ToMaximumDepth(5)
+                .Destructure.ToMaximumStringLength(2048)
+                .Destructure.ToMaximumCollectionCount(25)
                 .ReadFrom.Configuration(context.Configuration);
 
             foreach (var configurator in loggingBuilder.SinkConfigurators)

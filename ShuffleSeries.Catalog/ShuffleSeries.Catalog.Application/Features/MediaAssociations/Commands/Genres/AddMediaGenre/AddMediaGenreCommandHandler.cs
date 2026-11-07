@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Genres.AddMediaGenre;
 
-public sealed class AddMediaGenreCommandHandler : IRequestHandler<AddMediaGenreCommand>
+internal sealed class AddMediaGenreCommandHandler : IRequestHandler<AddMediaGenreCommand>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IGenreRepository _genreRepository;

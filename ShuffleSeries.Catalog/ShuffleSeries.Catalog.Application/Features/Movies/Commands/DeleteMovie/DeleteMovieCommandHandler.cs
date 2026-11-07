@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Commands.DeleteMovie;
 
-public sealed class DeleteMovieCommandHandler : IRequestHandler<DeleteMovieCommand>
+internal sealed class DeleteMovieCommandHandler : IRequestHandler<DeleteMovieCommand>
 {
     private readonly IMovieRepository _movieRepository;
     private readonly IUnitOfWork _unitOfWork;

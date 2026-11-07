@@ -135,8 +135,8 @@ public class Series : Media
             imdbRating,
             thumbnailUrl);
 
+        episode.MarkCreated(Id);
         RaiseUpdatedEvent();
-        RaiseDomainEvent(new EpisodeCreatedDomainEvent(Id, season.Id, episode.Id, episodeNumber, standaloneFlag));
         return episode;
     }
 

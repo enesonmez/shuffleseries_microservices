@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Commands.Translations.AddOrUpdateGenreTranslation;
 
-public sealed class AddOrUpdateGenreTranslationCommandHandler : IRequestHandler<AddOrUpdateGenreTranslationCommand>
+internal sealed class AddOrUpdateGenreTranslationCommandHandler : IRequestHandler<AddOrUpdateGenreTranslationCommand>
 {
     private readonly IGenreRepository _genreRepository;
     private readonly ICatalogCacheService _cacheService;

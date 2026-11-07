@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Translations.RemoveMediaTranslation;
 
-public sealed class RemoveMediaTranslationCommandHandler : IRequestHandler<RemoveMediaTranslationCommand>
+internal sealed class RemoveMediaTranslationCommandHandler : IRequestHandler<RemoveMediaTranslationCommand>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IUnitOfWork _unitOfWork;

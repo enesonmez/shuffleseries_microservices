@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
-using ShuffleSeries.Identity.Api.Contracts.Requests;
-using ShuffleSeries.Identity.Application.Models;
+using ShuffleSeries.Identity.Api.Contracts.Requests.Auth;
+using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.IntegrationTests.Infrastructure;
 
 namespace ShuffleSeries.Identity.IntegrationTests.Endpoints;
@@ -82,5 +82,25 @@ public class RealInfrastructureIntegrationTests : IdentityIntegrationTestBase
         await Factory.ResetStateAsync();
         var keyExistsAfterReset = await redisDb.KeyExistsAsync(blacklistKey);
         keyExistsAfterReset.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PostgreSqlSchema_ShouldNotContainLowCardinalityStatusIndexOnUsers()
+    {
+        // Act & Assert: Verify via PostgreSQL system catalog that IX_Users_Status is removed
+        await ExecuteDbContextAsync(async db =>
+        {
+            var connection = db.Database.GetDbConnection();
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM pg_indexes WHERE tablename = 'Users' AND indexname = 'IX_Users_Status';";
+            if (connection.State != System.Data.ConnectionState.Open)
+            {
+                await connection.OpenAsync();
+            }
+
+            var result = await cmd.ExecuteScalarAsync();
+            var count = Convert.ToInt64(result);
+            count.Should().Be(0, "Low-cardinality index IX_Users_Status should be removed from Users table.");
+        });
     }
 }

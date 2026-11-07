@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.ValueObjects;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class GenreTranslationConfiguration : IEntityTypeConfiguration<GenreTranslation>
+internal sealed class GenreTranslationConfiguration : IEntityTypeConfiguration<GenreTranslation>
 {
     public void Configure(EntityTypeBuilder<GenreTranslation> builder)
     {

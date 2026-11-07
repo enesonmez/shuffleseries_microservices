@@ -4,7 +4,6 @@ using ShuffleSeries.Catalog.Infrastructure;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
 using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
-using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Web;
 using ShuffleSeries.Shared.Core.Web.Authentication;
 using ShuffleSeries.Shared.Core.Web.Correlation;
@@ -31,7 +30,6 @@ builder.Services.AddSharedOpenTelemetry(builder.Configuration, "Catalog.Api");
 
 // Add Standard Health Checks (Liveness & Readiness)
 builder.Services.AddSharedHealthChecks();
-builder.Services.AddSharedRedisHealthCheck();
 
 // Add Swagger & OpenAPI Documentation
 builder.Services.AddSharedSwagger(options =>
@@ -43,7 +41,8 @@ builder.Services.AddSharedSwagger(options =>
 });
 
 // Add Shared JWT Authentication & Authorization (Resolves Jwt:Secret, Jwt:Issuer, Jwt:Audience from Vault/Configuration)
-builder.Services.AddSharedJwtAuthentication(builder.Configuration);
+// Edge (Gateway) katmanı kara liste denetimini tek merkezde yaptığı için iç serviste redundant Redis sorgusunu kapatıyoruz
+builder.Services.AddSharedJwtAuthentication(builder.Configuration, validateTokenBlacklist: false);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

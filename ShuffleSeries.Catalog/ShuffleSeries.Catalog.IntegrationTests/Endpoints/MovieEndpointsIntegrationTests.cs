@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.Movies;
 using ShuffleSeries.Catalog.Application.Features.Movies.Responses;
 using ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Catalog.IntegrationTests.Endpoints;
 
@@ -275,6 +274,59 @@ public class MovieEndpointsIntegrationTests : CatalogIntegrationTestBase
         movie!.Title.Should().Be("Tenet");
         movie.TmdbId.Should().Be(577922);
         movie.ImdbId.Should().Be("tt6723592");
+    }
+
+    [Fact]
+    public async Task GetMovieById_WithAssociatedMoodsAndGenres_ShouldReturnLocalizedNamesNotRawCodes()
+    {
+        // Arrange: Create a movie
+        var createRequest = new CreateMovieRequest(
+            ReleaseYear: 2021,
+            RuntimeMinutes: 155,
+            PosterUrl: "https://example.com/dune.jpg",
+            BackdropUrl: null,
+            LanguageCode: "tr",
+            Title: "Dune",
+            Overview: "Arrakis çöl gezegeni.",
+            Director: "Denis Villeneuve",
+            TmdbId: 438631,
+            ImdbId: "tt1160419");
+
+        var postResponse = await Client.PostAsJsonAsync("api/catalog/movies", createRequest);
+        postResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var movieId = await postResponse.Content.ReadFromJsonAsync<Guid>();
+
+        // Find seeded sci-fi genre and first mood
+        Guid sciFiGenreId = Guid.Empty;
+        Guid moodId = Guid.Empty;
+        await ExecuteDbContextAsync(async db =>
+        {
+            sciFiGenreId = (await db.Genres.Include(g => g.Translations).FirstAsync(g => g.Code == "science-fiction")).Id;
+            moodId = (await db.Moods.Include(m => m.Translations).FirstAsync()).Id;
+        });
+
+        // Associate genre and mood
+        var addGenreResp = await Client.PostAsJsonAsync($"api/catalog/media/{movieId}/genres", new { GenreId = sciFiGenreId });
+        addGenreResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var addMoodResp = await Client.PostAsJsonAsync($"api/catalog/media/{movieId}/moods", new { MoodId = moodId });
+        addMoodResp.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Act 1: Get with lang=tr
+        var trResponse = await Client.GetAsync($"api/catalog/movies/{movieId}?lang=tr");
+        trResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var trMovie = await trResponse.Content.ReadFromJsonAsync<MovieDetailResponse>();
+        trMovie.Should().NotBeNull();
+        trMovie!.Genres.Should().ContainSingle();
+        trMovie.Genres.First().Name.Should().Be("Bilim Kurgu", "Turkish translation must be loaded instead of raw code 'sci-fi'");
+
+        // Act 2: Get with lang=en
+        var enResponse = await Client.GetAsync($"api/catalog/movies/{movieId}?lang=en");
+        enResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var enMovie = await enResponse.Content.ReadFromJsonAsync<MovieDetailResponse>();
+        enMovie.Should().NotBeNull();
+        enMovie!.Genres.Should().ContainSingle();
+        enMovie.Genres.First().Name.Should().Be("Science Fiction", "English translation must be loaded instead of raw code 'sci-fi'");
     }
 
     [Fact]

@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Commands.Translations.RemoveMoodTranslation;
 
-public sealed class RemoveMoodTranslationCommandHandler : IRequestHandler<RemoveMoodTranslationCommand>
+internal sealed class RemoveMoodTranslationCommandHandler : IRequestHandler<RemoveMoodTranslationCommand>
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

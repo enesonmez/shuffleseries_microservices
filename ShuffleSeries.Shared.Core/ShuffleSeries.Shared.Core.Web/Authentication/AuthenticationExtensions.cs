@@ -3,15 +3,15 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using ShuffleSeries.Shared.Core.Application.Security;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Authorization;
-using ShuffleSeries.Shared.Core.Web.Correlation;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using ShuffleSeries.Shared.Core.Web.Helpers;
 
 namespace ShuffleSeries.Shared.Core.Web.Authentication;
 
@@ -19,9 +19,16 @@ public static class AuthenticationExtensions
 {
     private const string PermissionClaimType = "permission";
 
-    public static IServiceCollection AddSharedJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddSharedJwtAuthentication(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        bool validateTokenBlacklist = true)
     {
         var jwtSecret = configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret is missing from configuration.");
+        if (Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+        {
+            throw new InvalidOperationException("Jwt:Secret must be at least 32 bytes (256 bits) for HMAC-SHA256.");
+        }
         var jwtIssuer = configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer is missing from configuration.");
         var jwtAudience = configuration["Jwt:Audience"] ?? throw new InvalidOperationException("Jwt:Audience is missing from configuration.");
 
@@ -42,7 +49,7 @@ public static class AuthenticationExtensions
 
                 options.Events = new JwtBearerEvents
                 {
-                    OnTokenValidated = HandleTokenValidatedAsync,
+                    OnTokenValidated = validateTokenBlacklist ? HandleTokenValidatedAsync : _ => Task.CompletedTask,
                     OnChallenge = HandleJwtChallengeAsync
                 };
             });
@@ -143,20 +150,13 @@ public static class AuthenticationExtensions
         }
 
         var jti = context.Principal.GetJwtId();
-        if (!string.IsNullOrEmpty(jti) && await blacklistService.IsTokenBlacklistedAsync(jti, context.HttpContext.RequestAborted))
-        {
-            context.HttpContext.Items["IsRevoked"] = true;
-            context.Fail("Token has been revoked.");
-            return;
-        }
-
         var userId = context.Principal.TryGetUserId();
         var issuedAtUtc = context.Principal.GetIssuedAtUtc();
-        if (userId.HasValue && issuedAtUtc.HasValue &&
-            await blacklistService.IsUserBlacklistedAsync(userId.Value, issuedAtUtc.Value, context.HttpContext.RequestAborted))
+
+        if (await blacklistService.IsSessionRevokedAsync(jti, userId, issuedAtUtc, context.HttpContext.RequestAborted))
         {
             context.HttpContext.Items["IsRevoked"] = true;
-            context.Fail("User session has been revoked.");
+            context.Fail("Session has been revoked.");
         }
     }
 
@@ -170,12 +170,6 @@ public static class AuthenticationExtensions
         // Varsayılan boş 401 yanıtını ez ve RFC 7807 ProblemDetails üret
         context.HandleResponse();
 
-        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-
-        var traceId = Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
-        var correlationContext = context.HttpContext.RequestServices.GetService<ICorrelationIdContext>();
-        var correlationId = correlationContext?.CorrelationId;
-
         var isRevoked = context.HttpContext.Items.ContainsKey("IsRevoked")
                         || context.AuthenticateFailure?.Message?.Contains("revoked", StringComparison.OrdinalIgnoreCase) == true
                         || context.ErrorDescription?.Contains("revoked", StringComparison.OrdinalIgnoreCase) == true;
@@ -185,36 +179,26 @@ public static class AuthenticationExtensions
             ? "Sunulan kimlik doğrulama belirteci iptal edilmiştir (Revoked/Blacklisted)."
             : "Kimlik doğrulaması başarısız oldu. Geçerli bir Bearer token gereklidir.";
 
-        var problemDetails = new ProblemDetails
-        {
-            Status = StatusCodes.Status401Unauthorized,
-            Type = "https://tools.ietf.org/html/rfc7235#section-3.1",
-            Title = isRevoked ? "Token Revoked" : "Unauthorized",
-            Detail = detail,
-            Instance = context.Request.Path
-        };
+        await ProblemDetailsWriter.WriteAsync(
+            context.HttpContext,
+            StatusCodes.Status401Unauthorized,
+            isRevoked ? "Token Revoked" : "Unauthorized",
+            detail,
+            errorCode,
+            "https://tools.ietf.org/html/rfc7235#section-3.1",
+            configure: problem =>
+            {
+                if (!string.IsNullOrEmpty(context.Error))
+                {
+                    problem.Extensions["error"] = context.Error;
+                }
 
-        problemDetails.Extensions["code"] = errorCode;
-        problemDetails.Extensions["traceId"] = traceId;
-        if (!string.IsNullOrWhiteSpace(correlationId))
-        {
-            problemDetails.Extensions["correlationId"] = correlationId;
-        }
-
-        if (!string.IsNullOrEmpty(context.Error))
-        {
-            problemDetails.Extensions["error"] = context.Error;
-        }
-
-        if (!string.IsNullOrEmpty(context.ErrorDescription))
-        {
-            problemDetails.Extensions["errorDescription"] = context.ErrorDescription;
-        }
-
-        await context.Response.WriteAsJsonAsync(
-            problemDetails,
-            options: null,
-            contentType: "application/problem+json",
+                var isDev = context.HttpContext.RequestServices.GetService<IHostEnvironment>()?.IsDevelopment() == true;
+                if (isDev && !string.IsNullOrEmpty(context.ErrorDescription))
+                {
+                    problem.Extensions["errorDescription"] = context.ErrorDescription;
+                }
+            },
             cancellationToken: context.HttpContext.RequestAborted);
     }
 }

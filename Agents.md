@@ -45,7 +45,7 @@ AI asistanı, kendisine verilen her görevi (task) aşağıdaki protokole göre 
 5. Event-Driven & Resilience:
     * Veritabanı işlemleri ve mesaj fırlatma işlemleri arasında tutarlılığı sağlamak için her zaman Outbox Pattern kullan.
     * Consumer tarafında idempotency sağlamak için (aynı mesajın iki kere işlenmesini önlemek) InBox Pattern uygula.
-    * Dış servislere (veya Redis/Elasticsearch'e) yapılan çağrılarda geçici hatalara karşı Polly (Retry, Circuit Breaker, Fallback) kütüphanesini zorunlu kıl.
+    * Dış servislere (veya Redis/Elasticsearch'e) yapılan çağrılarda geçici hatalara karşı Microsoft.Extensions.Http.Resilience (Retry, Circuit Breaker, Fallback) kütüphanesini zorunlu kıl.
     * Dağıtık transaction'lar (birden fazla mikroservisi ilgilendiren zincirleme işlemler) için merkezi bir orchestrator yerine, mikroservislerin birbirlerinin event'lerini dinlediği Event Choreography modelini kurgula.
 6. **Sistematik Hata Ayıklama (Zero-Guesswork Debugging - Demir Kural):** Hata veya test başarısızlığıyla karşılaşıldığında asla tahmine dayalı rastgele düzeltme yapılamaz. Önce tam hata/stack trace okunur, veri akışı ve bileşen sınırları loglanarak kök neden (root cause) kesin olarak tespit edilir; ardından en dar ve doğrudan düzeltme uygulanır.
 7. **Performans, Veritabanı ve Dağıtık Sistem Muhafızı (Performance & Scalability Guard - Demir Kural):**
@@ -56,6 +56,12 @@ AI asistanı, kendisine verilen her görevi (task) aşağıdaki protokole göre 
     * **Kuyruk ve Önbellek Güvenliği:** Redis'te her dinamik anahtara zorunlu deterministik TTL atanmalı, Cache Stampede'e karşı kilitli okuma (`SemaphoreSlim`) uygulanmalı, RabbitMQ'da Transactional Outbox ve InBox idempotency güvencesi işletilmeli, zehirli mesajlara karşı `MaxRetries = 3` ve DLQ sınırlandırılmalıdır.
     * **ThreadPool Starvation Yasağı:** Asenkron metotlarda `.Result` veya `.Wait()` ile senkron bloklama (`sync-over-async`) kesinlikle yapılamaz; uçtan uca saf async/await uygulanmalıdır.
     * **Ağ & DoS Koruması:** Sınırsız sayfalama (`MaxPageSize = 100` sınırı) ve soket tükenmesine karşı `IHttpClientFactory` zorunludur.
+8. **Mimari Standart, Asimetri Muhafızı ve Scaffolding (Architecture & Symmetry Guard - Demir Kural):**
+    * Kod tabanındaki tüm mikroservisler, `.agents/rules/architecture-standard.md` anayasasına ve 5 katmanlı Onion mimarisine harfiyen uymalıdır.
+    * **1-Class-1-File Demir Kuralı:** Asla birden fazla entity, event, exception, command, query, validator veya handler tek dosyada birleştirilemez (`bundle` dosyalar kesinlikle yasaktır).
+    * **SUT Klasör Aynalama:** `{ServiceName}.Tests` altındaki tüm test dosyaları, test ettikleri sınıfın klasör ve namespace yapısını $1:1$ aynalamalıdır.
+    * **Deterministik Scaffolding:** Yeni bir mikroservis eklenirken projeler elle oluşturulamaz; mutlaka `python3 scripts/scaffold_service.py <ServiceName> --port <Port>` motoru çalıştırılmalıdır.
+    * **Evrensel Mimari Test:** Yeni her servis `ShuffleSeries.ArchitectureTests` altında `MicroserviceArchitectureTestBase` sınıfından türetilen bir mimari test sınıfına sahip olmak zorundadır.
 ## Adım 3: Güvenlik İhlali Kontrolleri
 Yazdığın kodlarda "Security by Design" prensibini benimse ve güncel OWASP Web/API Security Top 10 kurallarına harfiyen uy:
 * **Sır Yönetimi ve Tek Gerçeklik Kaynağı (API8 - SSOT):** Hardcoded secret veya API key kullanma. Tüm dinamik sırlar ve ayarlar kök `.env` dosyasında (Single Source of Truth) toplanmalıdır; `docker-compose.yml`, `init-vault.sh` ve mikroservisler bu değerleri `${VAR:-fallback}` ile tüketmeli, shell script ve compose dosyalarında asla bağımsız/statik şifre tutulmamalıdır.

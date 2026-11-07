@@ -237,14 +237,12 @@ def run_all_gateway_tests():
     test_case("HEALTH", "GET", "/catalog-api/health/live", 200, "Downstream Catalog Liveness Probe via Gateway (200 OK)",
               validator=lambda s, b, h: b.get("status") == "Healthy" and b.get("type") == "Liveness")
 
-    test_case("HEALTH", "GET", "/catalog-api/health/ready", 200, "Downstream Catalog Readiness Probe via Gateway (DB, Vault) (200 OK)",
-              validator=lambda s, b, h: b.get("status") == "Healthy" and b.get("type") == "Readiness")
+    test_case("HEALTH", "GET", "/catalog-api/health/ready", 404, "Downstream Catalog Readiness Probe Not Exposed via Gateway (404 Not Found - Security API8)")
 
     test_case("HEALTH", "GET", "/identity-api/health/live", 200, "Downstream Identity Liveness Probe via Gateway (200 OK)",
               validator=lambda s, b, h: b.get("status") == "Healthy" and b.get("type") == "Liveness")
 
-    test_case("HEALTH", "GET", "/identity-api/health/ready", 200, "Downstream Identity Readiness Probe via Gateway (DB, Redis, RabbitMQ) (200 OK)",
-              validator=lambda s, b, h: b.get("status") == "Healthy" and b.get("type") == "Readiness")
+    test_case("HEALTH", "GET", "/identity-api/health/ready", 404, "Downstream Identity Readiness Probe Not Exposed via Gateway (404 Not Found - Security API8)")
 
     # -------------------------------------------------------------------------
     # SECTION 2: YARP Reverse Proxy Routing & OpenAPI Aggregation
@@ -262,6 +260,12 @@ def run_all_gateway_tests():
 
     test_case("ROUTING", "POST", "/api/auth/guest", 200, "Identity Route Forwarding (/api/auth/guest)",
               pace=0.25, validator=lambda s, b, h: b.get("isGuest") is True and "accessToken" in b)
+
+    # Sub-service UI routes have been decommissioned in favor of Gateway aggregated Swagger
+    test_case("ROUTING", "GET", "/catalog-api/swagger/index.html", 404, "Removed Catalog Swagger UI Route -> 404 Not Found")
+    test_case("ROUTING", "GET", "/catalog-api/scalar/v1", 404, "Removed Catalog Scalar Route -> 404 Not Found")
+    test_case("ROUTING", "GET", "/identity-api/swagger/index.html", 404, "Removed Identity Swagger UI Route -> 404 Not Found")
+    test_case("ROUTING", "GET", "/identity-api/scalar/v1", 404, "Removed Identity Scalar Route -> 404 Not Found")
 
     test_case("ROUTING", "GET", "/api/nonexistent/route/xyz", 404, "Unrouted Downstream Route -> 404 Not Found")
 
@@ -322,43 +326,30 @@ def run_all_gateway_tests():
               validator=lambda s, b, h: any("access-control-allow-origin" in k.lower() for k in h.keys()))
 
     # -------------------------------------------------------------------------
-    # SECTION 5: Gateway Edge Authentication & RBAC Policy Enforcement
+    # SECTION 5: Gateway Edge Authentication Enforcement
     # -------------------------------------------------------------------------
-    print_section("5. Gateway Edge Authentication & RBAC Policy Enforcement")
-    # /api/shuffle/vip-weekend has StrictLimiter + RequirePremiumRole on Gateway
-    # We apply pace=0.25 to stay within the 5 req/s rate limit
+    print_section("5. Gateway Edge Authentication Enforcement (catalog-route)")
 
-    time.sleep(1.2)
-
-    test_case("AUTH-EDGE", "GET", "/api/shuffle/vip-weekend", 401, "VIP Route without Token -> 401 Unauthorized (AUTH_UNAUTHORIZED)",
-              pace=0.25,
+    test_case("AUTH-EDGE", "GET", "/api/catalog/platforms", 401, "Protected Route without Token -> 401 Unauthorized (AUTH_UNAUTHORIZED)",
               validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_UNAUTHORIZED")
 
-    test_case("AUTH-EDGE", "GET", "/api/shuffle/vip-weekend", 401, "VIP Route with Malformed Token -> 401 Unauthorized",
-              token="not_a_valid_jwt_token_string", pace=0.25,
+    test_case("AUTH-EDGE", "GET", "/api/catalog/platforms", 401, "Protected Route with Malformed Token -> 401 Unauthorized",
+              token="not_a_valid_jwt_token_string",
               validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_UNAUTHORIZED")
 
-    expired_token = generate_jwt(roles=["Premium"], exp_seconds=-3600)
-    test_case("AUTH-EDGE", "GET", "/api/shuffle/vip-weekend", 401, "VIP Route with Expired Token -> 401 Unauthorized",
-              token=expired_token, pace=0.25,
+    expired_token = generate_jwt(roles=["Standard"], permissions=["catalog:platforms:read"], exp_seconds=-3600)
+    test_case("AUTH-EDGE", "GET", "/api/catalog/platforms", 401, "Protected Route with Expired Token -> 401 Unauthorized",
+              token=expired_token,
               validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_UNAUTHORIZED")
 
-    tampered_token = generate_jwt(roles=["Premium"], secret="WrongSignatureSecretKeyMustFail1234567890!!")
-    test_case("AUTH-EDGE", "GET", "/api/shuffle/vip-weekend", 401, "VIP Route with Tampered Signature -> 401 Unauthorized",
-              token=tampered_token, pace=0.25,
+    tampered_token = generate_jwt(roles=["Standard"], permissions=["catalog:platforms:read"], secret="WrongSignatureSecretKeyMustFail1234567890!!")
+    test_case("AUTH-EDGE", "GET", "/api/catalog/platforms", 401, "Protected Route with Tampered Signature -> 401 Unauthorized",
+              token=tampered_token,
               validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_UNAUTHORIZED")
 
-    test_case("AUTH-EDGE", "GET", "/api/shuffle/vip-weekend", 403, "VIP Route with Standard User Token -> 403 Forbidden (AUTH_FORBIDDEN)",
-              token=standard_token, pace=0.25,
-              validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_FORBIDDEN")
-
-    test_case("AUTH-EDGE", "GET", "/api/shuffle/vip-weekend", 403, "VIP Route with Guest Token -> 403 Forbidden (AUTH_FORBIDDEN)",
-              token=guest_token, pace=0.25,
-              validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_FORBIDDEN")
-
-    # With Premium role, auth policy passes; attempts downstream forward (502 Bad Gateway since shuffle.api is not yet active)
-    test_case("AUTH-EDGE", "GET", "/api/shuffle/vip-weekend", [200, 502], "VIP Route with Premium Token -> Auth Passes at Edge",
-              token=premium_token, pace=0.25)
+    test_case("AUTH-EDGE", "GET", "/api/catalog/platforms", 200, "Protected Route with Valid Token -> Auth Passes at Edge (200 OK)",
+              token=standard_token,
+              validator=lambda s, b, h: isinstance(b, list))
 
     # -------------------------------------------------------------------------
     # SECTION 6: Redis Token & User Session Blacklist Enforcement
@@ -403,6 +394,23 @@ def run_all_gateway_tests():
               validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_TOKEN_REVOKED")
 
     redis_cli_del(user_redis_key)
+
+    # 6.4 Revoked Token against /api/catalog/platforms (Edge Revocation Guard - SEC-V2-01)
+    revoked_catalog_jti = f"revoked-cat-{uuid.uuid4().hex[:12]}"
+    revoked_cat_token = generate_jwt(jti=revoked_catalog_jti, roles=["Standard"], permissions=["catalog:platforms:read"])
+    cat_redis_key = f"shuffleseries:blacklist:token:{revoked_catalog_jti}"
+    redis_cli_set(cat_redis_key, "revoked", ttl_seconds=60)
+
+    test_case("BLACKLIST", "GET", "/api/catalog/platforms", 401, "Revoked Token against Catalog Route -> 401 Unauthorized (AUTH_TOKEN_REVOKED at Edge)",
+              token=revoked_cat_token,
+              validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_TOKEN_REVOKED")
+
+    redis_cli_del(cat_redis_key)
+
+    # 6.5 Anonymous Request against /api/catalog/platforms (Edge Auth Policy - SEC-V2-01)
+    test_case("BLACKLIST", "GET", "/api/catalog/platforms", 401, "Anonymous Request against Catalog Route -> 401 Unauthorized (Edge Gate)",
+              token=None,
+              validator=lambda s, b, h: isinstance(b, dict) and b.get("code") == "AUTH_UNAUTHORIZED")
 
     # -------------------------------------------------------------------------
     # SECTION 7: Gateway Rate Limiting & Throttling (StrictLimiter 429)

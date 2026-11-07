@@ -25,7 +25,6 @@ public static class AdminMediaEndpoints
                 [FromQuery] Guid? platformId,
                 [FromQuery] Guid? moodId,
                 [FromQuery] Guid? genreId,
-                [FromQuery] string? lang,
                 [FromQuery] bool? isDeleted,
                 [FromQuery] string? sortBy,
                 [FromQuery] bool? sortDescending,
@@ -41,7 +40,7 @@ public static class AdminMediaEndpoints
                     genreId: genreId,
                     pageNumber: page ?? 1,
                     pageSize: pageSize ?? 10,
-                    language: lang ?? languageContext.CurrentLanguage,
+                    language: languageContext.CurrentLanguage,
                     isDeleted: isDeleted ?? false,
                     sortBy: sortBy,
                     sortDescending: sortDescending ?? true);

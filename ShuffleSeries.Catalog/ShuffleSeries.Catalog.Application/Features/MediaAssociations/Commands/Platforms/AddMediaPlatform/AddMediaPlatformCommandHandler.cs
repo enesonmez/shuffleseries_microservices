@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Platforms.AddMediaPlatform;
 
-public sealed class AddMediaPlatformCommandHandler : IRequestHandler<AddMediaPlatformCommand>
+internal sealed class AddMediaPlatformCommandHandler : IRequestHandler<AddMediaPlatformCommand>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IPlatformRepository _platformRepository;

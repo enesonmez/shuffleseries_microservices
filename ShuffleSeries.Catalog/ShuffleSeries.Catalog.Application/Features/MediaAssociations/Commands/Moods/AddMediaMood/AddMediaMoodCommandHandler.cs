@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Moods.AddMediaMood;
 
-public sealed class AddMediaMoodCommandHandler : IRequestHandler<AddMediaMoodCommand>
+internal sealed class AddMediaMoodCommandHandler : IRequestHandler<AddMediaMoodCommand>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IMoodRepository _moodRepository;

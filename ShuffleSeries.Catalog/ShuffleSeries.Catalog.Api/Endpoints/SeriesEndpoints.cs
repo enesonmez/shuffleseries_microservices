@@ -57,12 +57,11 @@ public static class SeriesEndpoints
         // 2. GET: Get series by ID endpoint (Query)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                [FromQuery] string? lang,
                 ISender sender,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetSeriesByIdQuery(id, lang ?? languageContext.CurrentLanguage);
+                var query = new GetSeriesByIdQuery(id, languageContext.CurrentLanguage);
                 var response = await sender.Send(query, cancellationToken);
                 return Results.Ok(response);
             })

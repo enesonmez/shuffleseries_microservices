@@ -6,7 +6,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Queries.GetEpisodeById;
 
-public sealed class GetEpisodeByIdQueryHandler : IRequestHandler<GetEpisodeByIdQuery, EpisodeDetailResponse>
+internal sealed class GetEpisodeByIdQueryHandler : IRequestHandler<GetEpisodeByIdQuery, EpisodeDetailResponse>
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly ILanguageContext _languageContext;

@@ -5,7 +5,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Queries.GetPlatformById;
 
-public sealed class GetPlatformByIdQueryHandler : IRequestHandler<GetPlatformByIdQuery, PlatformResponse>
+internal sealed class GetPlatformByIdQueryHandler : IRequestHandler<GetPlatformByIdQuery, PlatformResponse>
 {
     private readonly IPlatformRepository _platformRepository;
 

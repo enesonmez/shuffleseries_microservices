@@ -14,7 +14,15 @@ internal sealed class PlatformRepository : IPlatformRepository
     }
 
     public void Add(Platform platform) => _context.Platforms.Add(platform);
-    public void Update(Platform platform) => _context.Platforms.Update(platform);
+
+    public void Update(Platform platform)
+    {
+        if (_context.Entry(platform).State == EntityState.Detached)
+        {
+            _context.Platforms.Update(platform);
+        }
+    }
+
     public void Delete(Platform platform) => _context.Platforms.Remove(platform);
 
     public async Task<Platform?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>

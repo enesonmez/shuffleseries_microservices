@@ -56,12 +56,11 @@ public static class EpisodeEndpoints
         // 2. GET: Get episode by ID (with Content Negotiation & Permission)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                [FromQuery] string? lang,
                 ISender sender,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetEpisodeByIdQuery(id, lang ?? languageContext.CurrentLanguage);
+                var query = new GetEpisodeByIdQuery(id, languageContext.CurrentLanguage);
                 var response = await sender.Send(query, cancellationToken);
                 return Results.Ok(response);
             })

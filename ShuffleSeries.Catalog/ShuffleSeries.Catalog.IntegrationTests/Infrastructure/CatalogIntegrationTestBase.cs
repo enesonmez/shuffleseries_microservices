@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
 

@@ -20,7 +20,7 @@ public class LoggingBehaviorTests
     }
 
     [Fact]
-    public async Task Handle_WhenRequestSucceeds_ShouldEmitSingleConsolidatedLog()
+    public async Task Handle_WhenRequestSucceeds_ShouldEmitSingleConsolidatedLogAtInformationLevel()
     {
         // Arrange
         var behavior = new LoggingBehavior<SampleAuthCommand, SampleAuthResponse>(_mockLogger.Object);
@@ -51,6 +51,35 @@ public class LoggingBehaviorTests
                 null,
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenInformationDisabled_ShouldNotLog()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<LoggingBehavior<SampleAuthCommand, SampleAuthResponse>>>();
+        loggerMock.Setup(l => l.IsEnabled(LogLevel.Information)).Returns(false);
+
+        var behavior = new LoggingBehavior<SampleAuthCommand, SampleAuthResponse>(loggerMock.Object);
+        var command = new SampleAuthCommand("enes", "secret123");
+        var expectedResponse = new SampleAuthResponse("token_xyz", "Success");
+
+        RequestHandlerDelegate<SampleAuthResponse> next = (cancellationToken) => Task.FromResult(expectedResponse);
+
+        // Act
+        var response = await behavior.Handle(command, next, CancellationToken.None);
+
+        // Assert
+        response.Should().Be(expectedResponse);
+
+        loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                null,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
     }
 
     [Fact]

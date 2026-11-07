@@ -7,7 +7,7 @@ services:
     container_name: shuffleseries_catalog_api
     restart: unless-stopped
     ports:
-      - "5010:8080"
+      - "127.0.0.1:5010:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
@@ -40,7 +40,7 @@ services:
     container_name: shuffleseries_identity_api
     restart: unless-stopped
     ports:
-      - "5011:8080"
+      - "127.0.0.1:5011:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080

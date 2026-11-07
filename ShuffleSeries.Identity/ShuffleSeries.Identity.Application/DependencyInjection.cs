@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Services;
 using ShuffleSeries.Shared.Core.Application;
 using ShuffleSeries.Shared.Core.Application.Behaviors;
 
@@ -23,5 +25,7 @@ public static class DependencyInjection
         });
 
         services.AddValidatorsFromAssembly(assembly);
+
+        services.AddScoped<IAuthResponseService, AuthResponseService>();
     }
 }

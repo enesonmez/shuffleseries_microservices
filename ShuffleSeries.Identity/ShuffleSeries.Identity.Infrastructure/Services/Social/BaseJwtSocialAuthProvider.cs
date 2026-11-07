@@ -1,8 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using ShuffleSeries.Identity.Application.Interfaces;
-using ShuffleSeries.Identity.Application.Models;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Models;
 using ShuffleSeries.Identity.Infrastructure.Configuration;
 
 namespace ShuffleSeries.Identity.Infrastructure.Services.Social;
@@ -11,18 +13,31 @@ namespace ShuffleSeries.Identity.Infrastructure.Services.Social;
 /// Base class for OpenID Connect / JWT-based social identity providers.
 /// Implements JWKS caching, signature verification, and configurable bypass modes.
 /// </summary>
-internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
+internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider, IDisposable
 {
+    private const string JwksHttpClientName = "OidcJwks";
+
     private readonly JwtSecurityTokenHandler _handler = new();
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ExternalAuthOptions _options;
+    private readonly TimeProvider _timeProvider;
+    private readonly IHostEnvironment? _environment;
+    private readonly ILogger? _logger;
     private (JsonWebKeySet Keys, DateTime ExpiresAtUtc)? _cachedJwks;
     private readonly SemaphoreSlim _jwksLock = new(1, 1);
 
-    protected BaseJwtSocialAuthProvider(HttpClient httpClient, IOptions<ExternalAuthOptions> options)
+    protected BaseJwtSocialAuthProvider(
+        IHttpClientFactory httpClientFactory,
+        IOptions<ExternalAuthOptions> options,
+        TimeProvider? timeProvider = null,
+        IHostEnvironment? environment = null,
+        ILogger? logger = null)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _options = options.Value;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _environment = environment;
+        _logger = logger;
     }
 
     public abstract string Provider { get; }
@@ -37,6 +52,11 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
             return null;
         }
 
+        if (!_options.ValidateSignatures && !(_environment is not null && (_environment.IsDevelopment() || _environment.IsEnvironment("Testing"))))
+        {
+            throw new InvalidOperationException("External authentication signature validation bypass is forbidden outside development or testing environments.");
+        }
+
         try
         {
             if (_options.ValidateSignatures)
@@ -46,20 +66,30 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
 
             return ValidateInBypassMode(idToken);
         }
-        catch
+        catch (InvalidOperationException)
         {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "External authentication token validation failed for provider {Provider}.", Provider);
             return null;
         }
     }
 
     private async Task<ExternalUserPrincipal?> ValidateCryptographicallyAsync(string idToken, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(ClientId))
+        {
+            return null; // Fail-closed when signatures are validated but ClientId is unconfigured
+        }
+
         var keys = await GetSigningKeysAsync(cancellationToken);
         var validationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidIssuers = ValidIssuers,
-            ValidateAudience = !string.IsNullOrWhiteSpace(ClientId),
+            ValidateAudience = true,
             ValidAudience = ClientId,
             ValidateLifetime = true,
             IssuerSigningKeys = keys,
@@ -78,13 +108,10 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
         var email = principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value
                     ?? principal.FindFirst("email")?.Value;
 
-        var emailVerifiedClaim = principal.FindFirst("email_verified")?.Value;
-        if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(emailVerifiedClaim))
+        if (!string.IsNullOrWhiteSpace(email))
         {
-            var isVerified = (bool.TryParse(emailVerifiedClaim, out var verified) && verified)
-                             || string.Equals(emailVerifiedClaim, "true", StringComparison.OrdinalIgnoreCase);
-
-            if (!isVerified)
+            var emailVerifiedClaim = principal.FindFirst("email_verified")?.Value;
+            if (string.IsNullOrWhiteSpace(emailVerifiedClaim) || !IsEmailVerified(emailVerifiedClaim))
             {
                 return null;
             }
@@ -121,10 +148,13 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
         }
 
         var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
-        var emailVerifiedClaim = jwt.Claims.FirstOrDefault(c => c.Type == "email_verified")?.Value;
-        if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(emailVerifiedClaim) && !IsEmailVerified(emailVerifiedClaim))
+        if (!string.IsNullOrWhiteSpace(email))
         {
-            return null;
+            var emailVerifiedClaim = jwt.Claims.FirstOrDefault(c => c.Type == "email_verified")?.Value;
+            if (string.IsNullOrWhiteSpace(emailVerifiedClaim) || !IsEmailVerified(emailVerifiedClaim))
+            {
+                return null;
+            }
         }
 
         var name = jwt.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
@@ -167,7 +197,8 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
 
     private async Task<ICollection<SecurityKey>> GetSigningKeysAsync(CancellationToken cancellationToken)
     {
-        if (_cachedJwks is { } cached && cached.ExpiresAtUtc > DateTime.UtcNow)
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        if (_cachedJwks is { } cached && cached.ExpiresAtUtc > now)
         {
             return cached.Keys.GetSigningKeys();
         }
@@ -175,19 +206,44 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider
         await _jwksLock.WaitAsync(cancellationToken);
         try
         {
-            if (_cachedJwks is { } lockedCached && lockedCached.ExpiresAtUtc > DateTime.UtcNow)
+            now = _timeProvider.GetUtcNow().UtcDateTime;
+            if (_cachedJwks is { } lockedCached && lockedCached.ExpiresAtUtc > now)
             {
                 return lockedCached.Keys.GetSigningKeys();
             }
 
-            var json = await _httpClient.GetStringAsync(JwksUri, cancellationToken);
-            var jwks = new JsonWebKeySet(json);
-            _cachedJwks = (jwks, DateTime.UtcNow.AddHours(12));
-            return jwks.GetSigningKeys();
+            try
+            {
+                var client = _httpClientFactory.CreateClient(JwksHttpClientName);
+                var json = await client.GetStringAsync(JwksUri, cancellationToken);
+                var jwks = new JsonWebKeySet(json);
+                _cachedJwks = (jwks, now.AddHours(12));
+                return jwks.GetSigningKeys();
+            }
+            catch (Exception ex) when (_cachedJwks is { } stale && now < stale.ExpiresAtUtc.AddHours(1))
+            {
+                if (_logger?.IsEnabled(LogLevel.Warning) == true)
+                {
+                    _logger.LogWarning(ex, "[{Provider}] Failed to refresh JWKS from {JwksUri}. Returning stale cached signing keys.", Provider, JwksUri);
+                }
+
+                return stale.Keys.GetSigningKeys();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[{Provider}] Failed to fetch JWKS from {JwksUri} and no valid cache is available.", Provider, JwksUri);
+                throw;
+            }
         }
         finally
         {
             _jwksLock.Release();
         }
+    }
+
+    public void Dispose()
+    {
+        _jwksLock.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

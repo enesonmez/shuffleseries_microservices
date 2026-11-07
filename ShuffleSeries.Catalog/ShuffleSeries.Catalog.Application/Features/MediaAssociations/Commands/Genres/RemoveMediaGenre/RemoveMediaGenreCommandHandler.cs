@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Genres.RemoveMediaGenre;
 
-public sealed class RemoveMediaGenreCommandHandler : IRequestHandler<RemoveMediaGenreCommand>
+internal sealed class RemoveMediaGenreCommandHandler : IRequestHandler<RemoveMediaGenreCommand>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IUnitOfWork _unitOfWork;

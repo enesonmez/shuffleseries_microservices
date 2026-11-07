@@ -115,10 +115,10 @@ public class SensitiveDataDestructuringPolicyTests
         properties["CustomSecret"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("###HIDDEN###");
         properties["AuthToken"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("***MASKED***");
         properties["CvvNumber"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("***MASKED***");
+        properties["Email"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("***MASKED***");
 
         // Non-sensitive properties preserved
         properties["Username"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("enes");
-        properties["Email"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("enes@shuffleseries.com");
         properties["Age"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be(30);
     }
 
@@ -140,7 +140,7 @@ public class SensitiveDataDestructuringPolicyTests
         var properties = structure.Properties.ToDictionary(p => p.Name, p => p.Value);
 
         properties["OrderId"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("ORD-100");
-        properties["CustomerEmail"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("customer@example.com");
+        properties["CustomerEmail"].Should().BeOfType<ScalarValue>().Which.Value.Should().Be("***MASKED***");
 
         // Nested card
         var cardStructure = properties["Card"].Should().BeOfType<StructureValue>().Subject;

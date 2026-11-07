@@ -58,7 +58,11 @@ public class User : AggregateRoot
         return user;
     }
 
-    public static User CreateSocial(string email, string provider, string providerKey)
+    public static User CreateSocial(
+        string email,
+        string provider,
+        string providerKey,
+        DateTime linkedAtUtc)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
@@ -66,7 +70,7 @@ public class User : AggregateRoot
 
         var trimmedEmail = email.Trim().ToLowerInvariant();
         var user = new User(Guid.NewGuid(), trimmedEmail, passwordHash: null, isGuest: false, UserStatus.Active);
-        user.AddLogin(provider, providerKey, trimmedEmail);
+        user.AddLogin(provider, providerKey, trimmedEmail, linkedAtUtc);
         user.RaiseDomainEvent(new UserRegisteredDomainEvent(user.Id, user.Email, IsGuest: false));
 
         return user;
@@ -131,11 +135,17 @@ public class User : AggregateRoot
         }
     }
 
-    public void AddLogin(string provider, string providerKey, string? providerEmail = null, string? refreshToken = null, DateTime? linkedAtUtc = null)
+    public void ClearUnverifiedPasswordOnSocialLink()
+    {
+        PasswordHash = null;
+        TouchSecurityStamp();
+    }
+
+    public void AddLogin(string provider, string providerKey, string? providerEmail, DateTime linkedAtUtc)
     {
         if (_userLogins.All(ul => ul.Provider != provider || ul.ProviderKey != providerKey))
         {
-            _userLogins.Add(new UserLogin(Id, provider, providerKey, providerEmail, refreshToken, linkedAtUtc));
+            _userLogins.Add(new UserLogin(Id, provider, providerKey, providerEmail, linkedAtUtc));
         }
     }
 
@@ -152,9 +162,9 @@ public class User : AggregateRoot
         token?.Revoke(replacedByTokenHash, revokedAtUtc);
     }
 
-    public void RevokeAllRefreshTokens(DateTime? revokedAtUtc = null)
+    public void RevokeAllRefreshTokens(DateTime revokedAtUtc)
     {
-        foreach (var token in _refreshTokens.Where(rt => rt.IsActive))
+        foreach (var token in _refreshTokens.Where(rt => rt.IsActiveAt(revokedAtUtc)))
         {
             token.Revoke(revokedAtUtc: revokedAtUtc);
         }
@@ -162,15 +172,15 @@ public class User : AggregateRoot
         TouchSecurityStamp();
     }
 
-    public void UpdatePassword(string newPasswordHash)
+    public void UpdatePassword(string newPasswordHash, DateTime revokedAtUtc)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(newPasswordHash);
         PasswordHash = newPasswordHash;
-        RevokeAllRefreshTokens();
+        RevokeAllRefreshTokens(revokedAtUtc);
         TouchSecurityStamp();
     }
 
-    public void ConvertFromGuest(string email, string passwordHash)
+    public void ConvertFromGuest(string email, string passwordHash, DateTime convertedAtUtc)
     {
         if (!IsGuest)
         {
@@ -186,20 +196,41 @@ public class User : AggregateRoot
         IsGuest = false;
         Status = UserStatus.Active;
 
-        RevokeAllRefreshTokens();
+        RevokeAllRefreshTokens(convertedAtUtc);
         TouchSecurityStamp();
 
         RaiseDomainEvent(new UserRegisteredDomainEvent(Id, Email, IsGuest: false));
     }
 
-    public void DeleteAccount()
+    public void DeleteAccount(DateTime deletedAtUtc, string? deletedBy = null)
     {
         Status = UserStatus.Deleted;
-        SoftDelete();
-        RevokeAllRefreshTokens();
+        Email = $"deleted_{Id:N}@deleted.invalid";
+        NormalizedEmail = Email.ToUpperInvariant();
+        PasswordHash = null;
+
+        SoftDelete(deletedBy, deletedAtUtc);
+        foreach (var login in _userLogins)
+        {
+            login.Anonymize();
+            login.SoftDelete(deletedBy, deletedAtUtc);
+        }
+
+        foreach (var rt in _refreshTokens)
+        {
+            rt.ScrubCreatedByIp();
+        }
+
+        RevokeAllRefreshTokens(deletedAtUtc);
         TouchSecurityStamp();
 
         RaiseDomainEvent(new UserAccountDeletedDomainEvent(Id, Email));
+    }
+
+    public void Suspend(string? reason = null)
+    {
+        Status = UserStatus.Suspended;
+        TouchSecurityStamp();
     }
 
     public void TouchSecurityStamp() => SecurityStamp = Guid.NewGuid().ToString("N");

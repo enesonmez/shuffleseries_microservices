@@ -1,18 +1,23 @@
 using System.Text.Json;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Quartz;
 using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Events;
 using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
+using ShuffleSeries.Shared.Core.Domain.Events;
 using ShuffleSeries.Shared.Core.Domain.Outbox;
 
 namespace ShuffleSeries.Catalog.Tests.Infrastructure.BackgroundJobs;
 
 public class ProcessOutboxMessagesJobTests
 {
+    private static ProcessOutboxMessagesJob CreateJob(CatalogDbContext dbContext, IPublishEndpoint publishEndpoint) =>
+        new(dbContext, publishEndpoint, TimeProvider.System, NullLogger<ProcessOutboxMessagesJob>.Instance);
+
     private static CatalogDbContext CreateInMemoryDbContext()
     {
         var options = new DbContextOptionsBuilder<CatalogDbContext>()
@@ -30,7 +35,7 @@ public class ProcessOutboxMessagesJobTests
         var mockContext = new Mock<IJobExecutionContext>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
-        var job = new ProcessOutboxMessagesJob(dbContext, mockPublish.Object);
+        var job = CreateJob(dbContext, mockPublish.Object);
 
         await job.Execute(mockContext.Object);
 
@@ -58,11 +63,11 @@ public class ProcessOutboxMessagesJobTests
         dbContext.OutboxMessages.Add(message);
         await dbContext.SaveChangesAsync();
 
-        var job = new ProcessOutboxMessagesJob(dbContext, mockPublish.Object);
+        var job = CreateJob(dbContext, mockPublish.Object);
 
         await job.Execute(mockContext.Object);
 
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.Is<Type>(t => t == typeof(MediaCreatedDomainEvent)), It.IsAny<CancellationToken>()), Times.Once);
+        mockPublish.Verify(p => p.Publish(It.Is<MediaCreatedEvent>(e => e.MediaId == seriesId && e.MediaType == "Series"), It.IsAny<CancellationToken>()), Times.Once);
 
         var processed = await dbContext.OutboxMessages.FirstAsync(m => m.Id == message.Id);
         processed.ProcessedOnUtc.Should().NotBeNull();
@@ -88,7 +93,7 @@ public class ProcessOutboxMessagesJobTests
         dbContext.OutboxMessages.Add(message);
         await dbContext.SaveChangesAsync();
 
-        var job = new ProcessOutboxMessagesJob(dbContext, mockPublish.Object);
+        var job = CreateJob(dbContext, mockPublish.Object);
 
         await job.Execute(mockContext.Object);
 
@@ -105,7 +110,7 @@ public class ProcessOutboxMessagesJobTests
         var mockContext = new Mock<IJobExecutionContext>();
         mockContext.Setup(c => c.CancellationToken).Returns(CancellationToken.None);
 
-        mockPublish.Setup(p => p.Publish(It.IsAny<object>(), It.IsAny<Type>(), It.IsAny<CancellationToken>()))
+        mockPublish.Setup(p => p.Publish(It.IsAny<MediaCreatedEvent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("RabbitMQ connection refused"));
 
         var seriesId = Guid.NewGuid();
@@ -121,7 +126,7 @@ public class ProcessOutboxMessagesJobTests
         dbContext.OutboxMessages.Add(message);
         await dbContext.SaveChangesAsync();
 
-        var job = new ProcessOutboxMessagesJob(dbContext, mockPublish.Object);
+        var job = CreateJob(dbContext, mockPublish.Object);
 
         await job.Execute(mockContext.Object);
 
@@ -163,12 +168,12 @@ public class ProcessOutboxMessagesJobTests
         dbContext.OutboxMessages.AddRange(poisonMessage, validMessage);
         await dbContext.SaveChangesAsync();
 
-        var job = new ProcessOutboxMessagesJob(dbContext, mockPublish.Object);
+        var job = CreateJob(dbContext, mockPublish.Object);
 
         await job.Execute(mockContext.Object);
 
         // The poison message should not be attempted again
-        mockPublish.Verify(p => p.Publish(It.IsAny<object>(), It.Is<Type>(t => t == typeof(MediaCreatedDomainEvent)), It.IsAny<CancellationToken>()), Times.Once);
+        mockPublish.Verify(p => p.Publish(It.Is<MediaCreatedEvent>(e => e.MediaId == seriesId && e.MediaType == "Series"), It.IsAny<CancellationToken>()), Times.Once);
 
         var poisonResult = await dbContext.OutboxMessages.FirstAsync(m => m.Id == poisonMessage.Id);
         poisonResult.RetryCount.Should().Be(3);

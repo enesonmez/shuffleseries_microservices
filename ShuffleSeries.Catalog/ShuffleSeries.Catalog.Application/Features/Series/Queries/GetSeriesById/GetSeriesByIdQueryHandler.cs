@@ -6,7 +6,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 
-public sealed class GetSeriesByIdQueryHandler : IRequestHandler<GetSeriesByIdQuery, SeriesDetailResponse>
+internal sealed class GetSeriesByIdQueryHandler : IRequestHandler<GetSeriesByIdQuery, SeriesDetailResponse>
 {
     private readonly ISeriesRepository _seriesRepository;
     private readonly ILanguageContext _languageContext;

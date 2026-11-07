@@ -17,14 +17,15 @@ public sealed class InboxMessage : BaseEntity<Guid>
         string eventType,
         string content,
         DateTime occurredOnUtc,
-        string? correlationId = null)
+        string? correlationId = null,
+        DateTime? receivedAtUtc = null)
     {
         Id = id;
         EventType = eventType;
         Content = content;
         OccurredOnUtc = occurredOnUtc;
         CorrelationId = correlationId;
-        ReceivedAtUtc = DateTime.UtcNow;
+        ReceivedAtUtc = receivedAtUtc ?? DateTime.UtcNow;
     }
 
     /// <summary>

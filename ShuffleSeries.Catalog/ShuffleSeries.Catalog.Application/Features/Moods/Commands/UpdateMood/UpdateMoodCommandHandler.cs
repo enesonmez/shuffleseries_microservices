@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Commands.UpdateMood;
 
-public sealed class UpdateMoodCommandHandler : IRequestHandler<UpdateMoodCommand>
+internal sealed class UpdateMoodCommandHandler : IRequestHandler<UpdateMoodCommand>
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

@@ -10,7 +10,7 @@ public class RolePermission
 
     private RolePermission() { }
 
-    public RolePermission(Guid roleId, Guid permissionId)
+    internal RolePermission(Guid roleId, Guid permissionId)
     {
         RoleId = roleId;
         PermissionId = permissionId;

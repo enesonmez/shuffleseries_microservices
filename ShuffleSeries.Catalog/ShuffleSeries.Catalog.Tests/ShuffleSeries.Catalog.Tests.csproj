@@ -21,6 +21,7 @@
         <Using Include="Xunit" />
         <Using Include="AwesomeAssertions" />
         <Using Include="ShuffleSeries.Shared.Core.Application.Common.Interfaces" />
+        <Using Include="ShuffleSeries.Shared.Core.Domain.Constants" />
     </ItemGroup>
 
     <ItemGroup>

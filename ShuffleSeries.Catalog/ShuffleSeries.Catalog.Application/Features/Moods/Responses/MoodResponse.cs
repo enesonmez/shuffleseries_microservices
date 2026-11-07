@@ -11,9 +11,3 @@ public sealed record MoodResponse(
     string Description,
     string? VibeTags,
     IReadOnlyList<MoodTranslationResponse> Translations);
-
-public sealed record MoodTranslationResponse(
-    string LanguageCode,
-    string Name,
-    string Description,
-    string? VibeTags);

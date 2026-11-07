@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,7 +18,16 @@ internal sealed class RedisCatalogCacheService : ICatalogCacheService
     private readonly IConnectionMultiplexer _redis;
     private readonly RedisOptions _redisOptions;
     private readonly ILogger<RedisCatalogCacheService> _logger;
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
+
+    private static readonly SemaphoreSlim[] _stripedLocks = Enumerable.Range(0, 64)
+        .Select(_ => new SemaphoreSlim(1, 1))
+        .ToArray();
+
+    private static SemaphoreSlim GetLock(string key)
+    {
+        var hash = (uint)string.GetHashCode(key.AsSpan(), StringComparison.Ordinal);
+        return _stripedLocks[hash % 64];
+    }
 
     public RedisCatalogCacheService(
         IConnectionMultiplexer redis,
@@ -40,49 +48,23 @@ internal sealed class RedisCatalogCacheService : ICatalogCacheService
         var formattedKey = FormatKey(key);
 
         // 1. Fast path: Redis'ten lock-free okuma
-        try
+        var (foundFast, fastCached) = await TryGetFromCacheAsync<T>(formattedKey, "fast-path");
+        if (foundFast)
         {
-            var db = _redis.GetDatabase();
-            var cachedValue = await db.StringGetAsync(formattedKey);
-
-            if (cachedValue.HasValue)
-            {
-                var deserialized = JsonSerializer.Deserialize<T>(cachedValue.ToString(), _jsonOptions);
-                if (deserialized is not null)
-                {
-                    return deserialized;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
-        {
-            _logger.LogWarning(ex, "Redis cache read failed for key {CacheKey}. Falling back to lock/DB.", formattedKey);
+            return fastCached!;
         }
 
-        // 2. Slow path: Cache Stampede (Thundering Herd) savunması için per-key kilitleme
-        var keyLock = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        // 2. Slow path: Cache Stampede (Thundering Herd) savunması için per-key kilitleme (Striped Lock)
+        var keyLock = GetLock(key);
         await keyLock.WaitAsync(cancellationToken);
 
         try
         {
             // Double-checked locking
-            try
+            var (foundDoubleCheck, doubleCheckedCached) = await TryGetFromCacheAsync<T>(formattedKey, "double-check");
+            if (foundDoubleCheck)
             {
-                var db = _redis.GetDatabase();
-                var cachedValue = await db.StringGetAsync(formattedKey);
-
-                if (cachedValue.HasValue)
-                {
-                    var deserialized = JsonSerializer.Deserialize<T>(cachedValue.ToString(), _jsonOptions);
-                    if (deserialized is not null)
-                    {
-                        return deserialized;
-                    }
-                }
-            }
-            catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
-            {
-                _logger.LogWarning(ex, "Redis double-check read failed for key {CacheKey}.", formattedKey);
+                return doubleCheckedCached!;
             }
 
             // 3. Veritabanı Factory çağrısı
@@ -96,8 +78,8 @@ internal sealed class RedisCatalogCacheService : ICatalogCacheService
             try
             {
                 var db = _redis.GetDatabase();
-                var serialized = JsonSerializer.Serialize(value, _jsonOptions);
-                await db.StringSetAsync(formattedKey, serialized, effectiveExpiration);
+                var serializedBytes = JsonSerializer.SerializeToUtf8Bytes(value, _jsonOptions);
+                await db.StringSetAsync(formattedKey, serializedBytes, effectiveExpiration);
             }
             catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
             {
@@ -126,18 +108,29 @@ internal sealed class RedisCatalogCacheService : ICatalogCacheService
         }
     }
 
-    public void Remove(string key)
+    private async Task<(bool Found, T? Value)> TryGetFromCacheAsync<T>(string formattedKey, string stage)
     {
-        var formattedKey = FormatKey(key);
         try
         {
             var db = _redis.GetDatabase();
-            db.KeyDelete(formattedKey);
+            var cachedValue = await db.StringGetAsync(formattedKey);
+
+            if (cachedValue.HasValue)
+            {
+                var bytes = (byte[])cachedValue!;
+                var deserialized = JsonSerializer.Deserialize<T>(bytes, _jsonOptions);
+                if (deserialized is not null)
+                {
+                    return (true, deserialized);
+                }
+            }
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
         {
-            _logger.LogWarning(ex, "Redis sync cache key removal failed for key {CacheKey}.", formattedKey);
+            _logger.LogWarning(ex, "Redis cache {Stage} read failed for key {CacheKey}.", stage, formattedKey);
         }
+
+        return (false, default);
     }
 
     private string FormatKey(string key)

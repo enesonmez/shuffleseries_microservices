@@ -8,7 +8,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Queries.GetActiveGenres;
 
-public sealed class GetActiveGenresQueryHandler : IRequestHandler<GetActiveGenresQuery, IReadOnlyList<GenreResponse>>
+internal sealed class GetActiveGenresQueryHandler : IRequestHandler<GetActiveGenresQuery, IReadOnlyList<GenreResponse>>
 {
     private readonly IGenreRepository _genreRepository;
     private readonly ICatalogCacheService _cacheService;

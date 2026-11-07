@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.UpdateEpisode;
 
-public sealed class UpdateEpisodeCommandHandler : IRequestHandler<UpdateEpisodeCommand>
+internal sealed class UpdateEpisodeCommandHandler : IRequestHandler<UpdateEpisodeCommand>
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -22,6 +22,20 @@ public sealed class UpdateEpisodeCommandHandler : IRequestHandler<UpdateEpisodeC
     {
         var episode = await _episodeRepository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new EpisodeNotFoundException(request.Id);
+
+        if (episode.EpisodeNumber != request.EpisodeNumber)
+        {
+            var conflictingSeasonNumber = await _episodeRepository.GetConflictingSeasonNumberAsync(
+                episode.SeasonId,
+                request.EpisodeNumber,
+                episode.Id,
+                cancellationToken);
+
+            if (conflictingSeasonNumber.HasValue)
+            {
+                throw new DuplicateEpisodeException(conflictingSeasonNumber.Value, request.EpisodeNumber);
+            }
+        }
 
         episode.UpdateDetails(
             request.EpisodeNumber,

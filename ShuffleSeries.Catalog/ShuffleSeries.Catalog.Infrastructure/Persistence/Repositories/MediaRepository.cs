@@ -43,6 +43,7 @@ internal sealed class MediaRepository : MediaRepositoryBase<Media>, IMediaReposi
         bool sortDescending,
         int page,
         int pageSize,
+        string? targetLanguage = null,
         CancellationToken cancellationToken = default)
     {
         var query = Context.Media.AsNoTracking();
@@ -59,10 +60,14 @@ internal sealed class MediaRepository : MediaRepositoryBase<Media>, IMediaReposi
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var searchPattern = $"%{search.Trim()}%";
+            var escaped = search.Trim()
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("%", "\\%", StringComparison.Ordinal)
+                .Replace("_", "\\_", StringComparison.Ordinal);
+            var searchPattern = $"%{escaped}%";
             query = query.Where(x =>
-                x.Translations.Any(t => EF.Functions.ILike(t.Title, searchPattern)) ||
-                (x.ImdbId != null && EF.Functions.ILike(x.ImdbId, searchPattern)));
+                x.Translations.Any(t => EF.Functions.ILike(t.Title, searchPattern, "\\")) ||
+                (x.ImdbId != null && EF.Functions.ILike(x.ImdbId, searchPattern, "\\")));
         }
 
         if (platformId.HasValue)
@@ -86,6 +91,7 @@ internal sealed class MediaRepository : MediaRepositoryBase<Media>, IMediaReposi
             return (Array.Empty<Media>(), 0);
         }
 
+        var lang = targetLanguage?.Trim().ToLowerInvariant() ?? "tr";
         var normalizedSortBy = sortBy?.Trim().ToLowerInvariant();
         query = (normalizedSortBy, sortDescending) switch
         {
@@ -93,8 +99,8 @@ internal sealed class MediaRepository : MediaRepositoryBase<Media>, IMediaReposi
             ("imdbrating", false) => query.OrderBy(x => x.ImdbRating).ThenByDescending(x => x.CreatedAtUtc),
             ("releaseyear", true) => query.OrderByDescending(x => x.ReleaseYear).ThenByDescending(x => x.CreatedAtUtc),
             ("releaseyear", false) => query.OrderBy(x => x.ReleaseYear).ThenByDescending(x => x.CreatedAtUtc),
-            ("title", true) => query.OrderByDescending(x => x.Translations.OrderBy(t => t.LanguageCode).Select(t => t.Title).FirstOrDefault()).ThenByDescending(x => x.CreatedAtUtc),
-            ("title", false) => query.OrderBy(x => x.Translations.OrderBy(t => t.LanguageCode).Select(t => t.Title).FirstOrDefault()).ThenByDescending(x => x.CreatedAtUtc),
+            ("title", true) => query.OrderByDescending(x => x.Translations.Where(t => t.LanguageCode == lang).Select(t => t.Title).FirstOrDefault() ?? x.Translations.OrderBy(t => t.LanguageCode).Select(t => t.Title).FirstOrDefault()).ThenByDescending(x => x.CreatedAtUtc),
+            ("title", false) => query.OrderBy(x => x.Translations.Where(t => t.LanguageCode == lang).Select(t => t.Title).FirstOrDefault() ?? x.Translations.OrderBy(t => t.LanguageCode).Select(t => t.Title).FirstOrDefault()).ThenByDescending(x => x.CreatedAtUtc),
             ("createdat", false) => query.OrderBy(x => x.CreatedAtUtc),
             _ => query.OrderByDescending(x => x.CreatedAtUtc)
         };

@@ -23,7 +23,11 @@ public sealed class CreateMoodCommandValidator : AbstractValidator<CreateMoodCom
 
         RuleFor(x => x.Description)
             .NotEmpty().WithMessage("Mood description is required.")
-            .MaximumLength(1000).WithMessage("Mood description cannot exceed 1000 characters.");
+            .MaximumLength(500).WithMessage("Mood description cannot exceed 500 characters.");
+
+        RuleFor(x => x.VibeTags)
+            .MaximumLength(500).When(x => !string.IsNullOrEmpty(x.VibeTags))
+            .WithMessage("Vibe tags cannot exceed 500 characters.");
 
         RuleFor(x => x.LanguageCode)
             .NotEmpty().WithMessage("Language code is required.")

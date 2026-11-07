@@ -18,6 +18,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Using Include="ShuffleSeries.Shared.Core.Application.Common.Interfaces" />
+    </ItemGroup>
+
+    <ItemGroup>
         <InternalsVisibleTo Include="ShuffleSeries.Identity.Tests" />
         <InternalsVisibleTo Include="ShuffleSeries.Identity.IntegrationTests" />
     </ItemGroup>

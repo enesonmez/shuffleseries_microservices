@@ -7,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Commands.Translations.AddOrUpdateMoodTranslation;
 
-public sealed class AddOrUpdateMoodTranslationCommandHandler : IRequestHandler<AddOrUpdateMoodTranslationCommand>
+internal sealed class AddOrUpdateMoodTranslationCommandHandler : IRequestHandler<AddOrUpdateMoodTranslationCommand>
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

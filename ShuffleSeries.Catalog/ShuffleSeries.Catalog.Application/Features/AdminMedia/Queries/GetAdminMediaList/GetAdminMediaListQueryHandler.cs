@@ -6,7 +6,7 @@ using ShuffleSeries.Shared.Core.Application.Responses;
 
 namespace ShuffleSeries.Catalog.Application.Features.AdminMedia.Queries.GetAdminMediaList;
 
-public sealed class GetAdminMediaListQueryHandler : IRequestHandler<GetAdminMediaListQuery, PaginatedList<AdminMediaListItemResponse>>
+internal sealed class GetAdminMediaListQueryHandler : IRequestHandler<GetAdminMediaListQuery, PaginatedList<AdminMediaListItemResponse>>
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly ILanguageContext _languageContext;
@@ -34,6 +34,7 @@ public sealed class GetAdminMediaListQueryHandler : IRequestHandler<GetAdminMedi
             request.SortDescending,
             request.PageNumber,
             request.PageSize,
+            targetLanguage,
             cancellationToken);
 
         var responseItems = mediaItems.Select(m =>
