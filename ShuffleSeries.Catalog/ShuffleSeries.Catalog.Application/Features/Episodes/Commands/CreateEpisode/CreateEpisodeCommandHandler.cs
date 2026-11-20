@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.CreateEpisode;
 
-public sealed class CreateEpisodeCommandHandler : IRequestHandler<CreateEpisodeCommand, Guid>
+public sealed class CreateEpisodeCommandHandler
 {
     private readonly ISeriesRepository _seriesRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -20,7 +19,7 @@ public sealed class CreateEpisodeCommandHandler : IRequestHandler<CreateEpisodeC
 
     public async Task<Guid> Handle(CreateEpisodeCommand request, CancellationToken cancellationToken)
     {
-        var series = await _seriesRepository.GetByIdWithSeasonsAsync(request.SeriesId, cancellationToken)
+        var series = await _seriesRepository.GetByIdWithSeasonAsync(request.SeriesId, request.SeasonNumber, cancellationToken)
             ?? throw new SeriesNotFoundException(request.SeriesId);
 
         var episode = series.AddEpisode(

@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
-using ShuffleSeries.Shared.Core.Domain.Constants;
 
 namespace ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
 
@@ -20,10 +19,7 @@ public abstract class CatalogIntegrationTestBase : IAsyncLifetime
     protected CatalogApiFactory Factory { get; }
     protected HttpClient Client { get; }
 
-    protected HttpClient CreateUnauthorizedClient()
-    {
-        return Factory.CreateClient();
-    }
+    protected HttpClient CreateUnauthorizedClient() => Factory.CreateClient();
 
     protected HttpClient CreateAuthorizedClient(
         string role = SystemRoles.Admin,

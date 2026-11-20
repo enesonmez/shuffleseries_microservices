@@ -4,7 +4,7 @@ using ShuffleSeries.Catalog.Domain.Entities;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class MoodConfiguration : IEntityTypeConfiguration<Mood>
+internal sealed class MoodConfiguration : IEntityTypeConfiguration<Mood>
 {
     public void Configure(EntityTypeBuilder<Mood> builder)
     {

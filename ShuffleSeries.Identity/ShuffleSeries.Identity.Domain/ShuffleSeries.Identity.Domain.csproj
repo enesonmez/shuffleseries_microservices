@@ -11,4 +11,10 @@
       <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Exceptions\ShuffleSeries.Shared.Core.Exceptions.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="ShuffleSeries.Identity.Tests" />
+        <InternalsVisibleTo Include="ShuffleSeries.Identity.Infrastructure" />
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    </ItemGroup>
+
 </Project>

@@ -85,7 +85,7 @@ var series = await _context.Series
 
 ---
 
-## 3. Asenkron Kuyruk & Mesajlaşma (RabbitMQ / MassTransit) Muhafızı
+## 3. Asenkron Kuyruk & Mesajlaşma (RabbitMQ / WolverineFx) Muhafızı
 
 ### 3.1 Çift Yazma Hatası (Dual-Write Prevention)
 - **Tuzak:** Veritabanına `SaveChangesAsync` yaptıktan sonra doğrudan message broker'a publish çağrısı yapmak. Ağ kesintisinde veritabanı commit edilir ancak event kaybolur; mikroservisler arası tutarsızlık oluşur.
@@ -120,7 +120,7 @@ var series = await _context.Series
 
 ### 4.3 Boxing / Unboxing İsrafı
 - **Tuzak:** Değer tiplerinin (int, enum, Guid, struct) `object` parametrelerine veya generic olmayan koleksiyonlara (`ArrayList`) geçilerek heap'e kopyalanması.
-- **Kural:** Generic arayüzler (`IEquatable<T>`, strongly-typed generic MediatR / MassTransit contracts) kullanılmalıdır (`CA2263`).
+- **Kural:** Generic arayüzler (`IEquatable<T>`, strongly-typed generic WolverineFx contracts) kullanılmalıdır (`CA2263`).
 
 ### 4.4 Cancellation Token İhmali (Orphaned Processing)
 - **Tuzak:** İstemci sekmesini kapattığında veya HTTP timeout olduğunda arkadaki DB sorgusunun ve CPU döngüsünün `CancellationToken` dinlemediği için sunucuyu gereksiz yere yormaya devam etmesi.

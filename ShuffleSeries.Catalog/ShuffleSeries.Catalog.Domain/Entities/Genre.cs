@@ -82,10 +82,8 @@ public class Genre : AggregateRoot
     public GenreTranslation AddOrUpdateTranslation(
         string languageCode,
         string name,
-        string? description = null)
-    {
-        return AddOrUpdateTranslation(LanguageCode.From(languageCode), name, description);
-    }
+        string? description = null) =>
+        AddOrUpdateTranslation(LanguageCode.From(languageCode), name, description);
 
     public void RemoveTranslation(LanguageCode languageCode)
     {

@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.ValueObjects;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class MediaTranslationConfiguration : IEntityTypeConfiguration<MediaTranslation>
+internal sealed class MediaTranslationConfiguration : IEntityTypeConfiguration<MediaTranslation>
 {
     public void Configure(EntityTypeBuilder<MediaTranslation> builder)
     {

@@ -113,6 +113,29 @@ public class AuditableEntityInterceptorTests
     }
 
     [Fact]
+    public async Task SavingChangesAsync_WhenAuditableEntitySoftDeleted_ShouldNotSetModifiedAtUtc()
+    {
+        // Arrange
+        var initialTime = new DateTimeOffset(2026, 10, 4, 10, 0, 0, TimeSpan.Zero);
+        var timeProvider = new TestTimeProvider(initialTime);
+        await using var context = CreateDbContext(timeProvider);
+
+        var entity = new DummyAuditableEntity(Guid.NewGuid(), "Original");
+        context.Auditables.Add(entity);
+        await context.SaveChangesAsync();
+
+        // Act - advance time by 2 hours and soft delete the entity
+        timeProvider.Advance(TimeSpan.FromHours(2));
+        entity.SoftDelete("admin");
+        await context.SaveChangesAsync();
+
+        // Assert
+        entity.CreatedAtUtc.Should().Be(initialTime.UtcDateTime);
+        entity.ModifiedAtUtc.Should().BeNull();
+        entity.IsDeleted.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SavingChangesAsync_WhenMultipleEntitiesAdded_ShouldSetCreatedAtUtcForAll()
     {
         // Arrange

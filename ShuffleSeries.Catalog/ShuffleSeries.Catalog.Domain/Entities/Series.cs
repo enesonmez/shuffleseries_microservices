@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Events;
 
@@ -12,10 +13,7 @@ public class Series : Media
 
     public IReadOnlyCollection<Season> Seasons => _seasons.AsReadOnly();
 
-    private Series() : base()
-    {
-        MediaType = MediaType.Series;
-    }
+    private Series() : base(MediaType.Series) { }
 
     private Series(
         Guid id,
@@ -34,6 +32,7 @@ public class Series : Media
         TotalSeasons = totalSeasons >= 0 ? totalSeasons : 0;
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Domain factory preserves explicit parameter list without an intermediate parameter object.")]
     public static Series Create(
         int tmdbId,
         string imdbId,
@@ -62,6 +61,7 @@ public class Series : Media
         return series;
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Domain aggregate update method preserves explicit invariant arguments for readability and handler clarity.")]
     public void UpdateDetails(
         int tmdbId,
         string imdbId,
@@ -135,8 +135,8 @@ public class Series : Media
             imdbRating,
             thumbnailUrl);
 
+        episode.MarkCreated(Id);
         RaiseUpdatedEvent();
-        RaiseDomainEvent(new EpisodeCreatedDomainEvent(Id, season.Id, episode.Id, episodeNumber, standaloneFlag));
         return episode;
     }
 

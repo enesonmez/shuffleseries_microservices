@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.Episodes;
 using ShuffleSeries.Catalog.Application.Features.Episodes.Commands.CreateEpisode;
@@ -12,6 +11,7 @@ using ShuffleSeries.Catalog.Application.Features.Episodes.Queries.GetEpisodeById
 using ShuffleSeries.Catalog.Application.Features.Episodes.Responses;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -25,7 +25,7 @@ public static class EpisodeEndpoints
         // 1. POST: Create episode
         group.MapPost("/", async (
                 [FromBody] CreateEpisodeRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new CreateEpisodeCommand(
@@ -40,7 +40,7 @@ public static class EpisodeEndpoints
                     request.ImdbRating,
                     request.ThumbnailUrl);
 
-                var episodeId = await sender.Send(command, cancellationToken);
+                var episodeId = await bus.InvokeAsync<Guid>(command, cancellationToken);
                 return Results.CreatedAtRoute("GetEpisodeById", new { id = episodeId }, episodeId);
             })
             .RequireAuthorization(SystemPolicies.CanCreateCatalogEpisodes)
@@ -56,13 +56,12 @@ public static class EpisodeEndpoints
         // 2. GET: Get episode by ID (with Content Negotiation & Permission)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                [FromQuery] string? lang,
-                ISender sender,
+                IMessageBus bus,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetEpisodeByIdQuery(id, lang ?? languageContext.CurrentLanguage);
-                var response = await sender.Send(query, cancellationToken);
+                var query = new GetEpisodeByIdQuery(id, languageContext.CurrentLanguage);
+                var response = await bus.InvokeAsync<EpisodeDetailResponse>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogEpisodes)
@@ -77,7 +76,7 @@ public static class EpisodeEndpoints
         group.MapPut("/{id:guid}", async (
                 Guid id,
                 [FromBody] UpdateEpisodeRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new UpdateEpisodeCommand(
@@ -88,7 +87,7 @@ public static class EpisodeEndpoints
                     request.ImdbRating,
                     request.ThumbnailUrl);
 
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogEpisodes)
@@ -104,11 +103,11 @@ public static class EpisodeEndpoints
         // 4. DELETE: Delete episode
         group.MapDelete("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new DeleteEpisodeCommand(id);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanDeleteCatalogEpisodes)
@@ -123,11 +122,11 @@ public static class EpisodeEndpoints
         group.MapPost("/{id:guid}/platforms", async (
                 Guid id,
                 [FromBody] AddEpisodePlatformRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new AddEpisodePlatformCommand(id, request.PlatformId, request.WebUrl, request.AppSchemeUrl);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -144,11 +143,11 @@ public static class EpisodeEndpoints
         group.MapDelete("/{id:guid}/platforms/{platformId:guid}", async (
                 Guid id,
                 Guid platformId,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new RemoveEpisodePlatformCommand(id, platformId);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -162,11 +161,11 @@ public static class EpisodeEndpoints
         group.MapPost("/{id:guid}/translations", async (
                 Guid id,
                 [FromBody] AddOrUpdateEpisodeTranslationRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new AddOrUpdateEpisodeTranslationCommand(id, request.LanguageCode, request.Title, request.Overview);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)
@@ -182,11 +181,11 @@ public static class EpisodeEndpoints
         group.MapDelete("/{id:guid}/translations/{languageCode}", async (
                 Guid id,
                 string languageCode,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new RemoveEpisodeTranslationCommand(id, languageCode);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanManageCatalogAssociations)

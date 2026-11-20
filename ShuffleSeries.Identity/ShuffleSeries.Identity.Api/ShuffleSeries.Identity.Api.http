@@ -365,8 +365,7 @@ Content-Type: application/json
 
 {
   "provider": "Apple",
-  "idToken": "mock_apple_id_token:apple_user@icloud.com",
-  "appleRefreshToken": "mock_apple_refresh_token_123"
+  "idToken": "mock_apple_id_token:apple_user@icloud.com"
 }
 
 ### 🔴 11.3 Desteklenmeyen Sağlayıcı ile Giriş (POST - 400 Bad Request)

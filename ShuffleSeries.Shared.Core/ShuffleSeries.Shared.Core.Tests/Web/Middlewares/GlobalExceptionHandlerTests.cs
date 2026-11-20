@@ -42,14 +42,14 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
-    public async Task TryHandleAsync_ValidationException_ShouldReturn400WithErrors()
+    public async Task TryHandleAsync_FluentValidationException_ShouldReturn400WithErrors()
     {
         var (context, stream) = CreateHttpContext();
-        var errors = new Dictionary<string, string[]>
+        var failures = new[]
         {
-            ["Name"] = ["Name is required"]
+            new FluentValidation.Results.ValidationFailure("Name", "Name is required")
         };
-        var ex = new ValidationException(errors);
+        var ex = new FluentValidation.ValidationException(failures);
 
         var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
 
@@ -122,20 +122,22 @@ public class GlobalExceptionHandlerTests
     }
 
     [Fact]
-    public async Task TryHandleAsync_ArgumentException_ShouldReturn400()
+    public async Task TryHandleAsync_ArgumentException_ShouldReturn500WithGenericMessage()
     {
         var (context, stream) = CreateHttpContext();
-        var ex = new ArgumentException("Title cannot be empty");
+        var ex = new ArgumentException("Sensitive parameter 'secret' cannot be null");
 
         var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
 
         result.Should().BeTrue();
-        context.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        context.Response.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
 
         var problemDetails = await ReadProblemDetailsAsync(stream);
         problemDetails.Should().NotBeNull();
-        problemDetails!.Status.Should().Be(StatusCodes.Status400BadRequest);
-        problemDetails.Detail.Should().Be("Title cannot be empty");
+        problemDetails!.Status.Should().Be(StatusCodes.Status500InternalServerError);
+        problemDetails.Title.Should().Be("Internal Server Error");
+        problemDetails.Detail.Should().Be("An unexpected error occurred on the server.");
+        problemDetails.Detail.Should().NotContain("Sensitive");
     }
 
     [Fact]
@@ -290,6 +292,59 @@ public class GlobalExceptionHandlerTests
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("log-corr-12345")
                                              && v.ToString()!.Contains("CorrelationId")),
                 ex,
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_OperationCanceledException_WhenRequestAborted_ShouldReturn499AndNotLogError()
+    {
+        var (context, stream) = CreateHttpContext();
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        context.RequestAborted = cts.Token;
+
+        var ex = new OperationCanceledException(cts.Token);
+
+        var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
+
+        result.Should().BeTrue();
+        context.Response.StatusCode.Should().Be(499);
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task TryHandleAsync_BadHttpRequestException_ShouldReturn400AndLogWarning()
+    {
+        var (context, stream) = CreateHttpContext();
+        _loggerMock.Setup(l => l.IsEnabled(LogLevel.Warning)).Returns(true);
+
+        var ex = new BadHttpRequestException("Invalid JSON body", StatusCodes.Status400BadRequest);
+
+        var result = await _handler.TryHandleAsync(context, ex, CancellationToken.None);
+
+        result.Should().BeTrue();
+        context.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+
+        var problemDetails = await ReadProblemDetailsAsync(stream);
+        problemDetails.Should().NotBeNull();
+        problemDetails!.Status.Should().Be(StatusCodes.Status400BadRequest);
+        problemDetails.Extensions.Should().ContainKey("code");
+        problemDetails.Extensions["code"]?.ToString().Should().Be("BAD_REQUEST");
+
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Bad HTTP request")),
+                It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }

@@ -21,6 +21,10 @@ public sealed class CreateEpisodeCommandValidator : AbstractValidator<CreateEpis
             .NotEmpty().WithMessage("Title is required.")
             .MaximumLength(250).WithMessage("Title cannot exceed 250 characters.");
 
+        RuleFor(x => x.Overview)
+            .MaximumLength(2000).When(x => !string.IsNullOrEmpty(x.Overview))
+            .WithMessage("Overview cannot exceed 2000 characters.");
+
         RuleFor(x => x.LanguageCode)
             .NotEmpty().WithMessage("Language code is required.")
             .Must(LanguageCode.IsSupported).WithMessage("Language code must be a supported ISO 639-1 code (e.g. 'tr', 'en').");

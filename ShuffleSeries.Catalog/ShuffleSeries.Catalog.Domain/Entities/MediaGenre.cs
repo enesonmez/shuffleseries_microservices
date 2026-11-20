@@ -7,7 +7,7 @@ public class MediaGenre : BaseEntity
     public Guid MediaId { get; private set; }
     public Guid GenreId { get; private set; }
 
-    public Genre? Genre { get; private set; }
+    public Genre? Genre { get; protected set; }
 
     private MediaGenre() : base(Guid.Empty) { }
 

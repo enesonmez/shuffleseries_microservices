@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Extensions;
 using ShuffleSeries.Catalog.Application.Features.Moods.Responses;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -6,7 +5,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Queries.GetMoodById;
 
-public sealed class GetMoodByIdQueryHandler : IRequestHandler<GetMoodByIdQuery, MoodResponse>
+public sealed class GetMoodByIdQueryHandler
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ILanguageContext _languageContext;

@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Extensions;
 using ShuffleSeries.Catalog.Application.Features.AdminMedia.Responses;
 using ShuffleSeries.Catalog.Domain.Repositories;
@@ -6,7 +5,7 @@ using ShuffleSeries.Shared.Core.Application.Responses;
 
 namespace ShuffleSeries.Catalog.Application.Features.AdminMedia.Queries.GetAdminMediaList;
 
-public sealed class GetAdminMediaListQueryHandler : IRequestHandler<GetAdminMediaListQuery, PaginatedList<AdminMediaListItemResponse>>
+public sealed class GetAdminMediaListQueryHandler
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly ILanguageContext _languageContext;
@@ -23,15 +22,21 @@ public sealed class GetAdminMediaListQueryHandler : IRequestHandler<GetAdminMedi
     {
         var targetLanguage = request.Language ?? _languageContext.CurrentLanguage;
 
+        var filter = new AdminMediaFilter
+        {
+            MediaType = request.MediaType,
+            Search = request.Search,
+            PlatformId = request.PlatformId,
+            MoodId = request.MoodId,
+            GenreId = request.GenreId,
+            IsDeleted = request.IsDeleted,
+            SortBy = request.SortBy,
+            SortDescending = request.SortDescending,
+            TargetLanguage = targetLanguage
+        };
+
         var (mediaItems, totalCount) = await _mediaRepository.GetAdminMediaPagedListAsync(
-            request.MediaType,
-            request.Search,
-            request.PlatformId,
-            request.MoodId,
-            request.GenreId,
-            request.IsDeleted,
-            request.SortBy,
-            request.SortDescending,
+            filter,
             request.PageNumber,
             request.PageSize,
             cancellationToken);

@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.UpdateEpisode;
 
 public sealed record UpdateEpisodeCommand(
@@ -8,4 +6,4 @@ public sealed record UpdateEpisodeCommand(
     bool IsStandalone,
     int? RuntimeMinutes = null,
     double? ImdbRating = null,
-    string? ThumbnailUrl = null) : IRequest;
+    string? ThumbnailUrl = null);

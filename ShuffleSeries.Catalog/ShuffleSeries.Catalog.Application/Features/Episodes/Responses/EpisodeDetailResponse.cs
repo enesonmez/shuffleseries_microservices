@@ -13,16 +13,3 @@ public sealed record EpisodeDetailResponse(
     string ResolvedLanguage,
     IReadOnlyList<EpisodePlatformDto> Platforms,
     IReadOnlyList<EpisodeTranslationDto> Translations);
-
-public sealed record EpisodePlatformDto(
-    Guid PlatformId,
-    string Name,
-    string Slug,
-    string LogoUrl,
-    string WebUrl,
-    string? AppSchemeUrl);
-
-public sealed record EpisodeTranslationDto(
-    string LanguageCode,
-    string Title,
-    string? Overview);

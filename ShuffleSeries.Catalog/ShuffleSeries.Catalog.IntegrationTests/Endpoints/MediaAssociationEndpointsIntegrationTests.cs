@@ -36,7 +36,7 @@ public class MediaAssociationEndpointsIntegrationTests : CatalogIntegrationTestB
     {
         // Arrange
         var movieId = await CreateSampleMovieAsync();
-        Guid platformId = Guid.Empty;
+        var platformId = Guid.Empty;
         await ExecuteDbContextAsync(async context =>
         {
             platformId = (await context.Platforms.FirstAsync(p => p.Slug == "netflix")).Id;
@@ -73,7 +73,7 @@ public class MediaAssociationEndpointsIntegrationTests : CatalogIntegrationTestB
     {
         // Arrange
         var movieId = await CreateSampleMovieAsync();
-        Guid moodId = Guid.Empty;
+        var moodId = Guid.Empty;
         await ExecuteDbContextAsync(async context =>
         {
             moodId = (await context.Moods.FirstAsync(m => m.Code == "icini-isitanlar")).Id;
@@ -109,7 +109,7 @@ public class MediaAssociationEndpointsIntegrationTests : CatalogIntegrationTestB
     {
         // Arrange
         var movieId = await CreateSampleMovieAsync();
-        Guid genreId = Guid.Empty;
+        var genreId = Guid.Empty;
         await ExecuteDbContextAsync(async context =>
         {
             genreId = (await context.Genres.FirstAsync(g => g.Code == "drama")).Id;

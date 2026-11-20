@@ -5,7 +5,7 @@ using ShuffleSeries.Shared.Core.Domain.ValueObjects;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class MoodTranslationConfiguration : IEntityTypeConfiguration<MoodTranslation>
+internal sealed class MoodTranslationConfiguration : IEntityTypeConfiguration<MoodTranslation>
 {
     public void Configure(EntityTypeBuilder<MoodTranslation> builder)
     {

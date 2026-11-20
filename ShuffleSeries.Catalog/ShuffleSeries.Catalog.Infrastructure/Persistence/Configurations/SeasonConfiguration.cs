@@ -4,7 +4,7 @@ using ShuffleSeries.Catalog.Domain.Entities;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class SeasonConfiguration : IEntityTypeConfiguration<Season>
+internal sealed class SeasonConfiguration : IEntityTypeConfiguration<Season>
 {
     public void Configure(EntityTypeBuilder<Season> builder)
     {

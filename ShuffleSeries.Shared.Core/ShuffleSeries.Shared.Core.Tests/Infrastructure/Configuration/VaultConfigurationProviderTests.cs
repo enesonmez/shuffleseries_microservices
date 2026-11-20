@@ -290,4 +290,133 @@ public class VaultConfigurationProviderTests
 
         act.Should().Throw<ArgumentNullException>();
     }
+
+    [Fact]
+    public void Constructor_WhenOptionsIsNull_ShouldThrowArgumentNullException()
+    {
+        var act = () => new VaultConfigurationProvider(null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("options");
+    }
+
+    [Fact]
+    public void Load_WhenAddressIsEmptyAndOptionalIsTrue_ShouldReturnWithoutThrowing()
+    {
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var options = new VaultConfigurationOptions
+        {
+            Enabled = true,
+            Optional = true,
+            Address = string.Empty,
+            Paths = ["shuffleseries/shared"]
+        };
+
+        using var provider = new VaultConfigurationProvider(options, handler);
+
+        var act = () => provider.Load();
+
+        act.Should().NotThrow();
+        handler.CallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void Load_WhenAddressIsEmptyAndOptionalIsFalse_ShouldThrowInvalidOperationException()
+    {
+        var options = new VaultConfigurationOptions
+        {
+            Enabled = true,
+            Optional = false,
+            Address = string.Empty,
+            Paths = ["shuffleseries/shared"]
+        };
+
+        using var provider = new VaultConfigurationProvider(options);
+
+        var act = () => provider.Load();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Vault Address cannot be null or empty*");
+    }
+
+    [Fact]
+    public void Load_WhenPathsIsEmpty_ShouldNotMakeHttpRequests()
+    {
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+        var options = new VaultConfigurationOptions
+        {
+            Enabled = true,
+            Address = "http://localhost:8200",
+            Paths = []
+        };
+
+        using var provider = new VaultConfigurationProvider(options, handler);
+
+        provider.Load();
+
+        handler.CallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void Load_WhenVaultResponseContainsJsonArray_ShouldFlattenWithIndexedKeys()
+    {
+        const string vaultJson = """
+        {
+            "data": {
+                "data": {
+                    "Cors": {
+                        "AllowedOrigins": ["http://localhost:3000", "http://localhost:5001"]
+                    }
+                }
+            }
+        }
+        """;
+
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(vaultJson, Encoding.UTF8, "application/json")
+        });
+
+        var options = new VaultConfigurationOptions
+        {
+            Enabled = true,
+            Address = "http://localhost:8200",
+            Token = "test-token",
+            Paths = ["shuffleseries/shared"]
+        };
+
+        using var provider = new VaultConfigurationProvider(options, handler);
+
+        provider.Load();
+
+        provider.TryGet("Cors:AllowedOrigins:0", out var origin0).Should().BeTrue();
+        origin0.Should().Be("http://localhost:3000");
+        provider.TryGet("Cors:AllowedOrigins:1", out var origin1).Should().BeTrue();
+        origin1.Should().Be("http://localhost:5001");
+    }
+
+    [Fact]
+    public void Load_WhenVaultResponseLacksNestedDataProperty_ShouldIgnoreGracefully()
+    {
+        const string vaultJson = """{"request_id": "empty-wrapper", "data": {}}""";
+
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(vaultJson, Encoding.UTF8, "application/json")
+        });
+
+        var options = new VaultConfigurationOptions
+        {
+            Enabled = true,
+            Address = "http://localhost:8200",
+            Token = "test-token",
+            Paths = ["shuffleseries/shared"]
+        };
+
+        using var provider = new VaultConfigurationProvider(options, handler);
+
+        provider.Load();
+
+        provider.TryGet("AnyKey", out _).Should().BeFalse();
+    }
 }

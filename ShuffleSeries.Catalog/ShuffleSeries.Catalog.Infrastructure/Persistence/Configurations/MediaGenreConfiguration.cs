@@ -4,7 +4,7 @@ using ShuffleSeries.Catalog.Domain.Entities;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class MediaGenreConfiguration : IEntityTypeConfiguration<MediaGenre>
+internal sealed class MediaGenreConfiguration : IEntityTypeConfiguration<MediaGenre>
 {
     public void Configure(EntityTypeBuilder<MediaGenre> builder)
     {

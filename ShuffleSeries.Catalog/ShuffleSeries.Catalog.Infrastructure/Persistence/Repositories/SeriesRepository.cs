@@ -14,6 +14,14 @@ internal sealed class SeriesRepository : MediaRepositoryBase<Series>, ISeriesRep
         await Context.Series
             .Include(x => x.Seasons)
                 .ThenInclude(s => s.Episodes)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task<Series?> GetByIdWithSeasonAsync(Guid id, int seasonNumber, CancellationToken cancellationToken = default) =>
+        await Context.Series
+            .Include(x => x.Seasons.Where(s => s.SeasonNumber == seasonNumber))
+                .ThenInclude(s => s.Episodes)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public async Task<Series?> GetByIdForDetailAsync(Guid id, CancellationToken cancellationToken = default) =>
@@ -21,29 +29,26 @@ internal sealed class SeriesRepository : MediaRepositoryBase<Series>, ISeriesRep
             .AsNoTracking()
             .Include(x => x.Translations)
             .Include(x => x.MediaPlatforms).ThenInclude(p => p.Platform)
-            .Include(x => x.MediaMoods).ThenInclude(m => m.Mood)
-            .Include(x => x.MediaGenres).ThenInclude(g => g.Genre)
+            .Include(x => x.MediaMoods).ThenInclude(m => m.Mood).ThenInclude(m => m!.Translations)
+            .Include(x => x.MediaGenres).ThenInclude(g => g.Genre).ThenInclude(g => g!.Translations)
             .Include(x => x.Seasons.OrderBy(s => s.SeasonNumber))
                 .ThenInclude(s => s.Episodes.OrderBy(e => e.EpisodeNumber))
                 .ThenInclude(e => e.Translations)
-            .Include(x => x.Seasons)
-                .ThenInclude(s => s.Episodes)
-                .ThenInclude(e => e.EpisodePlatforms).ThenInclude(ep => ep.Platform)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public async Task<Series?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default) =>
         await Context.Series
             .Include(x => x.Translations)
-            .Include(x => x.MediaPlatforms).ThenInclude(p => p.Platform)
-            .Include(x => x.MediaMoods).ThenInclude(m => m.Mood)
-            .Include(x => x.MediaGenres).ThenInclude(g => g.Genre)
-            .Include(x => x.Seasons.OrderBy(s => s.SeasonNumber))
-                .ThenInclude(s => s.Episodes.OrderBy(e => e.EpisodeNumber))
+            .Include(x => x.MediaPlatforms)
+            .Include(x => x.MediaMoods)
+            .Include(x => x.MediaGenres)
+            .Include(x => x.Seasons)
+                .ThenInclude(s => s.Episodes)
                 .ThenInclude(e => e.Translations)
             .Include(x => x.Seasons)
                 .ThenInclude(s => s.Episodes)
-                .ThenInclude(e => e.EpisodePlatforms).ThenInclude(ep => ep.Platform)
+                .ThenInclude(e => e.EpisodePlatforms)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 }

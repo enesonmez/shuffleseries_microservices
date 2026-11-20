@@ -102,7 +102,6 @@ erDiagram
         string Provider "Google, Apple"
         string ProviderKey "External subject ID"
         string ProviderEmail
-        string RefreshToken "Encrypted Apple refresh token"
         timestamp LinkedAtUtc
         boolean IsDeleted
         timestamp CreatedAtUtc
@@ -197,7 +196,6 @@ Harici OAuth2/OIDC kimlik sağlayıcılarını (Apple, Google) yönetir.
 | `Provider` | `varchar(64)` | Hayır | Sağlayıcı adı (`Google`, `Apple`) |
 | `ProviderKey` | `varchar(256)`| Hayır | Sağlayıcıdan gelen benzersiz Subject ID (`sub`). |
 | `ProviderEmail`| `varchar(256)`| Evet | Sağlayıcıdaki e-posta |
-| `RefreshToken` | `varchar(1024)`| Evet | Apple Store Guideline 5.1.1 gereği hesap silmede Apple oturumunu iptal etmek için şifreli saklanan refresh token. |
 | `LinkedAtUtc` | `timestamp with time zone` | Hayır | Hesabın bağlandığı an (UTC) |
 | - | - | - | **Unique Composite Index:** `(Provider, ProviderKey)` |
 

@@ -9,7 +9,8 @@
     <ItemGroup>
       <PackageReference Include="FluentValidation" Version="12.1.1" />
       <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-      <PackageReference Include="MediatR" Version="14.1.0" />
+      <PackageReference Include="WolverineFx" Version="6.62.0" />
+      <PackageReference Include="WolverineFx.FluentValidation" Version="6.62.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -21,10 +22,14 @@
         <Using Include="ShuffleSeries.Shared.Core.Application.Common.Interfaces" />
     </ItemGroup>
 
-    <!-- Test projesinin bu katmandaki internal sınıflara (Handler vb.) erişebilmesini sağlayan ayar -->
+    <!-- Test ve Wolverine code generation'ın internal sınıflara erişebilmesini sağlayan ayar -->
     <ItemGroup>
+        <InternalsVisibleTo Include="ShuffleSeries.Catalog.Api" />
         <InternalsVisibleTo Include="ShuffleSeries.Catalog.Tests" />
         <InternalsVisibleTo Include="ShuffleSeries.Catalog.IntegrationTests" />
+        <InternalsVisibleTo Include="WolverineHandlers" />
+        <InternalsVisibleTo Include="Wolverine" />
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
     </ItemGroup>
     
 </Project>

@@ -142,12 +142,24 @@ def request(method: str, path: str, token: str = None, body: dict = None, header
         return 0, str(ex), {}
 
 
-def test_case(category: str, name: str, method: str, path: str, expected_status: int, token: str = None, body: dict = None, headers: dict = None, raw_body: bytes = None):
+def test_case(category: str, name: str, method: str, path: str, expected_status: int, token: str = None, body: dict = None, headers: dict = None, raw_body: bytes = None, validate_fn=None):
     status, response_body, resp_headers = request(method, path, token, body, headers, raw_body)
-    passed = status == expected_status
+    status_match = (status == expected_status)
+    custom_valid = True
+    custom_err = ""
+    if status_match and validate_fn and response_body is not None:
+        try:
+            valid, msg = validate_fn(response_body, resp_headers)
+            if not valid:
+                custom_valid = False
+                custom_err = msg
+        except Exception as ex:
+            custom_valid = False
+            custom_err = f"Validation exception: {ex}"
+    passed = status_match and custom_valid
     test_results.append({
         "category": category,
-        "name": name,
+        "name": name if custom_valid else f"{name} (Failed: {custom_err})",
         "method": method,
         "path": path,
         "expected": expected_status,
@@ -161,6 +173,8 @@ def test_case(category: str, name: str, method: str, path: str, expected_status:
     print(f"[{category}] {mark} {method:6} {path:55} -> Exp: {expected_status} | Got: {status_color}{status}{RESET} - {name}")
     if not passed:
         print(f"    {YELLOW}Details:{RESET} {json.dumps(response_body, indent=2) if isinstance(response_body, dict) else response_body}")
+        if not custom_valid:
+            print(f"    {YELLOW}Custom validation failed:{RESET} {custom_err}")
     return response_body, resp_headers
 
 
@@ -177,7 +191,7 @@ def run_all_tests():
     test_case("HEALTH", "Gateway Liveness Probe", "GET", "/health/live", 200)
     test_case("HEALTH", "Gateway Readiness Probe", "GET", "/health/ready", 200)
     test_case("HEALTH", "Catalog Liveness Probe via Gateway", "GET", "/catalog-api/health/live", 200)
-    test_case("HEALTH", "Catalog Readiness Probe via Gateway", "GET", "/catalog-api/health/ready", 200)
+    test_case("HEALTH", "Catalog Readiness Probe Not Exposed via Gateway (404 - Security API8)", "GET", "/catalog-api/health/ready", 404)
 
     # -------------------------------------------------------------
     # 2. Authentication & Authorization Security Edge Cases
@@ -484,6 +498,20 @@ def run_all_tests():
         ep_resp, _ = test_case("EPISODES", "Create Standalone Episode (201 Created)", "POST", "/api/catalog/episodes", 201, token=ADMIN_TOKEN, body=create_ep_body)
         episode_id = ep_resp if isinstance(ep_resp, str) else None
 
+        # Create second episode to verify duplicate episode update conflict (BUG-V2-08)
+        create_ep2_body = dict(create_ep_body)
+        create_ep2_body["episodeNumber"] = 2
+        create_ep2_body["title"] = "Hated in the Nation"
+        ep2_resp, _ = test_case("EPISODES", "Create Second Episode (201 Created)", "POST", "/api/catalog/episodes", 201, token=ADMIN_TOKEN, body=create_ep2_body)
+        ep2_id = ep2_resp if isinstance(ep2_resp, str) else None
+
+        if ep2_id:
+            test_case("EPISODES", "Update Episode to Duplicate Number -> 409 Conflict (BUG-V2-08)", "PUT", f"/api/catalog/episodes/{ep2_id}", 409, token=ADMIN_TOKEN, body={
+                "episodeNumber": 1,
+                "isStandalone": True,
+                "runtimeMinutes": 89
+            })
+
         # Episode on Non-Existent Series -> 404 NotFound
         invalid_ep_series = dict(create_ep_body)
         invalid_ep_series["seriesId"] = str(uuid.uuid4())
@@ -590,13 +618,23 @@ def run_all_tests():
         test_case("ASSOCIATIONS", "Add Mood to Media (204 NoContent)", "POST", f"/api/catalog/media/{assoc_media_id}/moods", 204, token=ADMIN_TOKEN, body={
             "moodId": target_mood_id
         })
-        test_case("ASSOCIATIONS", "Remove Mood from Media (204 NoContent)", "DELETE", f"/api/catalog/media/{assoc_media_id}/moods/{target_mood_id}", 204, token=ADMIN_TOKEN)
 
     if assoc_media_id and target_genre_id:
         test_case("ASSOCIATIONS", "Add Genre to Media (204 NoContent)", "POST", f"/api/catalog/media/{assoc_media_id}/genres", 204, token=ADMIN_TOKEN, body={
             "genreId": target_genre_id
         })
+
+        # Verify mood and genre translations are loaded in movie detail (BUG-V2-07)
+        test_case("ASSOCIATIONS", "Verify Localized Genre Name in Detail (200 OK - BUG-V2-07)", "GET", f"/api/catalog/movies/{assoc_media_id}?lang=tr", 200, token=GUEST_TOKEN,
+                  validate_fn=lambda r, h: (
+                      bool(r.get("genres") and len(r["genres"]) > 0 and r["genres"][0].get("name")),
+                      "Localized genre name is missing from movie detail"
+                  ))
+
         test_case("ASSOCIATIONS", "Remove Genre from Media (204 NoContent)", "DELETE", f"/api/catalog/media/{assoc_media_id}/genres/{target_genre_id}", 204, token=ADMIN_TOKEN)
+
+    if assoc_media_id and target_mood_id:
+        test_case("ASSOCIATIONS", "Remove Mood from Media (204 NoContent)", "DELETE", f"/api/catalog/media/{assoc_media_id}/moods/{target_mood_id}", 204, token=ADMIN_TOKEN)
 
     if assoc_media_id:
         # Add English translation (POST /translations)

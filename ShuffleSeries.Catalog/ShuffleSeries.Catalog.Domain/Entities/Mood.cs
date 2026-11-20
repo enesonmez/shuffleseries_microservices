@@ -9,7 +9,7 @@ public partial class Mood : AggregateRoot
 {
     private readonly List<MoodTranslation> _translations = [];
 
-    [GeneratedRegex("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")]
+    [GeneratedRegex("^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$", RegexOptions.None, matchTimeoutMilliseconds: 250)]
     private static partial Regex HexColorRegex();
 
     public string Code { get; private set; } = string.Empty;
@@ -105,10 +105,8 @@ public partial class Mood : AggregateRoot
         string languageCode,
         string name,
         string description,
-        string? vibeTags = null)
-    {
-        return AddOrUpdateTranslation(LanguageCode.From(languageCode), name, description, vibeTags);
-    }
+        string? vibeTags = null) =>
+        AddOrUpdateTranslation(LanguageCode.From(languageCode), name, description, vibeTags);
 
     public void RemoveTranslation(LanguageCode languageCode)
     {

@@ -31,7 +31,7 @@ internal abstract class MediaRepositoryBase<TEntity> : IRepository<TEntity> wher
         if (tmdbId <= 0)
             return false;
 
-        return await Context.Media
+        return await Context.Set<TEntity>()
             .AnyAsync(m => m.TmdbId == tmdbId && (!excludeId.HasValue || m.Id != excludeId.Value), cancellationToken);
     }
 

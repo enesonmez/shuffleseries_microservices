@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ShuffleSeries.Identity.Infrastructure.Configuration;
 
@@ -10,8 +12,13 @@ internal sealed class GoogleAuthProvider : BaseJwtSocialAuthProvider
 {
     private readonly ExternalAuthOptions _options;
 
-    public GoogleAuthProvider(HttpClient httpClient, IOptions<ExternalAuthOptions> options)
-        : base(httpClient, options)
+    public GoogleAuthProvider(
+        IHttpClientFactory httpClientFactory,
+        IOptions<ExternalAuthOptions> options,
+        TimeProvider? timeProvider = null,
+        IHostEnvironment? environment = null,
+        ILogger<GoogleAuthProvider>? logger = null)
+        : base(httpClientFactory, options, timeProvider, environment, logger)
     {
         _options = options.Value;
     }

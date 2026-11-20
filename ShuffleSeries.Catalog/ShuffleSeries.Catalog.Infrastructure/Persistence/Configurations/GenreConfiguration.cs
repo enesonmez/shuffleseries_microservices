@@ -4,7 +4,7 @@ using ShuffleSeries.Catalog.Domain.Entities;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Configurations;
 
-public class GenreConfiguration : IEntityTypeConfiguration<Genre>
+internal sealed class GenreConfiguration : IEntityTypeConfiguration<Genre>
 {
     public void Configure(EntityTypeBuilder<Genre> builder)
     {

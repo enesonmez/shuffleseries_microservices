@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
 using ShuffleSeries.Catalog.Domain.Entities;
@@ -8,7 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Commands.CreateMood;
 
-public sealed class CreateMoodCommandHandler : IRequestHandler<CreateMoodCommand, Guid>
+public sealed class CreateMoodCommandHandler
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

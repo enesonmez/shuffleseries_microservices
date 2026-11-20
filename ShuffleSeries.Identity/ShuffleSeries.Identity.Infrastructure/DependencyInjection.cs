@@ -1,9 +1,8 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
-using ShuffleSeries.Identity.Application.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Domain.Repositories;
 using ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Identity.Infrastructure.Configuration;
@@ -11,21 +10,29 @@ using ShuffleSeries.Identity.Infrastructure.Persistence;
 using ShuffleSeries.Identity.Infrastructure.Persistence.Repositories;
 using ShuffleSeries.Identity.Infrastructure.Services;
 using ShuffleSeries.Identity.Infrastructure.Services.Social;
+using ShuffleSeries.Shared.Core.Domain.Primitives;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
 using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
+using Wolverine;
+using Wolverine.HealthChecks;
+using Wolverine.RabbitMQ;
 
 namespace ShuffleSeries.Identity.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddMemoryCache();
         services.AddSharedInfrastructure();
         services.AddSharedRedis(configuration);
         services.AddSharedRedisHealthCheck();
+        services.AddSharedRabbitMqHealthCheck(configuration);
+        services.AddHealthChecks()
+            .AddWolverine(tags: ["messaging", "wolverine", "ready"]);
         services.AddSharedTokenBlacklist();
 
         services.AddDbContext<IdentityDbContext>((sp, options) =>
@@ -41,35 +48,6 @@ public static class DependencyInjection
 
         services.AddSharedDatabaseHealthCheck<IdentityDbContext>();
 
-        // MassTransit & RabbitMQ
-        services.AddMassTransit(busConfigurator =>
-        {
-            busConfigurator.SetKebabCaseEndpointNameFormatter();
-
-            busConfigurator.UsingRabbitMq((context, configurator) =>
-            {
-                var host = configuration["MessageBroker:Host"] ?? "localhost";
-                var portStr = configuration["MessageBroker:Port"];
-                if (ushort.TryParse(portStr, out var port))
-                {
-                    configurator.Host(host, port, "/", h =>
-                    {
-                        h.Username(configuration["MessageBroker:Username"] ?? "guest");
-                        h.Password(configuration["MessageBroker:Password"] ?? "guest");
-                    });
-                }
-                else
-                {
-                    configurator.Host(host, "/", h =>
-                    {
-                        h.Username(configuration["MessageBroker:Username"] ?? "guest");
-                        h.Password(configuration["MessageBroker:Password"] ?? "guest");
-                    });
-                }
-
-                configurator.ConfigureEndpoints(context);
-            });
-        });
 
         // Quartz Background Jobs
         services.AddQuartz(configure =>
@@ -93,6 +71,16 @@ public static class DependencyInjection
                         .WithSimpleSchedule(schedule =>
                             schedule.WithIntervalInHours(24)
                                 .RepeatForever()));
+
+            var purgeGuestsJobKey = new JobKey(nameof(PurgeAbandonedGuestAccountsJob));
+
+            configure.AddJob<PurgeAbandonedGuestAccountsJob>(purgeGuestsJobKey)
+                .AddTrigger(trigger =>
+                    trigger.ForJob(purgeGuestsJobKey)
+                        .WithIdentity($"{nameof(PurgeAbandonedGuestAccountsJob)}-Trigger")
+                        .WithSimpleSchedule(schedule =>
+                            schedule.WithIntervalInHours(24)
+                                .RepeatForever()));
         });
 
         services.AddQuartzHostedService(options =>
@@ -113,9 +101,34 @@ public static class DependencyInjection
 
         // External Social Auth Providers (Strategy / Provider Pattern)
         services.AddHttpClient();
+        services.AddHttpClient("OidcJwks", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(5);
+        })
+        .AddStandardResilienceHandler();
         services.Configure<ExternalAuthOptions>(configuration.GetSection(ExternalAuthOptions.SectionName));
-        services.AddScoped<ISocialAuthProvider, GoogleAuthProvider>();
-        services.AddScoped<ISocialAuthProvider, AppleAuthProvider>();
-        services.AddScoped<IExternalAuthService, ExternalAuthService>();
+        services.AddSingleton<ISocialAuthProvider, GoogleAuthProvider>();
+        services.AddSingleton<ISocialAuthProvider, AppleAuthProvider>();
+        services.AddSingleton<IExternalAuthService, ExternalAuthService>();
+
+        return services;
+    }
+
+    public static void AddIdentityMessagingTransport(this WolverineOptions opts, IConfiguration configuration)
+    {
+        var host = configuration["MessageBroker:Host"] ?? "localhost";
+        var port = configuration["MessageBroker:Port"] ?? "5672";
+        var user = configuration["MessageBroker:Username"] ?? "guest";
+        var pass = configuration["MessageBroker:Password"] ?? "guest";
+
+        opts.UseRabbitMq(new Uri($"amqp://{user}:{pass}@{host}:{port}"))
+            .AutoProvision();
+
+        // RabbitMQ Outbound Event Routing (Strictly IIntegrationEvent to prevent internal domain event leakage)
+        opts.Publish(rule =>
+        {
+            rule.MessagesImplementing<IIntegrationEvent>()
+                .ToRabbitExchange("shuffleseries.identity");
+        });
     }
 }

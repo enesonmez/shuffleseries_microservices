@@ -12,10 +12,7 @@ public class MediaTranslation : BaseEntity
     public string? Tagline { get; private set; }
 
     // EF Core için parametresiz constructor
-    private MediaTranslation() : base(Guid.Empty)
-    {
-        LanguageCode = LanguageCode.Turkish;
-    }
+    private MediaTranslation() : base(Guid.Empty) { }
 
     internal MediaTranslation(Guid mediaId, LanguageCode languageCode, string title, string overview, string? tagline = null)
         : base(Guid.Empty)

@@ -9,7 +9,7 @@ public class MediaPlatform : BaseEntity
     public string WebUrl { get; private set; } = string.Empty;
     public string? AppSchemeUrl { get; private set; }
 
-    public Platform? Platform { get; private set; }
+    public Platform? Platform { get; protected set; }
 
     private MediaPlatform() : base(Guid.Empty) { }
 

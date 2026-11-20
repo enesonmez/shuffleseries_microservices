@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.Platforms.Commands.CreatePlatform;
 
 public sealed record CreatePlatformCommand(
@@ -10,4 +8,4 @@ public sealed record CreatePlatformCommand(
     string BaseWebUrl,
     string? BaseAppSchemeUrl = null,
     int DisplayOrder = 0,
-    bool IsActive = true) : IRequest<Guid>;
+    bool IsActive = true);

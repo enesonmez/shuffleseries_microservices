@@ -8,10 +8,12 @@ using ShuffleSeries.Shared.Core.Web;
 using ShuffleSeries.Shared.Core.Web.Authentication;
 using ShuffleSeries.Shared.Core.Web.Correlation;
 using ShuffleSeries.Shared.Core.Web.Cors;
+using ShuffleSeries.Shared.Core.Web.ForwardedHeaders;
 using ShuffleSeries.Shared.Core.Web.Health;
 using ShuffleSeries.Shared.Core.Web.Logging;
 using ShuffleSeries.Shared.Core.Web.Observability;
 using ShuffleSeries.Shared.Core.Web.Swagger;
+using Wolverine;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +22,15 @@ builder.Host.UseSharedSerilog("Identity.Api");
 
 // Configure HashiCorp Vault Secrets Management
 builder.Configuration.AddVault("identity");
+
+builder.Host.UseWolverine(opts =>
+{
+    opts.AddIdentityApplicationMessaging();
+});
+builder.Host.ConfigureServices((context, services) =>
+{
+    services.ConfigureWolverine(opts => opts.AddIdentityMessagingTransport(context.Configuration));
+});
 
 // Add Distributed Correlation ID Tracking
 builder.Services.AddSharedCorrelation();
@@ -39,8 +50,8 @@ builder.Services.AddSharedSwagger(options =>
     options.IncludeJwtSecurity = true;
 });
 
-// Add Shared JWT Authentication & Authorization
-builder.Services.AddSharedJwtAuthentication(builder.Configuration);
+// Add Shared JWT Authentication & Authorization (Blacklist validation is performed at API Gateway Edge)
+builder.Services.AddSharedJwtAuthentication(builder.Configuration, validateTokenBlacklist: false);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -50,7 +61,11 @@ builder.Services.AddSharedCors(builder.Configuration);
 
 builder.Services.AddSharedExceptionHandling();
 
+builder.Services.AddSharedForwardedHeaders(builder.Configuration);
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 app.UseSharedCorrelation();
 

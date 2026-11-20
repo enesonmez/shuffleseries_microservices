@@ -12,7 +12,7 @@ public sealed class AddOrUpdateEpisodeTranslationCommandValidator : AbstractVali
 
         RuleFor(x => x.Title)
             .NotEmpty().WithMessage("Title is required.")
-            .MaximumLength(300).WithMessage("Title cannot exceed 300 characters.");
+            .MaximumLength(250).WithMessage("Title cannot exceed 250 characters.");
 
         RuleFor(x => x.Overview)
             .MaximumLength(2000).When(x => !string.IsNullOrEmpty(x.Overview))

@@ -1,4 +1,5 @@
 using FluentValidation;
+using ShuffleSeries.Shared.Core.Application.Validators;
 
 namespace ShuffleSeries.Catalog.Application.Features.Movies.Commands.UpdateMovie;
 
@@ -21,6 +22,20 @@ public sealed class UpdateMovieCommandValidator : AbstractValidator<UpdateMovieC
 
         RuleFor(x => x.RuntimeMinutes)
             .GreaterThan(0).WithMessage("Runtime minutes must be greater than zero.");
+
+        RuleFor(x => x.Director)
+            .MaximumLength(150).WithMessage("Director cannot exceed 150 characters.")
+            .When(x => !string.IsNullOrEmpty(x.Director));
+
+        RuleFor(x => x.PosterUrl)
+            .MaximumLength(500).WithMessage("Poster URL cannot exceed 500 characters.")
+            .MustBeHttpUrl()
+            .When(x => !string.IsNullOrEmpty(x.PosterUrl));
+
+        RuleFor(x => x.BackdropUrl)
+            .MaximumLength(500).WithMessage("Backdrop URL cannot exceed 500 characters.")
+            .MustBeHttpUrl()
+            .When(x => !string.IsNullOrEmpty(x.BackdropUrl));
 
         RuleFor(x => x.ImdbRating)
             .InclusiveBetween(0.0, 10.0).When(x => x.ImdbRating.HasValue)

@@ -1,10 +1,13 @@
-using Microsoft.AspNetCore.HttpOverrides;
+using ShuffleSeries.ApiGateway.Api.Extensions;
+using ShuffleSeries.ApiGateway.Api.Middlewares;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Vault;
 using ShuffleSeries.Shared.Core.Infrastructure.Health;
+using ShuffleSeries.Shared.Core.Web;
 using ShuffleSeries.Shared.Core.Web.Authentication;
 using ShuffleSeries.Shared.Core.Web.Correlation;
 using ShuffleSeries.Shared.Core.Web.Cors;
+using ShuffleSeries.Shared.Core.Web.ForwardedHeaders;
 using ShuffleSeries.Shared.Core.Web.Health;
 using ShuffleSeries.Shared.Core.Web.Logging;
 using ShuffleSeries.Shared.Core.Web.Observability;
@@ -41,12 +44,10 @@ builder.Services.AddSharedJwtAuthentication(builder.Configuration);
 // Add Global & Strict Rate Limiters
 builder.Services.AddSharedRateLimiter();
 
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownIPNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+// Add Standard RFC 7807 Global Exception Handling
+builder.Services.AddSharedExceptionHandling();
+
+builder.Services.AddSharedForwardedHeaders(builder.Configuration);
 
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
@@ -57,27 +58,36 @@ app.UseForwardedHeaders();
 
 app.UseSharedCorrelation();
 
+app.UseSharedExceptionHandling();
+
 app.UseSharedCors();
 
 app.MapSharedHealthChecks();
 
-app.UseRateLimiter();
 app.UseAuthentication();
+
+app.UseTokenRevocationGuard();
+
+app.UseRateLimiter();
 app.UseAuthorization();
 
-app.UseSwaggerUI(options =>
+if (app.Environment.IsDevelopment())
 {
-    options.RoutePrefix = "swagger";
-    options.DocumentTitle = "ShuffleSeries API Gateway - Aggregated Documentation";
+    app.UseSwaggerUI(options =>
+    {
+        options.RoutePrefix = "swagger";
+        options.DocumentTitle = "ShuffleSeries API Gateway - Aggregated Documentation";
 
-    // Mikroservislerin OpenAPI v3 spesifikasyonları Gateway dropdown'ına eklenir:
-    options.SwaggerEndpoint("/catalog-api/openapi/v1.json", "Catalog Service API (v1)");
-    options.SwaggerEndpoint("/identity-api/openapi/v1.json", "Identity Service API (v1)");
-});
+        // Mikroservislerin OpenAPI v3 spesifikasyonları Gateway dropdown'ına eklenir:
+        options.SwaggerEndpoint("/catalog-api/openapi/v1.json", "Catalog Service API (v1)");
+        options.SwaggerEndpoint("/identity-api/openapi/v1.json", "Identity Service API (v1)");
+    });
+}
 
-app.MapReverseProxy();
+app.MapGatewayReverseProxy();
 
 await app.RunAsync();
 
-#pragma warning disable ASP0027
+#pragma warning disable ASP0027 // Required for WebApplicationFactory<Program> in public integration test fixtures
 public partial class Program { protected Program() { } }
+#pragma warning restore ASP0027

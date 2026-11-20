@@ -16,7 +16,7 @@ public sealed class AddOrUpdateMediaTranslationCommandValidator : AbstractValida
 
         RuleFor(x => x.Overview)
             .NotEmpty().WithMessage("Overview is required.")
-            .MaximumLength(4000).WithMessage("Overview cannot exceed 4000 characters.");
+            .MaximumLength(2000).WithMessage("Overview cannot exceed 2000 characters.");
 
         RuleFor(x => x.LanguageCode)
             .NotEmpty().WithMessage("Language code is required.")

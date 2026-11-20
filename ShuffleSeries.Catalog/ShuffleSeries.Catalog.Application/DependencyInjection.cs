@@ -1,27 +1,30 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using ShuffleSeries.Shared.Core.Application;
-using ShuffleSeries.Shared.Core.Application.Behaviors;
+using ShuffleSeries.Shared.Core.Application.Middlewares;
+using Wolverine;
+using Wolverine.FluentValidation;
 
 namespace ShuffleSeries.Catalog.Application;
 
 public static class DependencyInjection
 {
-    public static void AddApplication(this IServiceCollection services)
+    public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         var assembly = typeof(DependencyInjection).Assembly;
 
         services.AddSharedApplication();
-
-        services.AddMediatR(config =>
-        {
-            config.RegisterServicesFromAssembly(assembly);
-
-            config.AddOpenBehavior(typeof(LoggingBehavior<,>));
-            config.AddOpenBehavior(typeof(PerformanceBehavior<,>));
-            config.AddOpenBehavior(typeof(ValidationBehavior<,>));
-        });
-
         services.AddValidatorsFromAssembly(assembly);
+
+        return services;
+    }
+
+    public static void AddCatalogApplicationMessaging(this WolverineOptions opts)
+    {
+        opts.Discovery.IncludeAssembly(typeof(DependencyInjection).Assembly);
+        opts.RestoreV5Defaults();
+        opts.UseFluentValidation();
+        opts.Policies.AddMiddleware(typeof(PerformanceMiddleware));
+        opts.Policies.AddMiddleware(typeof(LoggingMiddleware));
     }
 }

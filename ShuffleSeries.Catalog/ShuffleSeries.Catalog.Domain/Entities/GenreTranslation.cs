@@ -10,10 +10,7 @@ public class GenreTranslation : BaseEntity
     public string Name { get; private set; } = string.Empty;
     public string? Description { get; private set; }
 
-    private GenreTranslation() : base(Guid.Empty)
-    {
-        LanguageCode = LanguageCode.Turkish;
-    }
+    private GenreTranslation() : base(Guid.Empty) { }
 
     internal GenreTranslation(Guid genreId, LanguageCode languageCode, string name, string? description = null)
         : base(Guid.Empty)

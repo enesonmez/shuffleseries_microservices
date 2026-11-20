@@ -22,18 +22,23 @@ internal sealed class RoleRepository : IRoleRepository
     {
         var normalized = name.Trim().ToUpperInvariant();
         return await _context.Roles
-            .Include(r => r.RolePermissions)
+            .AsNoTracking()
             .FirstOrDefaultAsync(r => r.NormalizedName == normalized, cancellationToken);
     }
 
     public async Task<Role?> GetDefaultRoleAsync(CancellationToken cancellationToken = default) =>
         await _context.Roles
-            .Include(r => r.RolePermissions)
+            .AsNoTracking()
             .FirstOrDefaultAsync(r => r.IsDefault, cancellationToken);
 
     public async Task<IReadOnlyList<Role>> GetRolesWithPermissionsAsync(IEnumerable<Guid> roleIds, CancellationToken cancellationToken = default)
     {
         var roleIdList = roleIds.ToList();
+        if (roleIdList.Count == 0)
+        {
+            return [];
+        }
+
         return await _context.Roles
             .AsNoTracking()
             .Include(r => r.RolePermissions)
@@ -44,7 +49,13 @@ internal sealed class RoleRepository : IRoleRepository
 
     public void Add(Role role) => _context.Roles.Add(role);
 
-    public void Update(Role role) => _context.Roles.Update(role);
+    public void Update(Role role)
+    {
+        if (_context.Entry(role).State == EntityState.Detached)
+        {
+            _context.Roles.Update(role);
+        }
+    }
 
     public void Delete(Role role) => _context.Roles.Remove(role);
 }

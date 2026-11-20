@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Extensions;
 using ShuffleSeries.Catalog.Application.Features.Episodes.Responses;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -6,7 +5,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Queries.GetEpisodeById;
 
-public sealed class GetEpisodeByIdQueryHandler : IRequestHandler<GetEpisodeByIdQuery, EpisodeDetailResponse>
+public sealed class GetEpisodeByIdQueryHandler
 {
     private readonly IEpisodeRepository _episodeRepository;
     private readonly ILanguageContext _languageContext;

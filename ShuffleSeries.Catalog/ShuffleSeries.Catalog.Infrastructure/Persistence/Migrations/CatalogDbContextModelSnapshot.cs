@@ -369,11 +369,11 @@ namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ReleaseYear");
 
-                    b.HasIndex("TmdbId")
-                        .IsUnique()
+                    b.HasIndex("MediaType", "CreatedAtUtc")
                         .HasFilter("\"IsDeleted\" = false");
 
-                    b.HasIndex("MediaType", "CreatedAtUtc")
+                    b.HasIndex("MediaType", "TmdbId")
+                        .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Media", (string)null);
@@ -872,6 +872,10 @@ namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Migrations
                     b.HasIndex("OccurredOnUtc")
                         .HasDatabaseName("IX_OutboxMessages_Pending")
                         .HasFilter("\"ProcessedOnUtc\" IS NULL AND \"RetryCount\" < 3");
+
+                    b.HasIndex("ProcessedOnUtc")
+                        .HasDatabaseName("IX_OutboxMessages_Processed")
+                        .HasFilter("\"ProcessedOnUtc\" IS NOT NULL");
 
                     b.ToTable("OutboxMessages", (string)null);
                 });

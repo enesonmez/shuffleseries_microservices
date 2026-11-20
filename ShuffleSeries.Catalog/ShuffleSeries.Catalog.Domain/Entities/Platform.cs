@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using ShuffleSeries.Catalog.Domain.Events;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
 
@@ -16,6 +17,7 @@ public class Platform : AggregateRoot
 
     private Platform() : base(Guid.NewGuid()) { }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Domain aggregate private constructor initializes all persisted invariant fields atomically.")]
     private Platform(
         Guid id,
         string name,
@@ -37,6 +39,7 @@ public class Platform : AggregateRoot
         IsActive = isActive;
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Domain factory preserves explicit parameter list without an intermediate parameter object.")]
     public static Platform Create(
         string name,
         string slug,

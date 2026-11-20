@@ -67,7 +67,8 @@ namespace ShuffleSeries.Identity.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Permissions", (string)null);
                 });
@@ -120,6 +121,12 @@ namespace ShuffleSeries.Identity.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -184,7 +191,8 @@ namespace ShuffleSeries.Identity.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("Roles", (string)null);
                 });
@@ -260,13 +268,9 @@ namespace ShuffleSeries.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IsDeleted");
-
                     b.HasIndex("NormalizedEmail")
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = false");
-
-                    b.HasIndex("Status");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -315,10 +319,6 @@ namespace ShuffleSeries.Identity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<string>("RefreshToken")
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -327,7 +327,8 @@ namespace ShuffleSeries.Identity.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.HasIndex("Provider", "ProviderKey")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("UserLogins", (string)null);
                 });
@@ -402,10 +403,13 @@ namespace ShuffleSeries.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OccurredOnUtc");
+                    b.HasIndex("OccurredOnUtc")
+                        .HasDatabaseName("IX_OutboxMessages_Pending")
+                        .HasFilter("\"ProcessedOnUtc\" IS NULL AND \"RetryCount\" < 3");
 
                     b.HasIndex("ProcessedOnUtc")
-                        .HasFilter("\"ProcessedOnUtc\" IS NULL");
+                        .HasDatabaseName("IX_OutboxMessages_Processed")
+                        .HasFilter("\"ProcessedOnUtc\" IS NOT NULL");
 
                     b.ToTable("OutboxMessages", (string)null);
                 });

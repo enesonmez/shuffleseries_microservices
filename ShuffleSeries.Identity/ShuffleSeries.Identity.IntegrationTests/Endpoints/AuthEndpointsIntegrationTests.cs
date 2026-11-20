@@ -4,11 +4,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using ShuffleSeries.Identity.Api.Contracts.Requests;
+using ShuffleSeries.Identity.Api.Contracts.Requests.Auth;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Login;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.RefreshToken;
 using ShuffleSeries.Identity.Application.Features.Auth.Commands.Register;
-using ShuffleSeries.Identity.Application.Models;
+using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Entities;
 using ShuffleSeries.Identity.Domain.Events;
 using ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
@@ -261,6 +261,15 @@ public class AuthEndpointsIntegrationTests : IdentityIntegrationTestBase
         var registerResponse = await Client.PostAsJsonAsync("api/auth/register", registerCommand);
         var authResult = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
 
+        // Seed an expired/inactive historical refresh token directly in DB to verify ExecuteUpdateAsync scrubbing
+        await ExecuteDbContextAsync(async context =>
+        {
+            var user = await context.Users.FirstAsync(u => u.Id == authResult!.UserId);
+            var expiredToken = user.AddRefreshToken("historical_hash", DateTime.UtcNow.AddDays(-10), "192.168.1.100");
+            expiredToken.Revoke("replaced_hash", DateTime.UtcNow.AddDays(-10));
+            await context.SaveChangesAsync();
+        });
+
         var request = new HttpRequestMessage(HttpMethod.Delete, "api/auth/account");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", authResult!.AccessToken);
 
@@ -280,10 +289,53 @@ public class AuthEndpointsIntegrationTests : IdentityIntegrationTestBase
 
             userInDb.Should().NotBeNull();
             userInDb!.IsDeleted.Should().BeTrue();
+            userInDb.ModifiedAtUtc.Should().BeNull("Soft delete must not set ModifiedAtUtc.");
 
             var outboxMessage = await context.OutboxMessages
                 .FirstOrDefaultAsync(m => m.Type.Contains("UserAccountDeletedDomainEvent"));
             outboxMessage.Should().NotBeNull();
+
+            // Verify that ALL refresh tokens (both active in RAM and historical in DB) have CreatedByIp scrubbed to null!
+            var refreshTokens = await context.RefreshTokens
+                .Where(rt => rt.UserId == authResult.UserId)
+                .ToListAsync();
+            refreshTokens.Should().HaveCount(2);
+            refreshTokens.Should().AllSatisfy(rt => rt.CreatedByIp.Should().BeNull());
+        });
+    }
+
+    [Fact]
+    public async Task Login_WithForwardedForHeader_ShouldResolveClientIpIntoRefreshToken()
+    {
+        // Arrange
+        var email = "forwardedip@shuffleseries.com";
+        var password = "Password123!";
+        var registerResponse = await Client.PostAsJsonAsync("api/auth/register", new RegisterRequest(email, password));
+        registerResponse.EnsureSuccessStatusCode();
+
+        // Act: Login with X-Forwarded-For header
+        var loginRequest = new HttpRequestMessage(HttpMethod.Post, "api/auth/login")
+        {
+            Content = JsonContent.Create(new LoginRequest(email, password))
+        };
+        loginRequest.Headers.Add("X-Forwarded-For", "203.0.113.195");
+        var loginResponse = await Client.SendAsync(loginRequest);
+
+        // Assert
+        loginResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var authResult = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        authResult.Should().NotBeNull();
+
+        await ExecuteDbContextAsync(async context =>
+        {
+            var user = await context.Users
+                .Include(u => u.RefreshTokens)
+                .FirstOrDefaultAsync(u => u.Id == authResult!.UserId);
+
+            user.Should().NotBeNull();
+            var latestToken = user!.RefreshTokens.OrderByDescending(rt => rt.CreatedAtUtc).FirstOrDefault();
+            latestToken.Should().NotBeNull();
+            latestToken!.CreatedByIp.Should().Be("203.0.113.195");
         });
     }
 

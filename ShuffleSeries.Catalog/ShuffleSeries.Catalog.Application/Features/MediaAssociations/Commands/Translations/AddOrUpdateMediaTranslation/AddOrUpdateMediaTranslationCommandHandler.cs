@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Translations.AddOrUpdateMediaTranslation;
 
-public sealed class AddOrUpdateMediaTranslationCommandHandler : IRequestHandler<AddOrUpdateMediaTranslationCommand>
+public sealed class AddOrUpdateMediaTranslationCommandHandler
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IUnitOfWork _unitOfWork;

@@ -21,7 +21,8 @@ internal sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
             .HasMaxLength(64);
 
         builder.HasIndex(r => r.NormalizedName)
-            .IsUnique();
+            .IsUnique()
+            .HasFilter("\"IsDeleted\" = false");
 
         builder.Property(r => r.Description)
             .HasMaxLength(256);

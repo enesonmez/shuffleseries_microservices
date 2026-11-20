@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Series.Commands.UpdateSeries;
 
-public sealed class UpdateSeriesCommandHandler : IRequestHandler<UpdateSeriesCommand>
+public sealed class UpdateSeriesCommandHandler
 {
     private readonly ISeriesRepository _seriesRepository;
     private readonly IUnitOfWork _unitOfWork;

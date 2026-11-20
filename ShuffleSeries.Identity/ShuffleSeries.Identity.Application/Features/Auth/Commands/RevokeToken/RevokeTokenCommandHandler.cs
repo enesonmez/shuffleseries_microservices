@@ -1,5 +1,4 @@
-using MediatR;
-using ShuffleSeries.Identity.Application.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Application.Security;
@@ -7,7 +6,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.RevokeToken;
 
-internal sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenCommand, bool>
+public sealed class RevokeTokenCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -44,22 +43,7 @@ internal sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenCom
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Redis Token Blacklist integration for Access Token (OWASP API4)
-        var targetJti = request.JwtId;
-        var targetTtl = TimeSpan.FromMinutes(60);
-
-        if (string.IsNullOrEmpty(targetJti) && !string.IsNullOrEmpty(request.AccessToken))
-        {
-            var (parsedJti, parsedExp) = _tokenService.ExtractTokenInfo(request.AccessToken);
-            targetJti = parsedJti;
-            if (parsedExp.HasValue)
-            {
-                var remaining = parsedExp.Value - now;
-                if (remaining > TimeSpan.Zero)
-                {
-                    targetTtl = remaining;
-                }
-            }
-        }
+        var (targetJti, targetTtl) = ResolveAccessTokenBlacklistTarget(request, user.Id, now);
 
         if (!string.IsNullOrEmpty(targetJti) && _blacklistService is not null)
         {
@@ -67,5 +51,37 @@ internal sealed class RevokeTokenCommandHandler : IRequestHandler<RevokeTokenCom
         }
 
         return true;
+    }
+
+    private (string? TargetJti, TimeSpan TargetTtl) ResolveAccessTokenBlacklistTarget(
+        RevokeTokenCommand request,
+        Guid ownerUserId,
+        DateTime now)
+    {
+        // Do not trust caller's JwtId if caller does not own the refresh token
+        var targetJti = request.CallerUserId.HasValue && request.CallerUserId.Value != ownerUserId
+            ? null
+            : request.JwtId;
+
+        var targetTtl = _tokenService.AccessTokenLifetime > TimeSpan.Zero
+            ? _tokenService.AccessTokenLifetime
+            : TimeSpan.FromMinutes(60);
+
+        if (!string.IsNullOrEmpty(targetJti) || string.IsNullOrEmpty(request.AccessToken))
+        {
+            return (targetJti, targetTtl);
+        }
+
+        var (parsedJti, parsedExp) = _tokenService.ExtractTokenInfo(request.AccessToken, ownerUserId);
+        if (parsedExp.HasValue)
+        {
+            var remaining = parsedExp.Value - now;
+            if (remaining > TimeSpan.Zero && remaining < targetTtl)
+            {
+                targetTtl = remaining;
+            }
+        }
+
+        return (parsedJti, targetTtl);
     }
 }

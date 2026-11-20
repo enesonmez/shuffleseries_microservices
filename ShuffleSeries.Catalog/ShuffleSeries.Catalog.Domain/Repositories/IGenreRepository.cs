@@ -9,4 +9,5 @@ public interface IGenreRepository : IRepository<Genre>
     Task<Genre?> GetByIdWithTranslationsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Genre>> GetActiveGenresWithTranslationsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Guid>> GetExistingActiveIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
 }

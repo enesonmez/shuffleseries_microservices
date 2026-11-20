@@ -1,36 +1,25 @@
-using MediatR;
-using ShuffleSeries.Identity.Application.Interfaces;
-using ShuffleSeries.Identity.Application.Models;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
+using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Enums;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
-using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.Login;
 
-internal sealed class LoginCommandHandler : IRequestHandler<LoginCommand, AuthResponse>
+public sealed class LoginCommandHandler
 {
     private readonly IUserRepository _userRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly ITokenService _tokenService;
-    private readonly IPermissionResolver _permissionResolver;
-    private readonly TimeProvider _timeProvider;
+    private readonly IAuthResponseService _authResponseService;
 
     public LoginCommandHandler(
         IUserRepository userRepository,
-        IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
-        ITokenService tokenService,
-        IPermissionResolver permissionResolver,
-        TimeProvider timeProvider)
+        IAuthResponseService authResponseService)
     {
         _userRepository = userRepository;
-        _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
-        _tokenService = tokenService;
-        _permissionResolver = permissionResolver;
-        _timeProvider = timeProvider;
+        _authResponseService = authResponseService;
     }
 
     private const string DummyVerificationHash = "AQIDBAUGBwgJCgsMDQ4PEA==:AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
@@ -51,25 +40,6 @@ internal sealed class LoginCommandHandler : IRequestHandler<LoginCommand, AuthRe
             throw new InvalidCredentialsException();
         }
 
-        var rawRefreshToken = _tokenService.GenerateRefreshToken();
-        var hashedRefreshToken = _tokenService.HashToken(rawRefreshToken);
-        var expiresAt = _timeProvider.GetUtcNow().AddDays(14).UtcDateTime;
-        user.AddRefreshToken(hashedRefreshToken, expiresAt, request.IpAddress);
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var (roles, permissions) = await _permissionResolver.ResolveEffectivePermissionsAsync(user, cancellationToken);
-        var tokenResponse = await _tokenService.GenerateTokensAsync(user, roles, permissions, cancellationToken);
-
-        return new AuthResponse(
-            user.Id,
-            user.Email,
-            user.IsGuest,
-            roles,
-            permissions,
-            tokenResponse.AccessToken,
-            rawRefreshToken,
-            tokenResponse.ExpiresIn
-        );
+        return await _authResponseService.CreateAuthResponseAsync(user, request.IpAddress, cancellationToken);
     }
 }

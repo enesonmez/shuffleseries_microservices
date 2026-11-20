@@ -331,4 +331,41 @@ public class ClaimsPrincipalExtensionsTests
         // Assert
         result.Should().BeFalse();
     }
+
+    [Fact]
+    public void GetPermissions_WithSingularPermissionClaim_ShouldReturnPermissions()
+    {
+        // Arrange
+        var claims = new[]
+        {
+            new Claim("permission", "catalog:read"),
+            new Claim("permission", "catalog:create")
+        };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims));
+
+        // Act
+        var perms = principal.GetPermissions().ToList();
+
+        // Assert
+        perms.Should().HaveCount(2);
+        perms.Should().Contain(["catalog:read", "catalog:create"]);
+        principal.HasPermission("catalog:read").Should().BeTrue();
+    }
+
+    [Fact]
+    public void GetIssuedAtUtc_WithIatMsClaim_ShouldReturnMillisecondsPrecision()
+    {
+        // Arrange
+        var expectedTime = DateTimeOffset.UtcNow;
+        var unixMs = expectedTime.ToUnixTimeMilliseconds();
+        var claims = new[] { new Claim("iat_ms", unixMs.ToString()) };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims));
+
+        // Act
+        var result = principal.GetIssuedAtUtc();
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Value.Should().Be(DateTimeOffset.FromUnixTimeMilliseconds(unixMs).UtcDateTime);
+    }
 }

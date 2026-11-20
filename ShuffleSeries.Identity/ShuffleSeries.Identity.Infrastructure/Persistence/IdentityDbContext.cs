@@ -25,6 +25,19 @@ public sealed class IdentityDbContext : DbContext, IUnitOfWork
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(IdentityDbContext).Assembly);
+        modelBuilder.ApplyConfiguration(new ShuffleSeries.Shared.Core.Infrastructure.Persistence.Configurations.OutboxMessageConfiguration());
         modelBuilder.ApplySoftDeleteQueryFilters();
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex) when (ex.Entries.Any(e => e.Entity is RefreshToken))
+        {
+            throw new ShuffleSeries.Identity.Domain.Exceptions.InvalidRefreshTokenException();
+        }
     }
 }

@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.Movies;
 using ShuffleSeries.Catalog.Application.Features.Movies.Commands.CreateMovie;
@@ -8,6 +7,7 @@ using ShuffleSeries.Catalog.Application.Features.Movies.Queries.GetMovieById;
 using ShuffleSeries.Catalog.Application.Features.Movies.Responses;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -21,7 +21,7 @@ public static class MovieEndpoints
         // 1. POST: Create a movie endpoint (Admin/Catalog Manager)
         group.MapPost("/", async (
                 [FromBody] CreateMovieRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new CreateMovieCommand(
@@ -42,7 +42,7 @@ public static class MovieEndpoints
                     request.MoodIds,
                     request.GenreIds);
 
-                var movieId = await sender.Send(command, cancellationToken);
+                var movieId = await bus.InvokeAsync<Guid>(command, cancellationToken);
                 return Results.CreatedAtRoute("GetMovieById", new { id = movieId }, movieId);
             })
             .RequireAuthorization(SystemPolicies.CanCreateCatalogMovies)
@@ -57,13 +57,12 @@ public static class MovieEndpoints
         // 2. GET: Get movie by ID endpoint (with Content Negotiation & Permission)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                [FromQuery] string? lang,
-                ISender sender,
+                IMessageBus bus,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetMovieByIdQuery(id, lang ?? languageContext.CurrentLanguage);
-                var response = await sender.Send(query, cancellationToken);
+                var query = new GetMovieByIdQuery(id, languageContext.CurrentLanguage);
+                var response = await bus.InvokeAsync<MovieDetailResponse>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogMovies)
@@ -78,7 +77,7 @@ public static class MovieEndpoints
         group.MapPut("/{id:guid}", async (
                 Guid id,
                 [FromBody] UpdateMovieRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new UpdateMovieCommand(
@@ -93,7 +92,7 @@ public static class MovieEndpoints
                     request.PosterUrl,
                     request.BackdropUrl);
 
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogMovies)
@@ -109,11 +108,11 @@ public static class MovieEndpoints
         // 4. DELETE: Delete movie endpoint (Admin/Catalog Manager)
         group.MapDelete("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new DeleteMovieCommand(id);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanDeleteCatalogMovies)

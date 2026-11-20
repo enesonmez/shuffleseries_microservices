@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Events;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -29,6 +30,12 @@ public abstract class Media : AggregateRoot
 
     protected Media() : base(Guid.NewGuid()) { }
 
+    protected Media(MediaType mediaType) : base(Guid.NewGuid())
+    {
+        MediaType = mediaType;
+    }
+
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Domain aggregate base constructor requires all persisted invariant fields for atomic entity initialization.")]
     protected Media(
         Guid id,
         MediaType mediaType,
@@ -96,10 +103,8 @@ public abstract class Media : AggregateRoot
         string languageCode,
         string title,
         string overview,
-        string? tagline = null)
-    {
-        return AddOrUpdateTranslation(LanguageCode.From(languageCode), title, overview, tagline);
-    }
+        string? tagline = null) =>
+        AddOrUpdateTranslation(LanguageCode.From(languageCode), title, overview, tagline);
 
     public void RemoveTranslation(LanguageCode languageCode)
     {

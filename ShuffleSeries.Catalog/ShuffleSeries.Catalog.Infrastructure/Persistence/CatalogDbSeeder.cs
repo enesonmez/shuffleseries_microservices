@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Enums;
@@ -174,6 +175,7 @@ public static class CatalogDbSeeder
         }
     }
 
+    [SuppressMessage("Minor Code Smell", "S1075:URIs should not be hardcoded", Justification = "Static demonstration seed data for local development environments only.")]
     private static async Task SeedSampleMediaAsync(CatalogDbContext context, CancellationToken cancellationToken)
     {
         var hasAnyMedia = await context.Media.IgnoreQueryFilters().AnyAsync(cancellationToken);

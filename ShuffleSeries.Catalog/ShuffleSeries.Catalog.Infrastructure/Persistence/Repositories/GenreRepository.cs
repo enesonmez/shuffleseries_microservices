@@ -14,7 +14,15 @@ internal sealed class GenreRepository : IGenreRepository
     }
 
     public void Add(Genre genre) => _context.Genres.Add(genre);
-    public void Update(Genre genre) => _context.Genres.Update(genre);
+
+    public void Update(Genre genre)
+    {
+        if (_context.Entry(genre).State == EntityState.Detached)
+        {
+            _context.Genres.Update(genre);
+        }
+    }
+
     public void Delete(Genre genre) => _context.Genres.Remove(genre);
 
     public async Task<Genre?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
@@ -36,8 +44,9 @@ internal sealed class GenreRepository : IGenreRepository
         if (string.IsNullOrWhiteSpace(code))
             return false;
 
+        var normalizedCode = code.Trim().ToLowerInvariant();
         return await _context.Genres
-            .AnyAsync(x => x.Code == code.Trim().ToLowerInvariant(), cancellationToken);
+            .AnyAsync(x => x.Code == normalizedCode, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Genre>> GetActiveGenresWithTranslationsAsync(CancellationToken cancellationToken = default) =>
@@ -47,4 +56,17 @@ internal sealed class GenreRepository : IGenreRepository
             .Where(x => x.IsActive)
             .OrderBy(x => x.DisplayOrder)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Guid>> GetExistingActiveIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        var idList = ids.ToList();
+        if (idList.Count == 0)
+            return [];
+
+        return await _context.Genres
+            .AsNoTracking()
+            .Where(x => x.IsActive && idList.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+    }
 }

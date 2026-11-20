@@ -1,4 +1,3 @@
-using MediatR;
 using ShuffleSeries.Catalog.Application.Common.Constants;
 using ShuffleSeries.Catalog.Application.Common.Extensions;
 using ShuffleSeries.Catalog.Application.Common.Interfaces;
@@ -8,7 +7,7 @@ using ShuffleSeries.Catalog.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.Moods.Queries.GetActiveMoods;
 
-public sealed class GetActiveMoodsQueryHandler : IRequestHandler<GetActiveMoodsQuery, IReadOnlyList<MoodResponse>>
+public sealed class GetActiveMoodsQueryHandler
 {
     private readonly IMoodRepository _moodRepository;
     private readonly ICatalogCacheService _cacheService;

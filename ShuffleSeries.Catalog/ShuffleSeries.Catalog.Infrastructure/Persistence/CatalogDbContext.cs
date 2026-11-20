@@ -34,6 +34,7 @@ public sealed class CatalogDbContext : DbContext, IUnitOfWork
 
         modelBuilder.HasPostgresExtension("pg_trgm");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
+        modelBuilder.ApplyConfiguration(new ShuffleSeries.Shared.Core.Infrastructure.Persistence.Configurations.OutboxMessageConfiguration());
         modelBuilder.ApplySoftDeleteQueryFilters();
     }
 }

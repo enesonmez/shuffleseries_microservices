@@ -131,7 +131,7 @@ public class SeriesTests
         episode.IsStandalone.Should().BeTrue();
         episode.RuntimeMinutes.Should().Be(44);
         episode.ImdbRating.Should().Be(8.0);
-        series.GetDomainEvents().Should().ContainSingle(e => e is EpisodeCreatedDomainEvent)
+        episode.GetDomainEvents().Should().ContainSingle(e => e is EpisodeCreatedDomainEvent)
             .Which.Should().BeEquivalentTo(new EpisodeCreatedDomainEvent(series.Id, episode.SeasonId, episode.Id, 1, true));
     }
 

@@ -11,7 +11,7 @@ public sealed class ExternalAuthOptions
     /// When true, verifies ID token cryptographic signatures and audience against provider JWKS endpoints.
     /// When false, allows developer bypass (unvalidated JWT payload reading and mock tokens) for local testing.
     /// </summary>
-    public bool ValidateSignatures { get; set; } = false;
+    public bool ValidateSignatures { get; set; } = true;
 
     /// <summary>
     /// Google OAuth / OpenID Connect settings.
@@ -22,14 +22,4 @@ public sealed class ExternalAuthOptions
     /// Apple Sign-In settings.
     /// </summary>
     public AppleAuthOptions Apple { get; set; } = new();
-}
-
-public sealed class GoogleAuthOptions
-{
-    public string? ClientId { get; set; }
-}
-
-public sealed class AppleAuthOptions
-{
-    public string? ClientId { get; set; }
 }

@@ -1,5 +1,5 @@
-using ShuffleSeries.Identity.Application.Interfaces;
-using ShuffleSeries.Identity.Application.Models;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Models;
 
 namespace ShuffleSeries.Identity.Infrastructure.Services;
 

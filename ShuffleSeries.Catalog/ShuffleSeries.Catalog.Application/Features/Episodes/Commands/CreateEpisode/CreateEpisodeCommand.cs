@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.Episodes.Commands.CreateEpisode;
 
 public sealed record CreateEpisodeCommand(
@@ -12,4 +10,4 @@ public sealed record CreateEpisodeCommand(
     bool? IsStandalone = null,
     int? RuntimeMinutes = null,
     double? ImdbRating = null,
-    string? ThumbnailUrl = null) : IRequest<Guid>;
+    string? ThumbnailUrl = null);

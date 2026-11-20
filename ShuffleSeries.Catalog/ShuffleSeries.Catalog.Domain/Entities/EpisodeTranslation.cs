@@ -10,10 +10,7 @@ public class EpisodeTranslation : BaseEntity
     public string Title { get; private set; } = string.Empty;
     public string? Overview { get; private set; }
 
-    private EpisodeTranslation() : base(Guid.Empty)
-    {
-        LanguageCode = LanguageCode.Turkish;
-    }
+    private EpisodeTranslation() : base(Guid.Empty) { }
 
     internal EpisodeTranslation(Guid episodeId, LanguageCode languageCode, string title, string? overview = null)
         : base(Guid.Empty)

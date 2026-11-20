@@ -2,7 +2,7 @@ using ShuffleSeries.Shared.Core.Domain.Primitives;
 
 namespace ShuffleSeries.Identity.Domain.Entities;
 
-public class UserLogin : BaseEntity<Guid>
+public class UserLogin : BaseEntity
 {
     public Guid UserId { get; private set; }
     public User User { get; private set; } = null!;
@@ -10,12 +10,11 @@ public class UserLogin : BaseEntity<Guid>
     public string Provider { get; private set; } = string.Empty;
     public string ProviderKey { get; private set; } = string.Empty;
     public string? ProviderEmail { get; private set; }
-    public string? RefreshToken { get; private set; }
     public DateTime LinkedAtUtc { get; private set; }
 
     private UserLogin() { }
 
-    public UserLogin(Guid userId, string provider, string providerKey, string? providerEmail = null, string? refreshToken = null, DateTime? linkedAtUtc = null) : base(Guid.Empty)
+    internal UserLogin(Guid userId, string provider, string providerKey, string? providerEmail, DateTime linkedAtUtc) : base(Guid.Empty)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerKey);
@@ -24,9 +23,12 @@ public class UserLogin : BaseEntity<Guid>
         Provider = provider.Trim();
         ProviderKey = providerKey.Trim();
         ProviderEmail = providerEmail?.Trim().ToLowerInvariant();
-        RefreshToken = refreshToken;
-        LinkedAtUtc = linkedAtUtc ?? DateTime.UtcNow;
+        LinkedAtUtc = linkedAtUtc;
     }
 
-    public void UpdateRefreshToken(string? refreshToken) => RefreshToken = refreshToken;
+    public void Anonymize()
+    {
+        ProviderKey = $"deleted_{Id:N}";
+        ProviderEmail = null;
+    }
 }

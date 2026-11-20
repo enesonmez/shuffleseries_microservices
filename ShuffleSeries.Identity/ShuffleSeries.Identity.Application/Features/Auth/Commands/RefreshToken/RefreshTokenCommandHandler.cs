@@ -1,6 +1,5 @@
-using MediatR;
-using ShuffleSeries.Identity.Application.Interfaces;
-using ShuffleSeries.Identity.Application.Models;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
+using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Enums;
 using ShuffleSeries.Identity.Domain.Exceptions;
 using ShuffleSeries.Identity.Domain.Repositories;
@@ -9,7 +8,7 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Identity.Application.Features.Auth.Commands.RefreshToken;
 
-internal sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, TokenResponse>
+public sealed class RefreshTokenCommandHandler
 {
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -60,7 +59,10 @@ internal sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenC
 
             if (_blacklistService is not null)
             {
-                await _blacklistService.BlacklistUserTokensAsync(user.Id, TimeSpan.FromHours(1), cancellationToken);
+                var ttl = _tokenService.AccessTokenLifetime > TimeSpan.Zero
+                    ? _tokenService.AccessTokenLifetime
+                    : TimeSpan.FromHours(1);
+                await _blacklistService.BlacklistUserTokensAsync(user.Id, ttl, cancellationToken);
             }
 
             throw new TokenCompromisedException();
@@ -75,8 +77,11 @@ internal sealed class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenC
         var newRawRefreshToken = _tokenService.GenerateRefreshToken();
         var newHashedRefreshToken = _tokenService.HashToken(newRawRefreshToken);
 
+        var tokenLifetime = user.IsGuest
+            ? _tokenService.GuestRefreshTokenLifetime
+            : _tokenService.RefreshTokenLifetime;
         currentToken.Revoke(newHashedRefreshToken, revokedAtUtc: now);
-        user.AddRefreshToken(newHashedRefreshToken, now.AddDays(14), request.IpAddress);
+        user.AddRefreshToken(newHashedRefreshToken, now.Add(tokenLifetime), request.IpAddress);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -1,0 +1,60 @@
+using Moq;
+using ShuffleSeries.Catalog.Application.Features.Series.Commands.DeleteSeries;
+using ShuffleSeries.Catalog.Domain.Exceptions;
+using ShuffleSeries.Catalog.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Domain.Repositories;
+
+namespace ShuffleSeries.Catalog.Tests.Application.Features.Series.Commands.DeleteSeries;
+
+public class DeleteSeriesCommandHandlerTests
+{
+    private readonly Mock<ISeriesRepository> _seriesRepositoryMock;
+    private readonly Mock<IUnitOfWork> _unitOfWorkMock;
+    private readonly DeleteSeriesCommandHandler _handler;
+
+    public DeleteSeriesCommandHandlerTests()
+    {
+        _seriesRepositoryMock = new Mock<ISeriesRepository>();
+        _unitOfWorkMock = new Mock<IUnitOfWork>();
+
+        _handler = new DeleteSeriesCommandHandler(_seriesRepositoryMock.Object, _unitOfWorkMock.Object);
+    }
+
+    [Fact]
+    public async Task Handle_Should_ThrowNotFoundException_When_SeriesDoesNotExist()
+    {
+        // Arrange
+        var command = new DeleteSeriesCommand(Guid.NewGuid());
+
+        _seriesRepositoryMock.Setup(x => x.GetByIdWithDetailsAsync(command.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ShuffleSeries.Catalog.Domain.Entities.Series?)null);
+
+        // Act
+        Func<Task> action = async () => await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await action.Should().ThrowAsync<SeriesNotFoundException>()
+            .WithMessage($"Series with id '{command.Id}' was not found.");
+
+        _seriesRepositoryMock.Verify(x => x.Delete(It.IsAny<ShuffleSeries.Catalog.Domain.Entities.Series>()), Times.Never);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_Should_CallDeleteAndSaveChanges_When_SeriesExists()
+    {
+        // Arrange
+        var existingSeries = ShuffleSeries.Catalog.Domain.Entities.Series.Create(42009, "tt2085059", 2020, ShuffleSeries.Catalog.Domain.Enums.SeriesType.Standard, "https://example.com/poster.jpg");
+        var command = new DeleteSeriesCommand(existingSeries.Id);
+
+        _seriesRepositoryMock.Setup(x => x.GetByIdWithDetailsAsync(command.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingSeries);
+
+        // Act
+        await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        _seriesRepositoryMock.Verify(x => x.Delete(existingSeries), Times.Once);
+        _unitOfWorkMock.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+}

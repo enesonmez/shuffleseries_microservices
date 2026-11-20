@@ -86,6 +86,9 @@ public class RuleBuilderExtensionsTests
     [InlineData("blob:http://example.com/uuid")]
     [InlineData("vbscript:msgbox")]
     [InlineData("about:blank")]
+    [InlineData("intent://example.com#Intent;scheme=javascript;end")]
+    [InlineData("http://example.com")]
+    [InlineData("sms:+123456")]
     [InlineData("not a valid uri")]
     public void MustBeCustomAppScheme_Should_Fail_For_DangerousSchemes_Or_MalformedUris(string? scheme)
     {

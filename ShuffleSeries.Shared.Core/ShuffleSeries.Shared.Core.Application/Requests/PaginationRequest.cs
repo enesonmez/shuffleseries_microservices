@@ -9,16 +9,28 @@ public record PaginationRequest
     public const int DefaultPageNumber = 1;
     public const int DefaultPageSize = 10;
     public const int MaxPageSize = 100;
+    public const int MaxPageNumber = 10_000;
+
+    private readonly int _pageNumber = DefaultPageNumber;
+    private readonly int _pageSize = DefaultPageSize;
 
     /// <summary>
-    /// Sayfa numarası (1'den başlar).
+    /// Sayfa numarası (1 ile 10_000 arasında).
     /// </summary>
-    public int PageNumber { get; init; }
+    public int PageNumber
+    {
+        get => _pageNumber;
+        init => _pageNumber = value < 1 ? DefaultPageNumber : Math.Min(value, MaxPageNumber);
+    }
 
     /// <summary>
     /// Sayfa başına kayıt adedi (1 ile 100 arasında).
     /// </summary>
-    public int PageSize { get; init; }
+    public int PageSize
+    {
+        get => _pageSize;
+        init => _pageSize = value < 1 ? DefaultPageSize : Math.Min(value, MaxPageSize);
+    }
 
     /// <summary>
     /// "PageNumber" için kolaylık sağlayan takma ad (alias).
@@ -27,9 +39,9 @@ public record PaginationRequest
 
     /// <summary>
     /// SQL sorgularında atlanacak kayıt sayısı (OFFSET).
-    /// Asla negatif olamaz.
+    /// Asla negatif olamaz ve overflow yapamaz.
     /// </summary>
-    public int Skip => (PageNumber - 1) * PageSize;
+    public int Skip => Math.Max(0, (PageNumber - 1) * PageSize);
 
     /// <summary>
     /// SQL sorgularında alınacak kayıt sayısı (LIMIT).
@@ -38,10 +50,8 @@ public record PaginationRequest
 
     public PaginationRequest(int? pageNumber, int? pageSize)
     {
-        PageNumber = pageNumber is null or < 1 ? DefaultPageNumber : pageNumber.Value;
-        PageSize = pageSize is null or < 1
-            ? DefaultPageSize
-            : Math.Min(pageSize.Value, MaxPageSize);
+        PageNumber = pageNumber ?? DefaultPageNumber;
+        PageSize = pageSize ?? DefaultPageSize;
     }
 
     public PaginationRequest() : this(DefaultPageNumber, DefaultPageSize)

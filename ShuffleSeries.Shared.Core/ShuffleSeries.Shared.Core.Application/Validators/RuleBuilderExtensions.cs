@@ -1,18 +1,35 @@
 using System.Collections.Frozen;
+using System.Text.RegularExpressions;
 using FluentValidation;
 
 namespace ShuffleSeries.Shared.Core.Application.Validators;
 
-public static class RuleBuilderExtensions
+public static partial class RuleBuilderExtensions
 {
+    [GeneratedRegex(@"^tt\d{7,10}$", RegexOptions.None, matchTimeoutMilliseconds: 250)]
+    private static partial Regex ImdbIdRegex();
+
     private static readonly FrozenSet<string> _disallowedCustomSchemes = new[]
     {
+        "http",
+        "https",
+        "ws",
+        "wss",
+        "ftp",
+        "ftps",
+        "sftp",
+        "intent",
+        "mailto",
+        "tel",
+        "sms",
+        "urn",
         "javascript",
         "data",
         "file",
         "vbscript",
         "about",
-        "blob"
+        "blob",
+        "jar"
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -36,6 +53,18 @@ public static class RuleBuilderExtensions
         return ruleBuilder
             .Must(scheme => string.IsNullOrWhiteSpace(scheme) || IsValidCustomAppScheme(scheme))
             .WithMessage("'{PropertyName}' must be a valid custom application scheme (e.g. 'netflix://').");
+    }
+
+    /// <summary>
+    /// Validates that the string property matches standard IMDb ID format ('tt' followed by 7-10 digits).
+    /// Protected against ReDoS via [GeneratedRegex] with 250ms timeout.
+    /// Null or empty/whitespace values are treated as valid (use .NotEmpty() for required fields).
+    /// </summary>
+    public static IRuleBuilderOptions<T, string?> MustBeImdbId<T>(this IRuleBuilder<T, string?> ruleBuilder)
+    {
+        return ruleBuilder
+            .Must(id => string.IsNullOrWhiteSpace(id) || ImdbIdRegex().IsMatch(id))
+            .WithMessage("'{PropertyName}' must follow the standard IMDb ID format (e.g. 'tt0111161').");
     }
 
     public static bool IsValidHttpUrl(string? url)

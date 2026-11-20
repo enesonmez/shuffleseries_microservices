@@ -13,7 +13,7 @@ public sealed class CreateSeriesCommandValidator : AbstractValidator<CreateSerie
 
         RuleFor(x => x.ImdbId)
             .NotEmpty().WithMessage("IMDb ID boş olamaz.")
-            .Matches(@"^tt\d{7,10}$").WithMessage("IMDb ID geçerli formatta olmalıdır (örn. 'tt0111161').");
+            .MustBeImdbId().WithMessage("IMDb ID geçerli formatta olmalıdır (örn. 'tt0111161').");
 
         RuleFor(x => x.Title)
             .NotEmpty().WithMessage("Başlık boş olamaz.")
@@ -58,11 +58,23 @@ public sealed class CreateSeriesCommandValidator : AbstractValidator<CreateSerie
             .GreaterThanOrEqualTo(0).When(x => x.ImdbVotes.HasValue)
             .WithMessage("IMDb oy sayısı 0 veya daha büyük olmalıdır.");
 
+        RuleFor(x => x.PlatformIds)
+            .Must(ids => ids == null || ids.Count <= 50)
+            .WithMessage("Bir diziye en fazla 50 platform atanabilir.");
+
         RuleForEach(x => x.PlatformIds)
             .NotEmpty().WithMessage("Platform ID boş olamaz.");
 
+        RuleFor(x => x.MoodIds)
+            .Must(ids => ids == null || ids.Count <= 50)
+            .WithMessage("Bir diziye en fazla 50 mod atanabilir.");
+
         RuleForEach(x => x.MoodIds)
             .NotEmpty().WithMessage("Mood ID boş olamaz.");
+
+        RuleFor(x => x.GenreIds)
+            .Must(ids => ids == null || ids.Count <= 50)
+            .WithMessage("Bir diziye en fazla 50 tür atanabilir.");
 
         RuleForEach(x => x.GenreIds)
             .NotEmpty().WithMessage("Genre ID boş olamaz.");

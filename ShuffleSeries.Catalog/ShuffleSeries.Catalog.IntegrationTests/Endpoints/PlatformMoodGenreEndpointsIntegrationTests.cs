@@ -415,6 +415,19 @@ public class PlatformMoodGenreEndpointsIntegrationTests : CatalogIntegrationTest
         genreEn.Should().NotBeNull();
         genreEn!.Name.Should().Be("Post-Apocalyptic");
 
+        // Act 1.5 - Upsert (Update) existing English Translation on tracked aggregate
+        var updateTransRequest = new AddOrUpdateGenreTranslationRequest(
+            LanguageCode: "en",
+            Name: "Post-Apocalyptic Sci-Fi",
+            Description: "Updated dystopian worlds description.");
+
+        var updateResponse = await Client.PostAsJsonAsync($"api/catalog/genres/{genreId}/translations", updateTransRequest);
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var getUpdatedEnResponse = await Client.GetAsync("api/catalog/genres?lang=en");
+        var genresUpdatedEn = await getUpdatedEnResponse.Content.ReadFromJsonAsync<IReadOnlyList<GenreResponse>>();
+        genresUpdatedEn!.First(g => g.Id == genreId).Name.Should().Be("Post-Apocalyptic Sci-Fi");
+
         // Act 2 - Remove English Translation
         var deleteResponse = await Client.DeleteAsync($"api/catalog/genres/{genreId}/translations/en");
         deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);

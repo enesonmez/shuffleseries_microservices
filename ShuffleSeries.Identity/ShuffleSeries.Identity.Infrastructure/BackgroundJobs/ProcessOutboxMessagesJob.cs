@@ -1,7 +1,4 @@
 using System.Reflection;
-using System.Text.Json;
-using MassTransit;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Quartz;
 using ShuffleSeries.Identity.Domain.Events;
@@ -10,6 +7,7 @@ using ShuffleSeries.Shared.Core.Domain.Events;
 using ShuffleSeries.Shared.Core.Domain.Outbox;
 using ShuffleSeries.Shared.Core.Domain.Primitives;
 using ShuffleSeries.Shared.Core.Infrastructure.Outbox;
+using Wolverine;
 
 namespace ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
 
@@ -19,20 +17,20 @@ public sealed class ProcessOutboxMessagesJob : IJob
     private static readonly Assembly _identityDomainAssembly = typeof(UserRegisteredDomainEvent).Assembly;
 
     private readonly IdentityDbContext _dbContext;
-    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly IMessageBus _messageBus;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ProcessOutboxMessagesJob> _logger;
 
-    public const int MaxRetries = 3;
+    public const int MaxRetries = OutboxBatchProcessor.DefaultMaxRetries;
 
     public ProcessOutboxMessagesJob(
         IdentityDbContext dbContext,
-        IPublishEndpoint publishEndpoint,
+        IMessageBus messageBus,
         TimeProvider timeProvider,
         ILogger<ProcessOutboxMessagesJob> logger)
     {
         _dbContext = dbContext;
-        _publishEndpoint = publishEndpoint;
+        _messageBus = messageBus;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -41,105 +39,14 @@ public sealed class ProcessOutboxMessagesJob : IJob
     {
         var cancellationToken = context?.CancellationToken ?? CancellationToken.None;
 
-        var messages = await _dbContext.OutboxMessages
-            .Where(m => m.ProcessedOnUtc == null && m.RetryCount < MaxRetries)
-            .OrderBy(m => m.OccurredOnUtc)
-            .Take(20)
-            .ToListAsync(cancellationToken);
-
-        if (messages.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var outboxMessage in messages)
-        {
-            await ProcessSingleMessageAsync(outboxMessage, cancellationToken);
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task ProcessSingleMessageAsync(OutboxMessage outboxMessage, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var eventType = DomainEventTypeCache.Resolve(_identityDomainAssembly, outboxMessage.Type);
-            if (eventType is null)
-            {
-                RecordMissingTypeFailure(outboxMessage);
-                return;
-            }
-
-            if (JsonSerializer.Deserialize(outboxMessage.Content, eventType) is not IDomainEvent domainEvent)
-            {
-                RecordDeserializationFailure(outboxMessage);
-                return;
-            }
-
-            var publishTypeName = await PublishIntegrationEventAsync(domainEvent, outboxMessage, cancellationToken);
-
-            outboxMessage.ProcessedOnUtc = _timeProvider.GetUtcNow().UtcDateTime;
-            outboxMessage.Error = null;
-
-            if (_logger.IsEnabled(LogLevel.Information))
-            {
-                _logger.LogInformation(
-                    "Outbox message {MessageId} of type {MessageType} published successfully as {PublishType}.",
-                    outboxMessage.Id,
-                    outboxMessage.Type,
-                    publishTypeName);
-            }
-        }
-        catch (Exception ex)
-        {
-            RecordProcessingException(outboxMessage, ex);
-        }
-    }
-
-    private void RecordMissingTypeFailure(OutboxMessage outboxMessage)
-    {
-        outboxMessage.Error = $"Not found event type: {outboxMessage.Type}";
-        outboxMessage.RetryCount++;
-
-        if (_logger.IsEnabled(LogLevel.Warning))
-        {
-            _logger.LogWarning(
-                "Event type {MessageType} not found for outbox message {MessageId}. Retry: {RetryCount}",
-                outboxMessage.Type,
-                outboxMessage.Id,
-                outboxMessage.RetryCount);
-        }
-    }
-
-    private void RecordDeserializationFailure(OutboxMessage outboxMessage)
-    {
-        outboxMessage.Error = "The message content could not be deserialized.";
-        outboxMessage.RetryCount++;
-
-        if (_logger.IsEnabled(LogLevel.Warning))
-        {
-            _logger.LogWarning(
-                "Message content could not be deserialized for outbox message {MessageId}. Retry: {RetryCount}",
-                outboxMessage.Id,
-                outboxMessage.RetryCount);
-        }
-    }
-
-    private void RecordProcessingException(OutboxMessage outboxMessage, Exception ex)
-    {
-        outboxMessage.Error = ex.Message;
-        outboxMessage.RetryCount++;
-
-        if (_logger.IsEnabled(LogLevel.Error))
-        {
-            _logger.LogError(
-                ex,
-                "Failed to process outbox message {MessageId} of type {MessageType}. Retry: {RetryCount}",
-                outboxMessage.Id,
-                outboxMessage.Type,
-                outboxMessage.RetryCount);
-        }
+        await OutboxBatchProcessor.ProcessBatchAsync(
+            _dbContext,
+            _identityDomainAssembly,
+            _timeProvider,
+            _logger,
+            PublishIntegrationEventAsync,
+            new OutboxBatchOptions(MaxRetries: MaxRetries),
+            cancellationToken: cancellationToken);
     }
 
     private async Task<string> PublishIntegrationEventAsync(
@@ -147,6 +54,9 @@ public sealed class ProcessOutboxMessagesJob : IJob
         OutboxMessage outboxMessage,
         CancellationToken cancellationToken)
     {
+        Task PublishWithTimeoutAsync<T>(T message) =>
+            _messageBus.PublishAsync(message).AsTask().WaitAsync(cancellationToken);
+
         switch (domainEvent)
         {
             case UserRegisteredDomainEvent e:
@@ -156,7 +66,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     e.Email,
                     e.IsGuest,
                     outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(regEvent, cancellationToken);
+                await PublishWithTimeoutAsync(regEvent);
                 return nameof(UserRegisteredEvent);
 
             case UserAccountDeletedDomainEvent e:
@@ -165,12 +75,12 @@ public sealed class ProcessOutboxMessagesJob : IJob
                     e.UserId,
                     e.Email,
                     outboxMessage.OccurredOnUtc);
-                await _publishEndpoint.Publish(delEvent, cancellationToken);
+                await PublishWithTimeoutAsync(delEvent);
                 return nameof(UserAccountDeletedEvent);
 
             default:
-                await _publishEndpoint.Publish(domainEvent, domainEvent.GetType(), cancellationToken);
-                return domainEvent.GetType().Name;
+                throw new InvalidOperationException(
+                    $"Domain event '{domainEvent.GetType().Name}' has no mapped integration event contract. Direct publishing of internal domain events across service boundaries is strictly prohibited.");
         }
     }
 }

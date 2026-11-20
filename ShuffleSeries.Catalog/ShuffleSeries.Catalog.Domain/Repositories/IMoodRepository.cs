@@ -9,4 +9,5 @@ public interface IMoodRepository : IRepository<Mood>
     Task<Mood?> GetByIdWithTranslationsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> ExistsByCodeAsync(string code, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Mood>> GetActiveMoodsWithTranslationsAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Guid>> GetExistingActiveIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default);
 }

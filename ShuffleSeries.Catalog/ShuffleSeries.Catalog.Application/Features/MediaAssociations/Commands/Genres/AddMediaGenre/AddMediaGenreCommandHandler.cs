@@ -1,11 +1,10 @@
-using MediatR;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Genres.AddMediaGenre;
 
-public sealed class AddMediaGenreCommandHandler : IRequestHandler<AddMediaGenreCommand>
+public sealed class AddMediaGenreCommandHandler
 {
     private readonly IMediaRepository _mediaRepository;
     private readonly IGenreRepository _genreRepository;

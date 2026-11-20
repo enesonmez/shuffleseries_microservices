@@ -40,7 +40,7 @@ public sealed class AuditableEntityInterceptor(TimeProvider? timeProvider = null
             {
                 entry.Property(nameof(IAuditableEntity.CreatedAtUtc)).CurrentValue = utcNow;
             }
-            else if (entry.State == EntityState.Modified)
+            else if (entry.State == EntityState.Modified && entry.Entity is not ISoftDeletable { IsDeleted: true })
             {
                 entry.Property(nameof(IAuditableEntity.ModifiedAtUtc)).CurrentValue = utcNow;
             }

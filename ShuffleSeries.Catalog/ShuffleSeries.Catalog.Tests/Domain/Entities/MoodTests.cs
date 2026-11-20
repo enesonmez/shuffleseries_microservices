@@ -112,4 +112,25 @@ public class MoodTests
         mood.Translations.Should().NotContain(t => t.LanguageCode == "tr");
         mood.GetDomainEvents().Should().ContainSingle(e => e is MoodUpdatedDomainEvent);
     }
+
+    [Fact]
+    public void AddOrUpdateTranslation_Should_UpdateExistingTranslation_ValidateRequiredFields_AndIgnoreNullRemove()
+    {
+        var mood = Mood.Create("feel-good", "#FFFFFF");
+
+        var emptyName = () => mood.AddOrUpdateTranslation("tr", " ", "Açıklama");
+        emptyName.Should().Throw<ArgumentException>();
+
+        var emptyDesc = () => mood.AddOrUpdateTranslation("tr", "İsim", " ");
+        emptyDesc.Should().Throw<ArgumentException>();
+
+        mood.AddOrUpdateTranslation("tr", "Eski İsim", "Eski Açıklama", "tag1");
+        mood.AddOrUpdateTranslation("tr", "Yeni İsim", "Yeni Açıklama", "tag2");
+
+        mood.Translations.Should().ContainSingle(t =>
+            t.Name == "Yeni İsim" && t.Description == "Yeni Açıklama" && t.VibeTags == "tag2");
+
+        mood.RemoveTranslation((LanguageCode)null!);
+        mood.Translations.Should().ContainSingle();
+    }
 }

@@ -38,7 +38,7 @@ Mikroservislerin üzerinde yükseleceği ortak yapıların ve dağıtım kanalla
   * Asenkron ve Genişletilebilir Serilog Mimarisi: `Serilog.Sinks.Async` ile non-blocking ring buffer tabanlı; konfigürasyon (`appsettings`/Vault) ve kod üzerinden Console, File (Rolling File), PostgreSQL sink'lerini destekleyen ve yeni sink'lerin (Seq, Loki, Elastic) `ILogSinkConfigurator` ile kolayca takılabildiği modüler loglama altyapısı.
   * OpenTelemetry Enstrümantasyonu: ASP.NET Core, HttpClient ve EF Core çağrılarının W3C trace standartlarında izlenmesi ve OTLP exporter hazırlığı.
   * Standart Health Checks: Liveness (`/health/live`) ve Readiness (`/health/ready`) probe'larının standart JSON sözleşmesiyle sunulması.
-  * MediatR Telemetri & PII Maskeleme: `LoggingBehavior` (hassas verileri - şifre, token, kart no - `[MaskSensitiveData]` ve anahtar kelime eşleşmesiyle maskeleyen PII Masker) ve `PerformanceBehavior` (500 ms üzeri yavaş istekleri uyaran timer).
+  * Wolverine Birleşik Mesajlaşma Mimarisi: MediatR ve MassTransit ikilisi kaldırılarak tüm servislerde (Shared.Core, Catalog, Identity ve Scaffolding) in-memory CQRS ve RabbitMQ transport katmanları Roslyn Source Generator tabanlı, Native AOT uyumlu ve MIT lisanslı `WolverineFx` çatısına göç ettirildi; compile-time Logging ve Performance middleware'leri inşa edildi, `opts.UseFluentValidation()` devreye alındı, Clean Architecture Application ve Infrastructure extension ayrımı tamamlandı ve Outbox publish timeout güvencesi sağlandı.
   * Outbox Dayanıklılığı ve Zehirli Mesaj Koruması: `OutboxMessage` entity'sinde `RetryCount`, PostgreSQL kısmi indeksi (`WHERE "ProcessedOnUtc" IS NULL`), `OccurredOnUtc` indeksi ve `MaxRetries = 3` ile head-of-line blocking önleme.
   * HashiCorp Vault Seeding & Sırsız AppSettings: Tüm loglama tercihleri, OpenTelemetry ayarları ve altyapı sırlarının `init-vault.sh` seed scriptine taşınması, `appsettings.json` dosyalarının sır ve operasyonel değerlerden arındırılması.
   * Inbox & Integration Event Sözleşmeleri: `IIntegrationEvent` ve `InboxMessage` entity'leri ile idempotent event tüketimi temeli.
@@ -112,10 +112,10 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
 * [ ] Task 3.3: gRPC İletişim Uç Noktası (Shuffle Engine Entegrasyonu)
   * Shuffle Engine Redis Cold Start / Cache Warming ve Bölüm Ruleti beslemesi için `CatalogGrpcService` geliştirilmesi (`GetBulkMediaForShuffle`, `GetStandaloneEpisodesForRoulette`, `GetMediaById`).
   * gRPC sözleşmesinde çok dilli içerik sözlüklerinin (`map<string, LocalizedMediaPayload>`) taşınması.
-* [ ] Task 3.4: Transactional Outbox Pattern ve RabbitMQ Entegrasyonu
+* [x] Task 3.4: Transactional Outbox Pattern ve RabbitMQ Entegrasyonu
   * Dağıtık veri tutarlılığı için Transactional Outbox Pattern uygulanması.
-  * Çok dilli `MediaCreated/Updated/DeletedEvent`, `PlatformCreated/UpdatedEvent`, `MoodCreated/UpdatedEvent` ve `GenreCreated/Updated/DeletedEvent` mesajlarının RabbitMQ'ya asenkron fırlatılması (Search ve Shuffle servisleri beslemesi).
-  * Poison message korumalı (`MaxRetries = 3`) Quartz `ProcessOutboxMessagesJob` entegrasyonu.
+  * Çok dilli `MediaCreated/Updated/DeletedEvent`, `EpisodeCreated/Updated/DeletedEvent` ve `CatalogTaxonomyChangedEvent` mesajlarının RabbitMQ'ya asenkron fırlatılması (Search ve Shuffle servisleri beslemesi).
+  * Çoklu pod dağıtımlarında yarış durumlarını ve mükerrer mesaj iletimini önleyen `OutboxBatchProcessor` (PostgreSQL `FOR UPDATE SKIP LOCKED`), zehirli mesaj koruması (`MaxRetries = 3`) ve 7 günlük retention purge entegrasyonu.
 
 # Milestone 4: Shuffle Engine Service (The Core Engine)
 Sistemin en çok trafik alacak ana damarının performans, esneklik ve oyunlaştırma odaklı geliştirilmesi.

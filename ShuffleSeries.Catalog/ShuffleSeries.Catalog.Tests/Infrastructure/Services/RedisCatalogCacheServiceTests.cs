@@ -101,7 +101,7 @@ public class RedisCatalogCacheServiceTests
     [Fact]
     public async Task GetOrCreateAsync_Should_PreventCacheStampede_WhenMultipleConcurrentRequestsHitSameKey()
     {
-        RedisValue storedValue = RedisValue.Null;
+        var storedValue = RedisValue.Null;
 
         _databaseMock.Setup(db => db.StringGetAsync("test:stampede-key", It.IsAny<CommandFlags>()))
             .ReturnsAsync(() => storedValue);
@@ -169,17 +169,6 @@ public class RedisCatalogCacheServiceTests
         await _service.RemoveAsync("remove-key");
 
         _databaseMock.Verify(db => db.KeyDeleteAsync("test:remove-key", CommandFlags.None), Times.Once);
-    }
-
-    [Fact]
-    public void Remove_Should_CallKeyDelete()
-    {
-        _databaseMock.Setup(db => db.KeyDelete("test:sync-key", CommandFlags.None))
-            .Returns(true);
-
-        _service.Remove("sync-key");
-
-        _databaseMock.Verify(db => db.KeyDelete("test:sync-key", CommandFlags.None), Times.Once);
     }
 
     [Fact]

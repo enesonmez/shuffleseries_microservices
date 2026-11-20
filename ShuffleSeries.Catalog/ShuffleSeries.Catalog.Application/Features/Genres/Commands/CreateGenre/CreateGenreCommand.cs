@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.Genres.Commands.CreateGenre;
 
 public sealed record CreateGenreCommand(
@@ -8,4 +6,4 @@ public sealed record CreateGenreCommand(
     string LanguageCode,
     string? Description = null,
     int DisplayOrder = 0,
-    bool IsActive = true) : IRequest<Guid>;
+    bool IsActive = true);

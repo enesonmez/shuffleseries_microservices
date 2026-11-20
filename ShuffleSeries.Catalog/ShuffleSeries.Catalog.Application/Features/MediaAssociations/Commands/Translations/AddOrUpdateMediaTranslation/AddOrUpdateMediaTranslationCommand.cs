@@ -1,5 +1,3 @@
-using MediatR;
-
 namespace ShuffleSeries.Catalog.Application.Features.MediaAssociations.Commands.Translations.AddOrUpdateMediaTranslation;
 
 public sealed record AddOrUpdateMediaTranslationCommand(
@@ -7,4 +5,4 @@ public sealed record AddOrUpdateMediaTranslationCommand(
     string LanguageCode,
     string Title,
     string Overview,
-    string? Tagline = null) : IRequest;
+    string? Tagline = null);

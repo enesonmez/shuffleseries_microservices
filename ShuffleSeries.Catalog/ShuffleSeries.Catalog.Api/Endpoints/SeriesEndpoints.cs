@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.Series;
 using ShuffleSeries.Catalog.Application.Features.Series.Commands.CreateSeries;
@@ -8,6 +7,7 @@ using ShuffleSeries.Catalog.Application.Features.Series.Queries.GetSeriesById;
 using ShuffleSeries.Catalog.Application.Features.Series.Responses;
 using ShuffleSeries.Shared.Core.Domain.Constants;
 using ShuffleSeries.Shared.Core.Web.Extensions;
+using Wolverine;
 
 namespace ShuffleSeries.Catalog.Api.Endpoints;
 
@@ -21,7 +21,7 @@ public static class SeriesEndpoints
         // 1. POST: Create a series endpoint (Command)
         group.MapPost("/", async (
                 [FromBody] CreateSeriesRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new CreateSeriesCommand(
@@ -42,7 +42,7 @@ public static class SeriesEndpoints
                     request.MoodIds,
                     request.GenreIds);
 
-                var seriesId = await sender.Send(command, cancellationToken);
+                var seriesId = await bus.InvokeAsync<Guid>(command, cancellationToken);
                 return Results.CreatedAtRoute("GetSeriesById", new { id = seriesId }, seriesId);
             })
             .RequireAuthorization(SystemPolicies.CanCreateCatalogSeries)
@@ -57,13 +57,12 @@ public static class SeriesEndpoints
         // 2. GET: Get series by ID endpoint (Query)
         group.MapGet("/{id:guid}", async (
                 Guid id,
-                [FromQuery] string? lang,
-                ISender sender,
+                IMessageBus bus,
                 ILanguageContext languageContext,
                 CancellationToken cancellationToken) =>
             {
-                var query = new GetSeriesByIdQuery(id, lang ?? languageContext.CurrentLanguage);
-                var response = await sender.Send(query, cancellationToken);
+                var query = new GetSeriesByIdQuery(id, languageContext.CurrentLanguage);
+                var response = await bus.InvokeAsync<SeriesDetailResponse>(query, cancellationToken);
                 return Results.Ok(response);
             })
             .RequireAuthorization(SystemPolicies.CanReadCatalogSeries)
@@ -78,7 +77,7 @@ public static class SeriesEndpoints
         group.MapPut("/{id:guid}", async (
                 Guid id,
                 [FromBody] UpdateSeriesRequest request,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new UpdateSeriesCommand(
@@ -93,7 +92,7 @@ public static class SeriesEndpoints
                     request.PosterUrl,
                     request.BackdropUrl);
 
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanUpdateCatalogSeries)
@@ -109,11 +108,11 @@ public static class SeriesEndpoints
         // 4. DELETE: Delete series endpoint (Command)
         group.MapDelete("/{id:guid}", async (
                 Guid id,
-                ISender sender,
+                IMessageBus bus,
                 CancellationToken cancellationToken) =>
             {
                 var command = new DeleteSeriesCommand(id);
-                await sender.Send(command, cancellationToken);
+                await bus.InvokeAsync(command, cancellationToken);
                 return Results.NoContent();
             })
             .RequireAuthorization(SystemPolicies.CanDeleteCatalogSeries)

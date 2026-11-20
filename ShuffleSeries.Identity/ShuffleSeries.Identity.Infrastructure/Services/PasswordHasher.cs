@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
-using ShuffleSeries.Identity.Application.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Interfaces;
 
 namespace ShuffleSeries.Identity.Infrastructure.Services;
 
@@ -15,12 +14,12 @@ internal sealed class PasswordHasher : IPasswordHasher
         ArgumentException.ThrowIfNullOrWhiteSpace(password);
 
         var salt = RandomNumberGenerator.GetBytes(SaltSize);
-        var subKey = KeyDerivation.Pbkdf2(
+        var subKey = Rfc2898DeriveBytes.Pbkdf2(
             password: password,
             salt: salt,
-            prf: KeyDerivationPrf.HMACSHA512,
-            iterationCount: IterationCount,
-            numBytesRequested: KeySize
+            iterations: IterationCount,
+            hashAlgorithm: HashAlgorithmName.SHA512,
+            outputLength: KeySize
         );
 
         return $"{Convert.ToBase64String(salt)}:{Convert.ToBase64String(subKey)}";
@@ -44,12 +43,12 @@ internal sealed class PasswordHasher : IPasswordHasher
             var salt = Convert.FromBase64String(parts[0]);
             var expectedSubKey = Convert.FromBase64String(parts[1]);
 
-            var actualSubKey = KeyDerivation.Pbkdf2(
+            var actualSubKey = Rfc2898DeriveBytes.Pbkdf2(
                 password: password,
                 salt: salt,
-                prf: KeyDerivationPrf.HMACSHA512,
-                iterationCount: IterationCount,
-                numBytesRequested: KeySize
+                iterations: IterationCount,
+                hashAlgorithm: HashAlgorithmName.SHA512,
+                outputLength: KeySize
             );
 
             return CryptographicOperations.FixedTimeEquals(actualSubKey, expectedSubKey);

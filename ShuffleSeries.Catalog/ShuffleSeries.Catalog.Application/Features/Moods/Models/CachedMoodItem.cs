@@ -11,12 +11,3 @@ public sealed record CachedMoodItem(
     int DisplayOrder,
     bool IsActive,
     IReadOnlyList<CachedMoodTranslationItem> Translations);
-
-/// <summary>
-/// Dağıtık önbellekte saklanan ruh hali çeviri öğesi.
-/// </summary>
-public sealed record CachedMoodTranslationItem(
-    string LanguageCode,
-    string Name,
-    string Description,
-    string? VibeTags);

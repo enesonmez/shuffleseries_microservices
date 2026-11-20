@@ -7,7 +7,7 @@ public class MediaMood : BaseEntity
     public Guid MediaId { get; private set; }
     public Guid MoodId { get; private set; }
 
-    public Mood? Mood { get; private set; }
+    public Mood? Mood { get; protected set; }
 
     private MediaMood() : base(Guid.Empty) { }
 

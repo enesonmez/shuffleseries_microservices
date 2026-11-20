@@ -597,12 +597,7 @@ Content-Type: application/json
   "imdbId": "tt5753856",
   "releaseYear": 2018,
   "seriesType": 1,
-  "totalSeasons": 3,
-  "imdbRating": 8.8,
-  "imdbVotes": 460000
-}
   "totalSeasons": 4,
-  "imdbId": "tt5753856",
   "imdbRating": 8.9,
   "imdbVotes": 500000
 }
@@ -702,14 +697,11 @@ Authorization: Bearer {{AdminToken}}
 Content-Type: application/json
 
 {
-  "seasonNumber": 1,
   "episodeNumber": 1,
+  "isStandalone": true,
   "runtimeMinutes": 62,
-  "stillUrl": "https://image.tmdb.org/t/p/original/s1e1-v2.jpg",
-  "isStandAlone": true,
-  "imdbId": "tt6754321",
-  "imdbRating": 8.8,
-  "imdbVotes": 15000
+  "thumbnailUrl": "https://image.tmdb.org/t/p/original/s1e1-v2.jpg",
+  "imdbRating": 8.8
 }
 
 ### 🟢 8.6 Bölüm Silme / Soft-Delete (Admin)

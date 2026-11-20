@@ -1,23 +1,28 @@
-using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
+using ShuffleSeries.Catalog.Application.Common.Interfaces;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Catalog.Infrastructure.BackgroundJobs;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
 using ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
+using ShuffleSeries.Catalog.Infrastructure.Services;
+using ShuffleSeries.Shared.Core.Domain.Primitives;
 using ShuffleSeries.Shared.Core.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure;
 using ShuffleSeries.Shared.Core.Infrastructure.Configuration.Redis;
 using ShuffleSeries.Shared.Core.Infrastructure.Health;
 using ShuffleSeries.Shared.Core.Infrastructure.Interceptors;
+using Wolverine;
+using Wolverine.HealthChecks;
+using Wolverine.RabbitMQ;
 
 namespace ShuffleSeries.Catalog.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         // ==========================================
         // POSTGRESQL KONFİGÜRASYONU
@@ -36,40 +41,6 @@ public static class DependencyInjection
         // PostgreSQL veritabanı hazır bulunuşluk sağlık kontrolü
         services.AddSharedDatabaseHealthCheck<CatalogDbContext>();
 
-        // ==========================================
-        // MASSTRANSIT & RABBITMQ KONFİGÜRASYONU
-        // ==========================================
-        services.AddMassTransit(busConfigurator =>
-        {
-            busConfigurator.SetKebabCaseEndpointNameFormatter();
-
-            busConfigurator.UsingRabbitMq((context, configurator) =>
-            {
-                var host = configuration["MessageBroker:Host"] ?? "localhost";
-                var portStr = configuration["MessageBroker:Port"];
-                if (ushort.TryParse(portStr, out var port))
-                {
-                    configurator.Host(host, port, "/", h =>
-                    {
-                        h.Username(configuration["MessageBroker:Username"] ?? "guest");
-                        h.Password(configuration["MessageBroker:Password"] ?? "guest");
-                    });
-                }
-                else
-                {
-                    configurator.Host(host, "/", h =>
-                    {
-                        h.Username(configuration["MessageBroker:Username"] ?? "guest");
-                        h.Password(configuration["MessageBroker:Password"] ?? "guest");
-                    });
-                }
-
-                // Unbounded prefetch ve Pod OOMKilled riskine karşı tavan limit (Pillar 3.4)
-                configurator.PrefetchCount = 16;
-
-                configurator.ConfigureEndpoints(context);
-            });
-        });
 
         // ==========================================
         // QUARTZ BACKGROUND JOB KONFİGÜRASYONU
@@ -94,8 +65,13 @@ public static class DependencyInjection
 
         // Redis & Önbellek Yapılandırması (Distributed Cache - Multi-Replica Consistency)
         services.AddSharedRedis(configuration);
-        services.AddMemoryCache();
-        services.AddSingleton<ShuffleSeries.Catalog.Application.Common.Interfaces.ICatalogCacheService, ShuffleSeries.Catalog.Infrastructure.Services.RedisCatalogCacheService>();
+        services.AddSharedRedisHealthCheck();
+        services.AddSingleton<ICatalogCacheService, RedisCatalogCacheService>();
+
+        // RabbitMQ Broker & Wolverine Runtime Sağlık Kontrolleri
+        services.AddSharedRabbitMqHealthCheck(configuration);
+        services.AddHealthChecks()
+            .AddWolverine(tags: ["messaging", "wolverine", "ready"]);
 
         // Interface - Somut Sınıf eşleşmeleri
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<CatalogDbContext>());
@@ -106,5 +82,25 @@ public static class DependencyInjection
         services.AddScoped<IMoodRepository, MoodRepository>();
         services.AddScoped<IGenreRepository, GenreRepository>();
         services.AddScoped<IEpisodeRepository, EpisodeRepository>();
+
+        return services;
+    }
+
+    public static void AddCatalogMessagingTransport(this WolverineOptions opts, IConfiguration configuration)
+    {
+        var rabbitHost = configuration["MessageBroker:Host"] ?? "localhost";
+        var rabbitPort = configuration["MessageBroker:Port"] ?? "5672";
+        var rabbitUser = configuration["MessageBroker:Username"] ?? "guest";
+        var rabbitPass = configuration["MessageBroker:Password"] ?? "guest";
+
+        opts.UseRabbitMq(new Uri($"amqp://{rabbitUser}:{rabbitPass}@{rabbitHost}:{rabbitPort}"))
+            .AutoProvision();
+
+        // RabbitMQ Outbound Event Routing (Strictly IIntegrationEvent to prevent internal domain event leakage)
+        opts.Publish(rule =>
+        {
+            rule.MessagesImplementing<IIntegrationEvent>()
+                .ToRabbitExchange("shuffleseries.catalog");
+        });
     }
 }
