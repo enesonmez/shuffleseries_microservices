@@ -9,7 +9,7 @@ public class EpisodePlatform : BaseEntity
     public string WebUrl { get; private set; } = string.Empty;
     public string? AppSchemeUrl { get; private set; }
 
-    public Platform? Platform { get; private set; }
+    public Platform? Platform { get; protected set; }
 
     private EpisodePlatform() : base(Guid.Empty) { }
 

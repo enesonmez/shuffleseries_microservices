@@ -45,7 +45,7 @@ public class CatalogApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         .Build();
 
     private DbConnection _dbConnection = default!;
-    private IConnectionMultiplexer _redisConnection = default!;
+    private ConnectionMultiplexer _redisConnection = default!;
     private Respawner _respawner = default!;
 
     public IConnectionMultiplexer Redis => _redisConnection;

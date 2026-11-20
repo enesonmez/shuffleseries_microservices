@@ -181,24 +181,25 @@ public static class AuthenticationExtensions
 
         await ProblemDetailsWriter.WriteAsync(
             context.HttpContext,
-            StatusCodes.Status401Unauthorized,
-            isRevoked ? "Token Revoked" : "Unauthorized",
-            detail,
-            errorCode,
-            "https://tools.ietf.org/html/rfc7235#section-3.1",
-            configure: problem =>
-            {
-                if (!string.IsNullOrEmpty(context.Error))
+            new ProblemDetailsDescriptor(
+                StatusCodes.Status401Unauthorized,
+                isRevoked ? "Token Revoked" : "Unauthorized",
+                detail,
+                errorCode,
+                "https://tools.ietf.org/html/rfc7235#section-3.1",
+                problem =>
                 {
-                    problem.Extensions["error"] = context.Error;
-                }
+                    if (!string.IsNullOrEmpty(context.Error))
+                    {
+                        problem.Extensions["error"] = context.Error;
+                    }
 
-                var isDev = context.HttpContext.RequestServices.GetService<IHostEnvironment>()?.IsDevelopment() == true;
-                if (isDev && !string.IsNullOrEmpty(context.ErrorDescription))
-                {
-                    problem.Extensions["errorDescription"] = context.ErrorDescription;
-                }
-            },
-            cancellationToken: context.HttpContext.RequestAborted);
+                    var isDev = context.HttpContext.RequestServices.GetService<IHostEnvironment>()?.IsDevelopment() == true;
+                    if (isDev && !string.IsNullOrEmpty(context.ErrorDescription))
+                    {
+                        problem.Extensions["errorDescription"] = context.ErrorDescription;
+                    }
+                }),
+            context.HttpContext.RequestAborted);
     }
 }

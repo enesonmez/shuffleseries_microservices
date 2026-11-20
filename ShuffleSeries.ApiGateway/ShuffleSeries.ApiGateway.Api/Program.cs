@@ -88,5 +88,6 @@ app.MapGatewayReverseProxy();
 
 await app.RunAsync();
 
-#pragma warning disable ASP0027
+#pragma warning disable ASP0027 // Required for WebApplicationFactory<Program> in public integration test fixtures
 public partial class Program { protected Program() { } }
+#pragma warning restore ASP0027

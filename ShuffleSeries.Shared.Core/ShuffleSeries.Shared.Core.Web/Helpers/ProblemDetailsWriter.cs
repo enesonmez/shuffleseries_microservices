@@ -11,20 +11,18 @@ public static class ProblemDetailsWriter
 
     public static async Task WriteAsync(
         HttpContext context,
-        int statusCode,
-        string title,
-        string detail,
-        string code,
-        string? type = null,
-        Action<Microsoft.AspNetCore.Mvc.ProblemDetails>? configure = null,
+        ProblemDetailsDescriptor descriptor,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(descriptor);
+
         if (context.Response.HasStarted)
         {
             return;
         }
 
-        context.Response.StatusCode = statusCode;
+        context.Response.StatusCode = descriptor.StatusCode;
         context.Response.ContentType = ProblemJsonContentType;
 
         var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
@@ -33,21 +31,21 @@ public static class ProblemDetailsWriter
 
         var problem = new Microsoft.AspNetCore.Mvc.ProblemDetails
         {
-            Status = statusCode,
-            Title = title,
-            Detail = detail,
-            Type = type ?? $"https://httpstatuses.io/{statusCode}",
+            Status = descriptor.StatusCode,
+            Title = descriptor.Title,
+            Detail = descriptor.Detail,
+            Type = descriptor.Type ?? $"https://httpstatuses.io/{descriptor.StatusCode}",
             Instance = context.Request.Path
         };
 
-        problem.Extensions["code"] = code;
+        problem.Extensions["code"] = descriptor.Code;
         problem.Extensions["traceId"] = traceId;
         if (!string.IsNullOrWhiteSpace(correlationId))
         {
             problem.Extensions["correlationId"] = correlationId;
         }
 
-        configure?.Invoke(problem);
+        descriptor.Configure?.Invoke(problem);
 
         await context.Response.WriteAsJsonAsync(
             problem,

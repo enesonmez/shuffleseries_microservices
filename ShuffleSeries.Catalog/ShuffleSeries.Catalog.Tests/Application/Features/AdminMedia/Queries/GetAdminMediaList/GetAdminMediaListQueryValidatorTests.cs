@@ -10,10 +10,12 @@ public class GetAdminMediaListQueryValidatorTests
     [Fact]
     public void Validate_WithValidQuery_ShouldNotHaveAnyValidationErrors()
     {
-        var query = new GetAdminMediaListQuery(
-            search: "Breaking Bad",
-            pageNumber: 1,
-            pageSize: 20);
+        var query = new GetAdminMediaListQuery
+        {
+            Search = "Breaking Bad",
+            PageNumber = 1,
+            PageSize = 20
+        };
 
         var result = _validator.TestValidate(query);
 
@@ -26,7 +28,7 @@ public class GetAdminMediaListQueryValidatorTests
     [InlineData("   ")]
     public void Validate_WithNullOrWhitespaceSearch_ShouldNotHaveValidationErrors(string? search)
     {
-        var query = new GetAdminMediaListQuery(search: search);
+        var query = new GetAdminMediaListQuery { Search = search };
 
         var result = _validator.TestValidate(query);
 
@@ -37,7 +39,7 @@ public class GetAdminMediaListQueryValidatorTests
     public void Validate_WithSearchLengthAtOrBelow100_ShouldBeValid()
     {
         var search = new string('a', 100);
-        var query = new GetAdminMediaListQuery(search: search);
+        var query = new GetAdminMediaListQuery { Search = search };
 
         var result = _validator.TestValidate(query);
 
@@ -48,7 +50,7 @@ public class GetAdminMediaListQueryValidatorTests
     public void Validate_WithSearchLengthExceeding100_ShouldHaveValidationError()
     {
         var search = new string('a', 101);
-        var query = new GetAdminMediaListQuery(search: search);
+        var query = new GetAdminMediaListQuery { Search = search };
 
         var result = _validator.TestValidate(query);
 
@@ -59,7 +61,7 @@ public class GetAdminMediaListQueryValidatorTests
     [Fact]
     public void Validate_WithNullByteInSearch_ShouldHaveValidationError()
     {
-        var query = new GetAdminMediaListQuery(search: "Walter\0White");
+        var query = new GetAdminMediaListQuery { Search = "Walter\0White" };
 
         var result = _validator.TestValidate(query);
 
@@ -76,7 +78,7 @@ public class GetAdminMediaListQueryValidatorTests
     [InlineData(null)]
     public void Validate_WithAllowedSortByField_ShouldNotHaveValidationError(string? sortBy)
     {
-        var query = new GetAdminMediaListQuery(sortBy: sortBy);
+        var query = new GetAdminMediaListQuery { SortBy = sortBy };
 
         var result = _validator.TestValidate(query);
 
@@ -89,7 +91,7 @@ public class GetAdminMediaListQueryValidatorTests
     [InlineData("1; SELECT * FROM")]
     public void Validate_WithInvalidSortByField_ShouldHaveValidationError(string invalidSortBy)
     {
-        var query = new GetAdminMediaListQuery(sortBy: invalidSortBy);
+        var query = new GetAdminMediaListQuery { SortBy = invalidSortBy };
 
         var result = _validator.TestValidate(query);
 

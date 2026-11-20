@@ -186,4 +186,33 @@ public class JwtTokenServiceTests
         jwtId.Should().BeNull();
         expiresAt.Should().BeNull();
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("too-short-secret")]
+    public void Constructor_WhenSecretIsMissingOrTooShort_ShouldThrowInvalidOperationException(string? secret)
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Jwt:Secret"] = secret })
+            .Build();
+
+        var act = () => new JwtTokenService(config, TimeProvider.System);
+
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task ExtractTokenInfo_WhenTokenIsWhitespaceOrExpectedUserIdIsNull_ShouldHandleProperly()
+    {
+        var (emptyJti, emptyExp) = _sut.ExtractTokenInfo("   ");
+        emptyJti.Should().BeNull();
+        emptyExp.Should().BeNull();
+
+        var user = User.CreateStandard("nullcheck@example.com", "pw_hash");
+        var generated = await _sut.GenerateTokensAsync(user, ["standard"], []);
+
+        var (jwtId, expiresAt) = _sut.ExtractTokenInfo(generated.AccessToken, expectedUserId: null);
+        jwtId.Should().NotBeNullOrWhiteSpace();
+        expiresAt.Should().NotBeNull();
+    }
 }

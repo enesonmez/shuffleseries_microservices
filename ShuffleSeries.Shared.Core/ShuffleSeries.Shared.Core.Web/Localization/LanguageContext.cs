@@ -6,6 +6,7 @@ namespace ShuffleSeries.Shared.Core.Web.Localization;
 
 public sealed class LanguageContext : ILanguageContext
 {
+    private static readonly char[] _languageDelimiters = ['-', '_'];
     private readonly IHttpContextAccessor _httpContextAccessor;
     private string? _cachedLanguage;
 
@@ -34,7 +35,7 @@ public sealed class LanguageContext : ILanguageContext
                 return validCode.Value;
             }
 
-            var primaryCandidate = candidate.Split(['-', '_'])[0].Trim();
+            var primaryCandidate = candidate.Split(_languageDelimiters)[0].Trim();
             if (LanguageCode.TryFrom(primaryCandidate, out var normalizedCode))
             {
                 return normalizedCode.Value;

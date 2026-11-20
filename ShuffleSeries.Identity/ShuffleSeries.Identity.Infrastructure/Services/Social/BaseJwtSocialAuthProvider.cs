@@ -72,7 +72,10 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider, IDispos
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "External authentication token validation failed for provider {Provider}.", Provider);
+            if (_logger?.IsEnabled(LogLevel.Warning) == true)
+            {
+                _logger.LogWarning(ex, "External authentication token validation failed for provider {Provider}.", Provider);
+            }
             return null;
         }
     }
@@ -229,11 +232,6 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider, IDispos
 
                 return stale.Keys.GetSigningKeys();
             }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "[{Provider}] Failed to fetch JWKS from {JwksUri} and no valid cache is available.", Provider, JwksUri);
-                throw;
-            }
         }
         finally
         {
@@ -241,9 +239,17 @@ internal abstract class BaseJwtSocialAuthProvider : ISocialAuthProvider, IDispos
         }
     }
 
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _jwksLock.Dispose();
+        }
+    }
+
     public void Dispose()
     {
-        _jwksLock.Dispose();
+        Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }
 }

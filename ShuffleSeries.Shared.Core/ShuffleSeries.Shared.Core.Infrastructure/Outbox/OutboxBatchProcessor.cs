@@ -26,9 +26,7 @@ public static class OutboxBatchProcessor
         TimeProvider timeProvider,
         ILogger logger,
         Func<IDomainEvent, OutboxMessage, CancellationToken, Task<string>> publishDelegate,
-        int batchSize = DefaultBatchSize,
-        int maxRetries = DefaultMaxRetries,
-        int retentionDays = DefaultRetentionDays,
+        OutboxBatchOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(dbContext);
@@ -37,6 +35,7 @@ public static class OutboxBatchProcessor
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(publishDelegate);
 
+        var effectiveOptions = options ?? OutboxBatchOptions.Default;
         var outboxSet = dbContext.Set<OutboxMessage>();
 
         await using var transaction = dbContext.Database.IsRelational()
@@ -49,18 +48,18 @@ public static class OutboxBatchProcessor
             messages = await outboxSet
                 .FromSqlInterpolated($@"
                     SELECT * FROM ""OutboxMessages""
-                    WHERE ""ProcessedOnUtc"" IS NULL AND ""RetryCount"" < {maxRetries}
+                    WHERE ""ProcessedOnUtc"" IS NULL AND ""RetryCount"" < {effectiveOptions.MaxRetries}
                     ORDER BY ""OccurredOnUtc""
-                    LIMIT {batchSize}
+                    LIMIT {effectiveOptions.BatchSize}
                     FOR UPDATE SKIP LOCKED")
                 .ToListAsync(cancellationToken);
         }
         else
         {
             messages = await outboxSet
-                .Where(m => m.ProcessedOnUtc == null && m.RetryCount < maxRetries)
+                .Where(m => m.ProcessedOnUtc == null && m.RetryCount < effectiveOptions.MaxRetries)
                 .OrderBy(m => m.OccurredOnUtc)
-                .Take(batchSize)
+                .Take(effectiveOptions.BatchSize)
                 .ToListAsync(cancellationToken);
         }
 
@@ -71,7 +70,7 @@ public static class OutboxBatchProcessor
                 await transaction.CommitAsync(cancellationToken);
             }
 
-            await TryPurgeProcessedMessagesAsync(dbContext, timeProvider, retentionDays, logger, cancellationToken);
+            await TryPurgeProcessedMessagesAsync(dbContext, timeProvider, effectiveOptions.RetentionDays, logger, cancellationToken);
             return;
         }
 
@@ -87,7 +86,7 @@ public static class OutboxBatchProcessor
             await transaction.CommitAsync(cancellationToken);
         }
 
-        await TryPurgeProcessedMessagesAsync(dbContext, timeProvider, retentionDays, logger, cancellationToken);
+        await TryPurgeProcessedMessagesAsync(dbContext, timeProvider, effectiveOptions.RetentionDays, logger, cancellationToken);
     }
 
     private static async Task ProcessSingleMessageAsync(

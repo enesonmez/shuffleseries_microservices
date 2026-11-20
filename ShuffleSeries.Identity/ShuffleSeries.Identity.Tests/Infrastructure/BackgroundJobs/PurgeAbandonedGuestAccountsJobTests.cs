@@ -15,8 +15,6 @@ public class PurgeAbandonedGuestAccountsJobTests
     }
 
     [Fact]
-    public void InactiveDaysThreshold_ShouldBe60Days()
-    {
+    public void InactiveDaysThreshold_ShouldBe60Days() =>
         PurgeAbandonedGuestAccountsJob.InactiveDaysThreshold.Should().Be(60);
-    }
 }

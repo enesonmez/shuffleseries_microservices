@@ -164,17 +164,7 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
 
             if (long.TryParse(value.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var revokedAtRaw))
             {
-                var revokedAtMs = revokedAtRaw > 100_000_000_000L ? revokedAtRaw : revokedAtRaw * 1000;
-                var tokenIssuedAtMs = new DateTimeOffset(tokenIssuedAtUtc).ToUnixTimeMilliseconds();
-                var isRevoked = tokenIssuedAtMs <= revokedAtMs;
-
-                if (isRevoked && _logger.IsEnabled(LogLevel.Warning))
-                {
-                    _logger.LogWarning("[RedisTokenBlacklist] Token for User {UserId} issued at {IssuedAtMs}ms is revoked by user revocation timestamp {RevokedAtMs}ms",
-                        userId, tokenIssuedAtMs, revokedAtMs);
-                }
-
-                return isRevoked;
+                return EvaluateUserRevocationTimestamp(userId, revokedAtRaw, tokenIssuedAtUtc);
             }
 
             return false;
@@ -205,50 +195,14 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
 
         try
         {
-            var db = _redis.GetDatabase();
-
             if (hasJti && hasUser)
             {
-                var tokenKey = (RedisKey)FormatKey(TokenKeyPrefix + jti);
-                var userKey = (RedisKey)FormatKey(UserKeyPrefix + userId!.Value.ToString("N"));
-
-                var values = await db.StringGetAsync([tokenKey, userKey]);
-                var tokenVal = values[0];
-                var userVal = values[1];
-
-                if (tokenVal.HasValue)
-                {
-                    if (_logger.IsEnabled(LogLevel.Warning))
-                    {
-                        _logger.LogWarning("[RedisTokenBlacklist] Token {Jti} is individually blacklisted.", jti);
-                    }
-                    return true;
-                }
-
-                if (userVal.HasValue && long.TryParse(userVal.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var revokedAtRaw))
-                {
-                    var revokedAtMs = revokedAtRaw > 100_000_000_000L ? revokedAtRaw : revokedAtRaw * 1000;
-                    var tokenIssuedAtMs = new DateTimeOffset(tokenIssuedAtUtc!.Value).ToUnixTimeMilliseconds();
-                    var isRevoked = tokenIssuedAtMs <= revokedAtMs;
-
-                    if (isRevoked && _logger.IsEnabled(LogLevel.Warning))
-                    {
-                        _logger.LogWarning("[RedisTokenBlacklist] Token for User {UserId} issued at {IssuedAtMs}ms is revoked by user revocation timestamp {RevokedAtMs}ms",
-                            userId.Value, tokenIssuedAtMs, revokedAtMs);
-                    }
-
-                    return isRevoked;
-                }
-
-                return false;
+                return await CheckDualRevocationAsync(jti!, userId!.Value, tokenIssuedAtUtc!.Value);
             }
 
-            if (hasJti)
-            {
-                return await IsTokenBlacklistedAsync(jti!, cancellationToken);
-            }
-
-            return await IsUserBlacklistedAsync(userId!.Value, tokenIssuedAtUtc!.Value, cancellationToken);
+            return hasJti
+                ? await IsTokenBlacklistedAsync(jti!, cancellationToken)
+                : await IsUserBlacklistedAsync(userId!.Value, tokenIssuedAtUtc!.Value, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -258,6 +212,46 @@ public sealed class RedisTokenBlacklistService : ITokenBlacklistService
             }
             return false;
         }
+    }
+
+    private async Task<bool> CheckDualRevocationAsync(string jti, Guid userId, DateTime tokenIssuedAtUtc)
+    {
+        var db = _redis.GetDatabase();
+        var tokenKey = (RedisKey)FormatKey(TokenKeyPrefix + jti);
+        var userKey = (RedisKey)FormatKey(UserKeyPrefix + userId.ToString("N"));
+
+        var values = await db.StringGetAsync([tokenKey, userKey]);
+
+        if (values[0].HasValue)
+        {
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning("[RedisTokenBlacklist] Token {Jti} is individually blacklisted.", jti);
+            }
+            return true;
+        }
+
+        if (values[1].HasValue && long.TryParse(values[1].ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var revokedAtRaw))
+        {
+            return EvaluateUserRevocationTimestamp(userId, revokedAtRaw, tokenIssuedAtUtc);
+        }
+
+        return false;
+    }
+
+    private bool EvaluateUserRevocationTimestamp(Guid userId, long revokedAtRaw, DateTime tokenIssuedAtUtc)
+    {
+        var revokedAtMs = revokedAtRaw > 100_000_000_000L ? revokedAtRaw : revokedAtRaw * 1000;
+        var tokenIssuedAtMs = new DateTimeOffset(tokenIssuedAtUtc).ToUnixTimeMilliseconds();
+        var isRevoked = tokenIssuedAtMs <= revokedAtMs;
+
+        if (isRevoked && _logger.IsEnabled(LogLevel.Warning))
+        {
+            _logger.LogWarning("[RedisTokenBlacklist] Token for User {UserId} issued at {IssuedAtMs}ms is revoked by user revocation timestamp {RevokedAtMs}ms",
+                userId, tokenIssuedAtMs, revokedAtMs);
+        }
+
+        return isRevoked;
     }
 
     private string FormatKey(string subKey)

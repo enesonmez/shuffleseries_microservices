@@ -110,7 +110,7 @@ dotnet-sonarscanner begin \
     /d:sonar.cs.opencover.reportsPaths="**/TestResults/**/coverage.opencover.xml" \
     /d:sonar.cs.vstest.reportsPaths="**/TestResults/*.trx" \
     /d:sonar.exclusions="**/bin/**,**/obj/**,**/*.Tests/**,**/Migrations/**,**/docker/**" \
-    /d:sonar.coverage.exclusions="**/Migrations/**,**/*ModelSnapshot.cs,**/Program.cs,**/Extensions/MigrationExtensions.cs"
+    /d:sonar.coverage.exclusions="**/Migrations/**,**/*ModelSnapshot.cs,**/Program.cs,**/Extensions/MigrationExtensions.cs,**/e2e_tests/**,**/scripts/**"
 
 # 11. Çözümü Derle
 echo ""

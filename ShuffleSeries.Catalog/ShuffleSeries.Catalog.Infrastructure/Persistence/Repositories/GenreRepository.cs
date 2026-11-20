@@ -44,8 +44,9 @@ internal sealed class GenreRepository : IGenreRepository
         if (string.IsNullOrWhiteSpace(code))
             return false;
 
+        var normalizedCode = code.Trim().ToLowerInvariant();
         return await _context.Genres
-            .AnyAsync(x => x.Code == code.Trim().ToLowerInvariant(), cancellationToken);
+            .AnyAsync(x => x.Code == normalizedCode, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Genre>> GetActiveGenresWithTranslationsAsync(CancellationToken cancellationToken = default) =>

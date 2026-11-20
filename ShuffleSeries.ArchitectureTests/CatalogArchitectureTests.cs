@@ -18,6 +18,8 @@ public class CatalogArchitectureTests : MicroserviceArchitectureTestBase
     protected override Assembly ApiAssembly => typeof(ShuffleSeries.Catalog.Api.Endpoints.SeriesEndpoints).Assembly;
     protected override string ServiceNamespacePrefix => "ShuffleSeries.Catalog";
 
+    protected override IEnumerable<string> ForbiddenBoundedContextPrefixes => ["ShuffleSeries.Identity"];
+
     protected override IEnumerable<Type> AggregateRootTypes =>
     [
         typeof(Media),

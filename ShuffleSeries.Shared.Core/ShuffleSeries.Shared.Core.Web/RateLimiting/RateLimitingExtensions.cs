@@ -19,12 +19,13 @@ public static class RateLimitingExtensions
             {
                 await ProblemDetailsWriter.WriteAsync(
                     context.HttpContext,
-                    StatusCodes.Status429TooManyRequests,
-                    "Too Many Requests",
-                    "Rate limit exceeded. Please try again later.",
-                    "RATE_LIMIT_EXCEEDED",
-                    "https://tools.ietf.org/html/rfc6585#section-4",
-                    cancellationToken: cancellationToken);
+                    new ProblemDetailsDescriptor(
+                        StatusCodes.Status429TooManyRequests,
+                        "Too Many Requests",
+                        "Rate limit exceeded. Please try again later.",
+                        "RATE_LIMIT_EXCEEDED",
+                        "https://tools.ietf.org/html/rfc6585#section-4"),
+                    cancellationToken);
             };
 
             // Global Limiter: Sistemin genelini kaba kuvvet (brute-force) ve DDoS saldırılarına karşı korur.

@@ -11,7 +11,7 @@ namespace ShuffleSeries.Identity.Application;
 
 public static class DependencyInjection
 {
-    public static void AddApplication(this IServiceCollection services)
+    public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         var assembly = typeof(DependencyInjection).Assembly;
 
@@ -19,6 +19,8 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
 
         services.AddScoped<IAuthResponseService, AuthResponseService>();
+
+        return services;
     }
 
     public static void AddIdentityApplicationMessaging(this WolverineOptions opts)

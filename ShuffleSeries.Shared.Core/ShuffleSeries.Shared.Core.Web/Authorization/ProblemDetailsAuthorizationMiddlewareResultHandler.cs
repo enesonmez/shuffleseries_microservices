@@ -19,11 +19,12 @@ public sealed class ProblemDetailsAuthorizationMiddlewareResultHandler : IAuthor
         {
             await ProblemDetailsWriter.WriteAsync(
                 context,
-                StatusCodes.Status403Forbidden,
-                "Forbidden",
-                "Bu kaynağa erişmek için gerekli yetkiye (rol veya izin) sahip değilsiniz.",
-                "AUTH_FORBIDDEN",
-                "https://tools.ietf.org/html/rfc7231#section-6.5.3");
+                new ProblemDetailsDescriptor(
+                    StatusCodes.Status403Forbidden,
+                    "Forbidden",
+                    "Bu kaynağa erişmek için gerekli yetkiye (rol veya izin) sahip değilsiniz.",
+                    "AUTH_FORBIDDEN",
+                    "https://tools.ietf.org/html/rfc7231#section-6.5.3"));
             return;
         }
 

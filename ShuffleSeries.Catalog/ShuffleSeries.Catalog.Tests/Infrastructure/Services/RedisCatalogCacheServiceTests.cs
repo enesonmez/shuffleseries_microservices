@@ -101,7 +101,7 @@ public class RedisCatalogCacheServiceTests
     [Fact]
     public async Task GetOrCreateAsync_Should_PreventCacheStampede_WhenMultipleConcurrentRequestsHitSameKey()
     {
-        RedisValue storedValue = RedisValue.Null;
+        var storedValue = RedisValue.Null;
 
         _databaseMock.Setup(db => db.StringGetAsync("test:stampede-key", It.IsAny<CommandFlags>()))
             .ReturnsAsync(() => storedValue);

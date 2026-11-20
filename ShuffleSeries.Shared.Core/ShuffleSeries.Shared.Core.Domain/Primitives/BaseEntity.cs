@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Runtime.CompilerServices;
 
 namespace ShuffleSeries.Shared.Core.Domain.Primitives;
 
@@ -59,7 +60,7 @@ public abstract class BaseEntity<TId> : IAuditableEntity, ISoftDeletable, IHardD
     public override int GetHashCode()
     {
         if (EqualityComparer<TId>.Default.Equals(Id, default))
-            return base.GetHashCode();
+            return RuntimeHelpers.GetHashCode(this);
         return EqualityComparer<TId>.Default.GetHashCode(Id!);
     }
 }

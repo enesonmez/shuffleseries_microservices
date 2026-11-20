@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Domain.Entities;
-using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 
@@ -33,57 +32,12 @@ internal sealed class MediaRepository : MediaRepositoryBase<Media>, IMediaReposi
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
     public async Task<(IReadOnlyList<Media> Items, int TotalCount)> GetAdminMediaPagedListAsync(
-        MediaType? mediaType,
-        string? search,
-        Guid? platformId,
-        Guid? moodId,
-        Guid? genreId,
-        bool isDeleted,
-        string? sortBy,
-        bool sortDescending,
+        AdminMediaFilter filter,
         int page,
         int pageSize,
-        string? targetLanguage = null,
         CancellationToken cancellationToken = default)
     {
-        var query = Context.Media.AsNoTracking();
-
-        if (isDeleted)
-        {
-            query = query.IgnoreQueryFilters().Where(x => x.IsDeleted);
-        }
-
-        if (mediaType.HasValue)
-        {
-            query = query.Where(x => x.MediaType == mediaType.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var escaped = search.Trim()
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("%", "\\%", StringComparison.Ordinal)
-                .Replace("_", "\\_", StringComparison.Ordinal);
-            var searchPattern = $"%{escaped}%";
-            query = query.Where(x =>
-                x.Translations.Any(t => EF.Functions.ILike(t.Title, searchPattern, "\\")) ||
-                (x.ImdbId != null && EF.Functions.ILike(x.ImdbId, searchPattern, "\\")));
-        }
-
-        if (platformId.HasValue)
-        {
-            query = query.Where(x => x.MediaPlatforms.Any(p => p.PlatformId == platformId.Value));
-        }
-
-        if (moodId.HasValue)
-        {
-            query = query.Where(x => x.MediaMoods.Any(m => m.MoodId == moodId.Value));
-        }
-
-        if (genreId.HasValue)
-        {
-            query = query.Where(x => x.MediaGenres.Any(g => g.GenreId == genreId.Value));
-        }
+        var query = ApplyAdminMediaFilters(Context.Media.AsNoTracking(), filter);
 
         var totalCount = await query.CountAsync(cancellationToken);
         if (totalCount == 0)
@@ -91,19 +45,7 @@ internal sealed class MediaRepository : MediaRepositoryBase<Media>, IMediaReposi
             return (Array.Empty<Media>(), 0);
         }
 
-        var lang = targetLanguage?.Trim().ToLowerInvariant() ?? "tr";
-        var normalizedSortBy = sortBy?.Trim().ToLowerInvariant();
-        query = (normalizedSortBy, sortDescending) switch
-        {
-            ("imdbrating", true) => query.OrderByDescending(x => x.ImdbRating).ThenByDescending(x => x.CreatedAtUtc),
-            ("imdbrating", false) => query.OrderBy(x => x.ImdbRating).ThenByDescending(x => x.CreatedAtUtc),
-            ("releaseyear", true) => query.OrderByDescending(x => x.ReleaseYear).ThenByDescending(x => x.CreatedAtUtc),
-            ("releaseyear", false) => query.OrderBy(x => x.ReleaseYear).ThenByDescending(x => x.CreatedAtUtc),
-            ("title", true) => query.OrderByDescending(x => x.Translations.Where(t => t.LanguageCode == lang).Select(t => t.Title).FirstOrDefault() ?? x.Translations.OrderBy(t => t.LanguageCode).Select(t => t.Title).FirstOrDefault()).ThenByDescending(x => x.CreatedAtUtc),
-            ("title", false) => query.OrderBy(x => x.Translations.Where(t => t.LanguageCode == lang).Select(t => t.Title).FirstOrDefault() ?? x.Translations.OrderBy(t => t.LanguageCode).Select(t => t.Title).FirstOrDefault()).ThenByDescending(x => x.CreatedAtUtc),
-            ("createdat", false) => query.OrderBy(x => x.CreatedAtUtc),
-            _ => query.OrderByDescending(x => x.CreatedAtUtc)
-        };
+        query = ApplyAdminMediaSorting(query, filter);
 
         var items = await query
             .Include(x => x.Translations)
@@ -115,5 +57,65 @@ internal sealed class MediaRepository : MediaRepositoryBase<Media>, IMediaReposi
             .ToListAsync(cancellationToken);
 
         return (items, totalCount);
+    }
+
+    private static IQueryable<Media> ApplyAdminMediaFilters(IQueryable<Media> query, AdminMediaFilter filter)
+    {
+        if (filter.IsDeleted)
+        {
+            query = query.IgnoreQueryFilters().Where(x => x.IsDeleted);
+        }
+
+        if (filter.MediaType.HasValue)
+        {
+            query = query.Where(x => x.MediaType == filter.MediaType.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var escaped = filter.Search.Trim()
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("%", "\\%", StringComparison.Ordinal)
+                .Replace("_", "\\_", StringComparison.Ordinal);
+            var searchPattern = $"%{escaped}%";
+            query = query.Where(x =>
+                x.Translations.Any(t => EF.Functions.ILike(t.Title, searchPattern, "\\")) ||
+                (x.ImdbId != null && EF.Functions.ILike(x.ImdbId, searchPattern, "\\")));
+        }
+
+        if (filter.PlatformId.HasValue)
+        {
+            query = query.Where(x => x.MediaPlatforms.Any(p => p.PlatformId == filter.PlatformId.Value));
+        }
+
+        if (filter.MoodId.HasValue)
+        {
+            query = query.Where(x => x.MediaMoods.Any(m => m.MoodId == filter.MoodId.Value));
+        }
+
+        if (filter.GenreId.HasValue)
+        {
+            query = query.Where(x => x.MediaGenres.Any(g => g.GenreId == filter.GenreId.Value));
+        }
+
+        return query;
+    }
+
+    private static IQueryable<Media> ApplyAdminMediaSorting(IQueryable<Media> query, AdminMediaFilter filter)
+    {
+        var lang = filter.TargetLanguage?.Trim().ToLowerInvariant() ?? "tr";
+        var normalizedSortBy = filter.SortBy?.Trim().ToLowerInvariant();
+
+        return (normalizedSortBy, filter.SortDescending) switch
+        {
+            ("imdbrating", true) => query.OrderByDescending(x => x.ImdbRating).ThenByDescending(x => x.CreatedAtUtc),
+            ("imdbrating", false) => query.OrderBy(x => x.ImdbRating).ThenByDescending(x => x.CreatedAtUtc),
+            ("releaseyear", true) => query.OrderByDescending(x => x.ReleaseYear).ThenByDescending(x => x.CreatedAtUtc),
+            ("releaseyear", false) => query.OrderBy(x => x.ReleaseYear).ThenByDescending(x => x.CreatedAtUtc),
+            ("title", true) => query.OrderByDescending(x => x.Translations.Where(t => t.LanguageCode == lang).Select(t => t.Title).FirstOrDefault() ?? x.Translations.OrderBy(t => t.LanguageCode).Select(t => t.Title).FirstOrDefault()).ThenByDescending(x => x.CreatedAtUtc),
+            ("title", false) => query.OrderBy(x => x.Translations.Where(t => t.LanguageCode == lang).Select(t => t.Title).FirstOrDefault() ?? x.Translations.OrderBy(t => t.LanguageCode).Select(t => t.Title).FirstOrDefault()).ThenByDescending(x => x.CreatedAtUtc),
+            ("createdat", false) => query.OrderBy(x => x.CreatedAtUtc),
+            _ => query.OrderByDescending(x => x.CreatedAtUtc)
+        };
     }
 }

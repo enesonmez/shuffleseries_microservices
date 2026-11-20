@@ -18,9 +18,9 @@ public class MovieEndpointsIntegrationTests : CatalogIntegrationTestBase
     public async Task CreateMovie_WithValidPayload_ShouldPersistInRealPostgreSql_AndReturn201Created()
     {
         // Arrange - Get seeded platform, mood and genre IDs
-        Guid platformId = Guid.Empty;
-        Guid moodId = Guid.Empty;
-        Guid genreId = Guid.Empty;
+        var platformId = Guid.Empty;
+        var moodId = Guid.Empty;
+        var genreId = Guid.Empty;
 
         await ExecuteDbContextAsync(async context =>
         {
@@ -297,8 +297,8 @@ public class MovieEndpointsIntegrationTests : CatalogIntegrationTestBase
         var movieId = await postResponse.Content.ReadFromJsonAsync<Guid>();
 
         // Find seeded sci-fi genre and first mood
-        Guid sciFiGenreId = Guid.Empty;
-        Guid moodId = Guid.Empty;
+        var sciFiGenreId = Guid.Empty;
+        var moodId = Guid.Empty;
         await ExecuteDbContextAsync(async db =>
         {
             sciFiGenreId = (await db.Genres.Include(g => g.Translations).FirstAsync(g => g.Code == "science-fiction")).Id;
@@ -318,7 +318,7 @@ public class MovieEndpointsIntegrationTests : CatalogIntegrationTestBase
         var trMovie = await trResponse.Content.ReadFromJsonAsync<MovieDetailResponse>();
         trMovie.Should().NotBeNull();
         trMovie!.Genres.Should().ContainSingle();
-        trMovie.Genres.First().Name.Should().Be("Bilim Kurgu", "Turkish translation must be loaded instead of raw code 'sci-fi'");
+        trMovie.Genres[0].Name.Should().Be("Bilim Kurgu", "Turkish translation must be loaded instead of raw code 'sci-fi'");
 
         // Act 2: Get with lang=en
         var enResponse = await Client.GetAsync($"api/catalog/movies/{movieId}?lang=en");
@@ -326,7 +326,7 @@ public class MovieEndpointsIntegrationTests : CatalogIntegrationTestBase
         var enMovie = await enResponse.Content.ReadFromJsonAsync<MovieDetailResponse>();
         enMovie.Should().NotBeNull();
         enMovie!.Genres.Should().ContainSingle();
-        enMovie.Genres.First().Name.Should().Be("Science Fiction", "English translation must be loaded instead of raw code 'sci-fi'");
+        enMovie.Genres[0].Name.Should().Be("Science Fiction", "English translation must be loaded instead of raw code 'sci-fi'");
     }
 
     [Fact]

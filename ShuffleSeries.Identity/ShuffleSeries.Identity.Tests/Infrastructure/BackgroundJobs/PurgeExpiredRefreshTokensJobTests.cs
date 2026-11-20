@@ -15,8 +15,6 @@ public class PurgeExpiredRefreshTokensJobTests
     }
 
     [Fact]
-    public void RetentionDays_ShouldBe30Days()
-    {
+    public void RetentionDays_ShouldBe30Days() =>
         PurgeExpiredRefreshTokensJob.RetentionDays.Should().Be(30);
-    }
 }

@@ -1,4 +1,5 @@
 using ShuffleSeries.Identity.Application.Common.Interfaces;
+using ShuffleSeries.Identity.Application.Common.Models;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
 using ShuffleSeries.Identity.Domain.Entities;
 using ShuffleSeries.Identity.Domain.Enums;
@@ -45,73 +46,10 @@ public sealed class SocialLoginCommandHandler
             throw new InvalidExternalTokenException(request.Provider);
         }
 
-        var user = await _userRepository.GetByLoginAsync(request.Provider, externalPrincipal.SubjectId, cancellationToken);
-        var shouldRevokePriorTokens = false;
-        DateTimeOffset? preLinkRevokedCutoff = null;
-
-        if (user is not null)
-        {
-            if (user.Status != UserStatus.Active)
-            {
-                throw new InvalidCredentialsException();
-            }
-        }
-        else
-        {
-            // Check if account with same email already exists
-            if (!string.IsNullOrWhiteSpace(externalPrincipal.Email))
-            {
-                user = await _userRepository.GetByEmailWithLoginsAsync(externalPrincipal.Email.Trim().ToLowerInvariant(), cancellationToken);
-            }
-
-            if (user is not null)
-            {
-                if (user.Status != UserStatus.Active)
-                {
-                    throw new InvalidCredentialsException();
-                }
-
-                var now = _timeProvider.GetUtcNow().UtcDateTime;
-
-                // Pre-Account Takeover Savunması (Seçenek A):
-                // Doğrulanmış Google/Apple hesabı ilk kez bağlandığında, önceden var olabilecek
-                // yerel şifreyi temizle ve önceki tüm oturumları geçersiz kıl.
-                var isFirstSocialLink = user.UserLogins.Count == 0;
-                if (isFirstSocialLink && user.PasswordHash is not null)
-                {
-                    user.ClearUnverifiedPasswordOnSocialLink();
-                    user.RevokeAllRefreshTokens(revokedAtUtc: now);
-                    shouldRevokePriorTokens = true;
-                    preLinkRevokedCutoff = _timeProvider.GetUtcNow().AddMilliseconds(-1);
-                }
-
-                // Account linking
-                user.AddLogin(request.Provider, externalPrincipal.SubjectId, externalPrincipal.Email, linkedAtUtc: now);
-            }
-            else
-            {
-                // Create brand new social user
-                var fallbackEmail = !string.IsNullOrWhiteSpace(externalPrincipal.Email)
-                    ? externalPrincipal.Email
-                    : $"{request.Provider.ToLowerInvariant()}_{externalPrincipal.SubjectId}@shuffleseries.internal";
-
-                user = User.CreateSocial(
-                    fallbackEmail,
-                    request.Provider,
-                    externalPrincipal.SubjectId,
-                    _timeProvider.GetUtcNow().UtcDateTime);
-
-                var defaultRole = await _roleRepository.GetDefaultRoleAsync(cancellationToken)
-                                  ?? await _roleRepository.GetByNameAsync(SystemRoles.Standard, cancellationToken);
-
-                if (defaultRole is not null)
-                {
-                    user.AssignRole(defaultRole.Id);
-                }
-
-                _userRepository.Add(user);
-            }
-        }
+        var (user, shouldRevokePriorTokens, preLinkRevokedCutoff) = await ResolveOrCreateSocialUserAsync(
+            request.Provider,
+            externalPrincipal,
+            cancellationToken);
 
         var authResponse = await _authResponseService.CreateAuthResponseAsync(user, request.IpAddress, cancellationToken);
 
@@ -124,5 +62,94 @@ public sealed class SocialLoginCommandHandler
         }
 
         return authResponse;
+    }
+
+    private async Task<(User User, bool ShouldRevokePriorTokens, DateTimeOffset? PreLinkRevokedCutoff)> ResolveOrCreateSocialUserAsync(
+        string provider,
+        ExternalUserPrincipal externalPrincipal,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userRepository.GetByLoginAsync(provider, externalPrincipal.SubjectId, cancellationToken);
+        if (user is not null)
+        {
+            EnsureActiveUser(user);
+            return (user, false, null);
+        }
+
+        if (!string.IsNullOrWhiteSpace(externalPrincipal.Email))
+        {
+            user = await _userRepository.GetByEmailWithLoginsAsync(
+                externalPrincipal.Email.Trim().ToLowerInvariant(),
+                cancellationToken);
+        }
+
+        if (user is not null)
+        {
+            return LinkExistingUser(user, provider, externalPrincipal);
+        }
+
+        var createdUser = await CreateNewSocialUserAsync(provider, externalPrincipal, cancellationToken);
+        return (createdUser, false, null);
+    }
+
+    private (User User, bool ShouldRevokePriorTokens, DateTimeOffset? PreLinkRevokedCutoff) LinkExistingUser(
+        User user,
+        string provider,
+        ExternalUserPrincipal externalPrincipal)
+    {
+        EnsureActiveUser(user);
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var shouldRevokePriorTokens = false;
+        DateTimeOffset? preLinkRevokedCutoff = null;
+
+        // Pre-Account Takeover Savunması (Seçenek A):
+        // Doğrulanmış Google/Apple hesabı ilk kez bağlandığında, önceden var olabilecek
+        // yerel şifreyi temizle ve önceki tüm oturumları geçersiz kıl.
+        if (user.UserLogins.Count == 0 && user.PasswordHash is not null)
+        {
+            user.ClearUnverifiedPasswordOnSocialLink();
+            user.RevokeAllRefreshTokens(revokedAtUtc: now);
+            shouldRevokePriorTokens = true;
+            preLinkRevokedCutoff = _timeProvider.GetUtcNow().AddMilliseconds(-1);
+        }
+
+        user.AddLogin(provider, externalPrincipal.SubjectId, externalPrincipal.Email, linkedAtUtc: now);
+        return (user, shouldRevokePriorTokens, preLinkRevokedCutoff);
+    }
+
+    private async Task<User> CreateNewSocialUserAsync(
+        string provider,
+        ExternalUserPrincipal externalPrincipal,
+        CancellationToken cancellationToken)
+    {
+        var fallbackEmail = !string.IsNullOrWhiteSpace(externalPrincipal.Email)
+            ? externalPrincipal.Email
+            : $"{provider.ToLowerInvariant()}_{externalPrincipal.SubjectId}@shuffleseries.internal";
+
+        var user = User.CreateSocial(
+            fallbackEmail,
+            provider,
+            externalPrincipal.SubjectId,
+            _timeProvider.GetUtcNow().UtcDateTime);
+
+        var defaultRole = await _roleRepository.GetDefaultRoleAsync(cancellationToken)
+                          ?? await _roleRepository.GetByNameAsync(SystemRoles.Standard, cancellationToken);
+
+        if (defaultRole is not null)
+        {
+            user.AssignRole(defaultRole.Id);
+        }
+
+        _userRepository.Add(user);
+        return user;
+    }
+
+    private static void EnsureActiveUser(User user)
+    {
+        if (user.Status != UserStatus.Active)
+        {
+            throw new InvalidCredentialsException();
+        }
     }
 }

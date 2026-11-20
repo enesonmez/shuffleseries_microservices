@@ -11,10 +11,7 @@ public class MoodTranslation : BaseEntity
     public string Description { get; private set; } = string.Empty;
     public string? VibeTags { get; private set; }
 
-    private MoodTranslation() : base(Guid.Empty)
-    {
-        LanguageCode = LanguageCode.Turkish;
-    }
+    private MoodTranslation() : base(Guid.Empty) { }
 
     internal MoodTranslation(Guid moodId, LanguageCode languageCode, string name, string description, string? vibeTags = null)
         : base(Guid.Empty)

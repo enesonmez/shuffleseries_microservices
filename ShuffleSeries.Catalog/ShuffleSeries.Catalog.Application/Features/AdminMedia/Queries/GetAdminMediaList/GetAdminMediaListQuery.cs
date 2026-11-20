@@ -14,28 +14,4 @@ public sealed record GetAdminMediaListQuery : PaginationRequest
     public bool IsDeleted { get; init; }
     public string? SortBy { get; init; }
     public bool SortDescending { get; init; } = true;
-
-    public GetAdminMediaListQuery(
-        MediaType? mediaType = null,
-        string? search = null,
-        Guid? platformId = null,
-        Guid? moodId = null,
-        Guid? genreId = null,
-        int? pageNumber = 1,
-        int? pageSize = 10,
-        string? language = null,
-        bool isDeleted = false,
-        string? sortBy = null,
-        bool sortDescending = true) : base(pageNumber, pageSize)
-    {
-        MediaType = mediaType;
-        Search = search;
-        PlatformId = platformId;
-        MoodId = moodId;
-        GenreId = genreId;
-        Language = language;
-        IsDeleted = isDeleted;
-        SortBy = sortBy;
-        SortDescending = sortDescending;
-    }
 }

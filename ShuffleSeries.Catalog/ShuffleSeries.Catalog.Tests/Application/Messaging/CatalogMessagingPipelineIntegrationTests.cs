@@ -6,50 +6,48 @@ using Wolverine;
 
 namespace ShuffleSeries.Catalog.Tests.Application.Messaging;
 
-public record PingCatalogCommand(string Echo);
-public record SlowCatalogCommand(int DelayMs);
-public record FailingCatalogCommand;
-
-public class TestCatalogPipelineHandler
-{
-    public string Handle(PingCatalogCommand cmd) => $"Pong: {cmd.Echo}";
-
-    public async Task<string> Handle(SlowCatalogCommand cmd)
-    {
-        await Task.Delay(cmd.DelayMs);
-        return "Done";
-    }
-
-    public void Handle(FailingCatalogCommand cmd)
-    {
-        throw new InvalidOperationException("Simulated Catalog Failure");
-    }
-}
-
-public sealed class TestLogSink : ILoggerProvider, ILogger
-{
-    public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = new();
-
-    public ILogger CreateLogger(string categoryName) => this;
-
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-    {
-        var msg = formatter(state, exception);
-        lock (Entries)
-        {
-            Entries.Add((logLevel, msg, exception));
-        }
-    }
-
-    public bool IsEnabled(LogLevel logLevel) => true;
-
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-    public void Dispose() { }
-}
-
 public class CatalogMessagingPipelineIntegrationTests
 {
+    public sealed record PingCatalogCommand(string Echo);
+    public sealed record SlowCatalogCommand(int DelayMs);
+    public sealed record FailingCatalogCommand;
+
+    public sealed class TestCatalogPipelineHandler
+    {
+        public static string Handle(PingCatalogCommand cmd) => $"Pong: {cmd.Echo}";
+
+        public static async Task<string> Handle(SlowCatalogCommand cmd)
+        {
+            await Task.Delay(cmd.DelayMs);
+            return "Done";
+        }
+
+        public static void Handle(FailingCatalogCommand cmd) =>
+            throw new InvalidOperationException("Simulated Catalog Failure");
+    }
+
+    private sealed class TestLogSink : ILoggerProvider, ILogger
+    {
+        public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = [];
+
+        public ILogger CreateLogger(string categoryName) => this;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            var msg = formatter(state, exception);
+            lock (Entries)
+            {
+                Entries.Add((logLevel, msg, exception));
+            }
+        }
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public void Dispose() { }
+    }
+
     [Fact]
     public async Task CatalogPipeline_WhenCommandSucceeds_ShouldEmitInformationLogViaLoggingMiddleware()
     {
@@ -86,7 +84,6 @@ public class CatalogMessagingPipelineIntegrationTests
                 e.Message.Contains("Handled request PingCatalogCommand") &&
                 e.Message.Contains("Matrix"));
 
-            // Ensure no false failure logs were emitted for successful command
             logSink.Entries.Should().NotContain(e =>
                 e.Level == LogLevel.Warning &&
                 e.Message.Contains("Request PingCatalogCommand failed with error"));

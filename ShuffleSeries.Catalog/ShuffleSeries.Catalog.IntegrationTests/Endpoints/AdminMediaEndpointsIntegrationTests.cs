@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Api.Contracts.Requests.Movies;
 using ShuffleSeries.Catalog.Application.Features.AdminMedia.Responses;
+using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.IntegrationTests.Infrastructure;
 using ShuffleSeries.Shared.Core.Application.Responses;
 
@@ -136,5 +138,69 @@ public class AdminMediaEndpointsIntegrationTests : CatalogIntegrationTestBase
             var ratings = result.Items.Where(x => x.ImdbRating.HasValue).Select(x => x.ImdbRating!.Value).ToList();
             ratings.Should().BeInDescendingOrder();
         }
+    }
+
+    [Fact]
+    public async Task GetAdminMediaList_WithTaxonomyMediaTypeAndWildcardSearchFilters_ShouldFilterInRealPostgreSql()
+    {
+        // Arrange
+        var platformId = Guid.Empty;
+        var moodId = Guid.Empty;
+        var genreId = Guid.Empty;
+
+        await ExecuteDbContextAsync(async db =>
+        {
+            platformId = (await db.Platforms.FirstAsync(p => p.Slug == "netflix")).Id;
+            moodId = (await db.Moods.FirstAsync()).Id;
+            genreId = (await db.Genres.FirstAsync()).Id;
+        });
+
+        var movieRequest = new CreateMovieRequest(
+            TmdbId: Random.Shared.Next(100000, 999999),
+            ImdbId: $"tt{Random.Shared.Next(1000000, 9999999)}",
+            ReleaseYear: 2022,
+            RuntimeMinutes: 118,
+            PosterUrl: "https://example.com/filter-test.jpg",
+            BackdropUrl: null,
+            LanguageCode: "tr",
+            Title: "Filter_100%_Match Movie",
+            Overview: "Taxonomy and wildcard filter test.",
+            ImdbRating: 8.4,
+            PlatformIds: [platformId],
+            MoodIds: [moodId],
+            GenreIds: [genreId]);
+
+        var createResponse = await Client.PostAsJsonAsync("api/catalog/movies", movieRequest);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var movieId = await createResponse.Content.ReadFromJsonAsync<Guid>();
+
+        // Act
+        var url = $"api/catalog/admin/media?mediaType={(int)MediaType.Movie}&platformId={platformId}&moodId={moodId}&genreId={genreId}&search={Uri.EscapeDataString("Filter_100%")}";
+        var response = await Client.GetAsync(url);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<PaginatedList<AdminMediaListItemResponse>>();
+        result.Should().NotBeNull();
+        result!.Items.Should().ContainSingle(m => m.Id == movieId);
+    }
+
+    [Theory]
+    [InlineData("imdbRating", false)]
+    [InlineData("releaseYear", true)]
+    [InlineData("releaseYear", false)]
+    [InlineData("title", true)]
+    [InlineData("title", false)]
+    [InlineData("createdAt", false)]
+    public async Task GetAdminMediaList_WithAllSortByAndDirectionCombinations_ShouldReturn200OK(string sortBy, bool sortDescending)
+    {
+        // Act
+        var response = await Client.GetAsync($"api/catalog/admin/media?page=1&pageSize=10&sortBy={sortBy}&sortDescending={sortDescending.ToString().ToLowerInvariant()}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<PaginatedList<AdminMediaListItemResponse>>();
+        result.Should().NotBeNull();
+        result!.Items.Should().NotBeEmpty();
     }
 }

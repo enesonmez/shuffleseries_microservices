@@ -1,3 +1,4 @@
+using ShuffleSeries.Catalog.Application.Common.Models;
 using ShuffleSeries.Catalog.Application.Common.Services;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
@@ -54,9 +55,7 @@ public sealed class CreateSeriesCommandHandler
 
         await MediaTaxonomyApplier.ApplyAsync(
             series,
-            request.PlatformIds,
-            request.MoodIds,
-            request.GenreIds,
+            new MediaTaxonomySelection(request.PlatformIds, request.MoodIds, request.GenreIds),
             _platformRepository,
             _moodRepository,
             _genreRepository,

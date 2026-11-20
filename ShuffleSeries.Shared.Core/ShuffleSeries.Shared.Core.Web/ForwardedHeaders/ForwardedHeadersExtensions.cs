@@ -30,9 +30,9 @@ public static class ForwardedHeadersExtensions
             // Güvenli iç ağlar (Loopback + Private RFC 1918 & RFC 4193 CIDR'ları)
             options.KnownIPNetworks.Add(new System.Net.IPNetwork(IPAddress.Loopback, 8));
             options.KnownIPNetworks.Add(new System.Net.IPNetwork(IPAddress.IPv6Loopback, 128));
-            options.KnownIPNetworks.Add(new System.Net.IPNetwork(IPAddress.Parse("10.0.0.0"), 8));
-            options.KnownIPNetworks.Add(new System.Net.IPNetwork(IPAddress.Parse("172.16.0.0"), 12));
-            options.KnownIPNetworks.Add(new System.Net.IPNetwork(IPAddress.Parse("192.168.0.0"), 16));
+            options.KnownIPNetworks.Add(new System.Net.IPNetwork(new IPAddress([10, 0, 0, 0]), 8));
+            options.KnownIPNetworks.Add(new System.Net.IPNetwork(new IPAddress([172, 16, 0, 0]), 12));
+            options.KnownIPNetworks.Add(new System.Net.IPNetwork(new IPAddress([192, 168, 0, 0]), 16));
 
             // Konfigürasyondan ek vekil sunucu / ağ IP'si varsa ekle (Dizi veya virgülle ayrılmış string desteği)
             var customProxies = configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>()

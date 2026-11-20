@@ -4,6 +4,7 @@ namespace ShuffleSeries.Shared.Core.Tests.Domain.ValueObjects;
 
 public class LanguageCodeTests
 {
+    private static readonly string[] _expectedSupportedLanguageCodes = ["tr", "en", "de", "es", "fr"];
     [Theory]
     [InlineData("tr", "tr", "Türkçe", "Turkish")]
     [InlineData("TR", "tr", "Türkçe", "Turkish")]
@@ -143,6 +144,14 @@ public class LanguageCodeTests
         tr1.ToString().Should().Be("tr");
 
         tr1.CompareTo(en).Should().BeGreaterThan(0); // "tr" > "en"
+        (en < tr1).Should().BeTrue();
+        (en <= tr1).Should().BeTrue();
+        (tr1 <= tr2).Should().BeTrue();
+        (tr1 > en).Should().BeTrue();
+        (tr1 >= en).Should().BeTrue();
+        (tr1 >= tr2).Should().BeTrue();
+        ((LanguageCode?)null < tr1).Should().BeTrue();
+        (tr1 > (LanguageCode?)null).Should().BeTrue();
     }
 
     [Fact]
@@ -150,6 +159,6 @@ public class LanguageCodeTests
     {
         // Assert
         LanguageCode.Supported.Should().HaveCount(5);
-        LanguageCode.SupportedValues.Should().Contain(new[] { "tr", "en", "de", "es", "fr" });
+        LanguageCode.SupportedValues.Should().Contain(_expectedSupportedLanguageCodes);
     }
 }

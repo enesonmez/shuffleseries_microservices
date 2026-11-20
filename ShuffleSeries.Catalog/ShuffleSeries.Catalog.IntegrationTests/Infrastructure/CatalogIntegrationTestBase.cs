@@ -19,10 +19,7 @@ public abstract class CatalogIntegrationTestBase : IAsyncLifetime
     protected CatalogApiFactory Factory { get; }
     protected HttpClient Client { get; }
 
-    protected HttpClient CreateUnauthorizedClient()
-    {
-        return Factory.CreateClient();
-    }
+    protected HttpClient CreateUnauthorizedClient() => Factory.CreateClient();
 
     protected HttpClient CreateAuthorizedClient(
         string role = SystemRoles.Admin,

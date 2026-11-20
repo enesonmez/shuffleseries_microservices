@@ -35,10 +35,7 @@ public class Episode : BaseEntity, IHaveDomainEvents
         _pendingCreatedSeriesId = null;
     }
 
-    internal void MarkCreated(Guid seriesId)
-    {
-        _pendingCreatedSeriesId = seriesId;
-    }
+    internal void MarkCreated(Guid seriesId) => _pendingCreatedSeriesId = seriesId;
 
     public Guid SeasonId { get; private set; }
     public int EpisodeNumber { get; private set; }
@@ -125,10 +122,8 @@ public class Episode : BaseEntity, IHaveDomainEvents
         return translation;
     }
 
-    public EpisodeTranslation AddOrUpdateTranslation(string languageCode, string title, string? overview = null)
-    {
-        return AddOrUpdateTranslation(LanguageCode.From(languageCode), title, overview);
-    }
+    public EpisodeTranslation AddOrUpdateTranslation(string languageCode, string title, string? overview = null) =>
+        AddOrUpdateTranslation(LanguageCode.From(languageCode), title, overview);
 
     public void RemoveTranslation(LanguageCode languageCode)
     {

@@ -244,7 +244,7 @@ public class EpisodeEndpointsIntegrationTests : CatalogIntegrationTestBase
         var postResponse = await Client.PostAsJsonAsync("api/catalog/episodes", createRequest);
         var episodeId = await postResponse.Content.ReadFromJsonAsync<Guid>();
 
-        Guid platformId = Guid.Empty;
+        var platformId = Guid.Empty;
         await ExecuteDbContextAsync(async context =>
         {
             platformId = (await context.Platforms.FirstAsync(p => p.Slug == "netflix")).Id;

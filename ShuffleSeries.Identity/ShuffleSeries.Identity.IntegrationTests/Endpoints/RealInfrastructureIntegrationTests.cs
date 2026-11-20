@@ -2,8 +2,12 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using ShuffleSeries.Identity.Api.Contracts.Requests.Auth;
 using ShuffleSeries.Identity.Application.Features.Auth.Responses;
+using ShuffleSeries.Identity.Infrastructure.BackgroundJobs;
+using ShuffleSeries.Identity.Infrastructure.Persistence;
 using ShuffleSeries.Identity.IntegrationTests.Infrastructure;
 
 namespace ShuffleSeries.Identity.IntegrationTests.Endpoints;
@@ -101,6 +105,42 @@ public class RealInfrastructureIntegrationTests : IdentityIntegrationTestBase
             var result = await cmd.ExecuteScalarAsync();
             var count = Convert.ToInt64(result);
             count.Should().Be(0, "Low-cardinality index IX_Users_Status should be removed from Users table.");
+        });
+    }
+
+    [Fact]
+    public async Task PurgeAbandonedGuestAccountsJob_ShouldDeleteOnlyAbandonedOldGuestsInRealPostgres()
+    {
+        // Arrange: 1 abandoned old guest (>60d), 1 fresh guest, 1 old standard user
+        var abandonedGuest = Domain.Entities.User.CreateGuest();
+        var recentGuest = Domain.Entities.User.CreateGuest();
+        var oldStandardUser = Domain.Entities.User.CreateStandard("keep.standard@shuffleseries.com", "hashed_pw");
+
+        await ExecuteDbContextAsync(async db =>
+        {
+            db.Users.AddRange(abandonedGuest, recentGuest, oldStandardUser);
+            await db.SaveChangesAsync();
+
+            var oldTimestamp = DateTime.UtcNow.AddDays(-(PurgeAbandonedGuestAccountsJob.InactiveDaysThreshold + 5));
+            await db.Users
+                .Where(u => u.Id == abandonedGuest.Id || u.Id == oldStandardUser.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.CreatedAtUtc, oldTimestamp));
+        });
+
+        // Act
+        using var scope = Factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<PurgeAbandonedGuestAccountsJob>>();
+        var job = new PurgeAbandonedGuestAccountsJob(dbContext, TimeProvider.System, logger);
+
+        await job.ExecuteAsync(CancellationToken.None);
+
+        // Assert
+        await ExecuteDbContextAsync(async db =>
+        {
+            (await db.Users.AnyAsync(u => u.Id == abandonedGuest.Id)).Should().BeFalse();
+            (await db.Users.AnyAsync(u => u.Id == recentGuest.Id)).Should().BeTrue();
+            (await db.Users.AnyAsync(u => u.Id == oldStandardUser.Id)).Should().BeTrue();
         });
     }
 }

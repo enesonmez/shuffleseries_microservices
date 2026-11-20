@@ -6,50 +6,48 @@ using Wolverine;
 
 namespace ShuffleSeries.Identity.Tests.Application.Messaging;
 
-public record PingIdentityCommand(string Username);
-public record SlowIdentityCommand(int DelayMs);
-public record FailingIdentityCommand;
-
-public class TestIdentityPipelineHandler
-{
-    public string Handle(PingIdentityCommand cmd) => $"Pong: {cmd.Username}";
-
-    public async Task<string> Handle(SlowIdentityCommand cmd)
-    {
-        await Task.Delay(cmd.DelayMs);
-        return "Done";
-    }
-
-    public void Handle(FailingIdentityCommand cmd)
-    {
-        throw new InvalidOperationException("Simulated Identity Failure");
-    }
-}
-
-public sealed class TestLogSink : ILoggerProvider, ILogger
-{
-    public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = new();
-
-    public ILogger CreateLogger(string categoryName) => this;
-
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-    {
-        var msg = formatter(state, exception);
-        lock (Entries)
-        {
-            Entries.Add((logLevel, msg, exception));
-        }
-    }
-
-    public bool IsEnabled(LogLevel logLevel) => true;
-
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-    public void Dispose() { }
-}
-
 public class IdentityMessagingPipelineIntegrationTests
 {
+    public sealed record PingIdentityCommand(string Username);
+    public sealed record SlowIdentityCommand(int DelayMs);
+    public sealed record FailingIdentityCommand;
+
+    public sealed class TestIdentityPipelineHandler
+    {
+        public static string Handle(PingIdentityCommand cmd) => $"Pong: {cmd.Username}";
+
+        public static async Task<string> Handle(SlowIdentityCommand cmd)
+        {
+            await Task.Delay(cmd.DelayMs);
+            return "Done";
+        }
+
+        public static void Handle(FailingIdentityCommand cmd) =>
+            throw new InvalidOperationException("Simulated Identity Failure");
+    }
+
+    private sealed class TestLogSink : ILoggerProvider, ILogger
+    {
+        public List<(LogLevel Level, string Message, Exception? Exception)> Entries { get; } = [];
+
+        public ILogger CreateLogger(string categoryName) => this;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            var msg = formatter(state, exception);
+            lock (Entries)
+            {
+                Entries.Add((logLevel, msg, exception));
+            }
+        }
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public void Dispose() { }
+    }
+
     [Fact]
     public async Task IdentityPipeline_WhenCommandSucceeds_ShouldEmitInformationLogViaLoggingMiddleware()
     {

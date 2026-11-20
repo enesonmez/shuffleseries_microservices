@@ -105,10 +105,8 @@ public partial class Mood : AggregateRoot
         string languageCode,
         string name,
         string description,
-        string? vibeTags = null)
-    {
-        return AddOrUpdateTranslation(LanguageCode.From(languageCode), name, description, vibeTags);
-    }
+        string? vibeTags = null) =>
+        AddOrUpdateTranslation(LanguageCode.From(languageCode), name, description, vibeTags);
 
     public void RemoveTranslation(LanguageCode languageCode)
     {

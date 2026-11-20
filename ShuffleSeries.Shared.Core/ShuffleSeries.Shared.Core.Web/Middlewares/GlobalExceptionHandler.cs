@@ -31,11 +31,26 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
 
         if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
         {
-            _logger.LogDebug("Request was canceled by the client: {Path}. TraceId: {TraceId}", httpContext.Request.Path, traceId);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("Request was canceled by the client: {Path}. TraceId: {TraceId}", httpContext.Request.Path, traceId);
+            }
             httpContext.Response.StatusCode = 499; // Client Closed Request
             return true;
         }
 
+        LogException(httpContext, exception, traceId);
+
+        await ProblemDetailsWriter.WriteAsync(
+            httpContext,
+            CreateProblemDescriptor(exception),
+            cancellationToken);
+
+        return true;
+    }
+
+    private void LogException(HttpContext httpContext, Exception exception, string traceId)
+    {
         var correlationContext = httpContext.RequestServices?.GetService(typeof(Correlation.ICorrelationIdContext))
             as Correlation.ICorrelationIdContext;
         var correlationId = correlationContext?.CorrelationId ?? "N/A";
@@ -46,13 +61,28 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
             {
                 _logger.LogWarning("Bad HTTP request: {Message}. TraceId: {TraceId}", exception.Message, traceId);
             }
+            return;
         }
-        else if (_logger.IsEnabled(LogLevel.Error))
+
+        if (exception is FluentValidation.ValidationException)
+        {
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning("Validation failed for request {Path}. CorrelationId: {CorrelationId}, TraceId: {TraceId}",
+                    httpContext.Request.Path, correlationId, traceId);
+            }
+            return;
+        }
+
+        if (_logger.IsEnabled(LogLevel.Error))
         {
             _logger.LogError(exception, "An unhandled exception occurred: {Message}. CorrelationId: {CorrelationId}, TraceId: {TraceId}",
                 exception.Message, correlationId, traceId);
         }
+    }
 
+    private static ProblemDetailsDescriptor CreateProblemDescriptor(Exception exception)
+    {
         int status;
         string title;
         string detail;
@@ -94,23 +124,19 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
                 break;
         }
 
-        await ProblemDetailsWriter.WriteAsync(
-            httpContext,
+        return new ProblemDetailsDescriptor(
             status,
             title,
             detail,
             code,
             GetRfcTypeForStatus(status),
-            configure: problem =>
+            problem =>
             {
                 if (errors is not null)
                 {
                     problem.Extensions["errors"] = errors;
                 }
-            },
-            cancellationToken: cancellationToken);
-
-        return true;
+            });
     }
 
     private static string GetRfcTypeForStatus(int statusCode) => statusCode switch

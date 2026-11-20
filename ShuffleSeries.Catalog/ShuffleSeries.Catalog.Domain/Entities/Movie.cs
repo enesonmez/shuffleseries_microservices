@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Events;
 
@@ -8,10 +9,7 @@ public class Movie : Media
     public int RuntimeMinutes { get; private set; }
     public string? Director { get; private set; }
 
-    private Movie() : base()
-    {
-        MediaType = MediaType.Movie;
-    }
+    private Movie() : base(MediaType.Movie) { }
 
     private Movie(
         Guid id,
@@ -33,6 +31,7 @@ public class Movie : Media
         Director = string.IsNullOrWhiteSpace(director) ? null : director.Trim();
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Domain factory preserves explicit parameter list without an intermediate parameter object.")]
     public static Movie Create(
         int tmdbId,
         string imdbId,
@@ -61,6 +60,7 @@ public class Movie : Media
         return movie;
     }
 
+    [SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Domain aggregate update method preserves explicit invariant arguments for readability and handler clarity.")]
     public void UpdateDetails(
         int tmdbId,
         string imdbId,

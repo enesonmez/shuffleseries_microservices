@@ -1,3 +1,4 @@
+using ShuffleSeries.Catalog.Application.Common.Models;
 using ShuffleSeries.Catalog.Application.Common.Services;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Exceptions;
@@ -59,9 +60,7 @@ public sealed class CreateMovieCommandHandler
 
         await MediaTaxonomyApplier.ApplyAsync(
             movie,
-            request.PlatformIds,
-            request.MoodIds,
-            request.GenreIds,
+            new MediaTaxonomySelection(request.PlatformIds, request.MoodIds, request.GenreIds),
             _platformRepository,
             _moodRepository,
             _genreRepository,

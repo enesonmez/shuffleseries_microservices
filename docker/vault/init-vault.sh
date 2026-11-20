@@ -34,7 +34,7 @@ vault kv put -mount=secret shuffleseries/shared \
   "Logging:Sinks:PostgreSql:TableName=${LOGGING_POSTGRESQL_TABLE:-AppLogs}" \
   "OpenTelemetry:Enabled=${OTEL_ENABLED:-true}" \
   "OpenTelemetry:OtlpEndpoint=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}" \
-  "Cors:AllowedOrigins=${CORS_ALLOWED_ORIGINS:-*}" \
+  "Cors:AllowedOrigins=${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5001}" \
   "ForwardedHeaders:KnownProxies:0=${FORWARDED_HEADERS_KNOWN_PROXIES:-127.0.0.1}"
 
 # 2. Catalog Service Specific Secrets & Config

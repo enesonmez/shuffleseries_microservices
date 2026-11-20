@@ -37,8 +37,5 @@ public class RefreshToken : BaseEntity
         ReplacedByTokenHash = replacedByTokenHash;
     }
 
-    public void ScrubCreatedByIp()
-    {
-        CreatedByIp = null;
-    }
+    public void ScrubCreatedByIp() => CreatedByIp = null;
 }

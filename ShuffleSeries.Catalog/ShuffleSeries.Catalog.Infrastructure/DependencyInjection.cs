@@ -22,7 +22,7 @@ namespace ShuffleSeries.Catalog.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         // ==========================================
         // POSTGRESQL KONFİGÜRASYONU
@@ -82,6 +82,8 @@ public static class DependencyInjection
         services.AddScoped<IMoodRepository, MoodRepository>();
         services.AddScoped<IGenreRepository, GenreRepository>();
         services.AddScoped<IEpisodeRepository, EpisodeRepository>();
+
+        return services;
     }
 
     public static void AddCatalogMessagingTransport(this WolverineOptions opts, IConfiguration configuration)

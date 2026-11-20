@@ -19,31 +19,32 @@ public static class ReverseProxyExtensions
             proxyPipeline.Use(async (context, next) =>
             {
                 await next();
-
-                var errorFeature = context.GetForwarderErrorFeature();
-                if (errorFeature is not null && !context.Response.HasStarted)
-                {
-                    var statusCode = errorFeature.Error switch
-                    {
-                        ForwarderError.NoAvailableDestinations => StatusCodes.Status503ServiceUnavailable,
-                        ForwarderError.RequestTimedOut => StatusCodes.Status504GatewayTimeout,
-                        _ => StatusCodes.Status502BadGateway
-                    };
-
-                    var title = statusCode == StatusCodes.Status503ServiceUnavailable
-                        ? "Service Unavailable"
-                        : statusCode == StatusCodes.Status504GatewayTimeout
-                            ? "Gateway Timeout"
-                            : "Bad Gateway";
-
-                    await ProblemDetailsWriter.WriteAsync(
-                        context,
-                        statusCode,
-                        title,
-                        "The upstream microservice is temporarily unreachable or taking too long to respond.",
-                        "DOWNSTREAM_SERVICE_UNAVAILABLE");
-                }
+                await WriteForwarderErrorIfPresentAsync(context);
             });
         });
+    }
+
+    private static async Task WriteForwarderErrorIfPresentAsync(HttpContext context)
+    {
+        var errorFeature = context.GetForwarderErrorFeature();
+        if (errorFeature is null || context.Response.HasStarted)
+        {
+            return;
+        }
+
+        var (statusCode, title) = errorFeature.Error switch
+        {
+            ForwarderError.NoAvailableDestinations => (StatusCodes.Status503ServiceUnavailable, "Service Unavailable"),
+            ForwarderError.RequestTimedOut => (StatusCodes.Status504GatewayTimeout, "Gateway Timeout"),
+            _ => (StatusCodes.Status502BadGateway, "Bad Gateway")
+        };
+
+        await ProblemDetailsWriter.WriteAsync(
+            context,
+            new ProblemDetailsDescriptor(
+                statusCode,
+                title,
+                "The upstream microservice is temporarily unreachable or taking too long to respond.",
+                "DOWNSTREAM_SERVICE_UNAVAILABLE"));
     }
 }

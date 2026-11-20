@@ -222,4 +222,36 @@ public class EpisodeTests
         episode.GetDomainEvents().Should().ContainSingle(e => e is EpisodeDeletedDomainEvent)
             .Which.Should().BeEquivalentTo(new EpisodeDeletedDomainEvent(episode.Id));
     }
+
+    [Fact]
+    public void AddOrUpdateTranslation_Should_UpdateExistingTranslation_ValidateTitle_AndIgnoreNullRemove()
+    {
+        var series = Series.Create(42009, "tt2085059", 2011, SeriesType.EpisodicAnthology, "https://example.com/bm.jpg");
+        var episode = series.AddEpisode(1, 1);
+
+        var emptyTitle = () => episode.AddOrUpdateTranslation("en", " ", "Overview");
+        emptyTitle.Should().Throw<ArgumentException>();
+
+        episode.AddOrUpdateTranslation("en", "Initial Title", "Initial Overview");
+        episode.AddOrUpdateTranslation("en", "Updated Title", "Updated Overview");
+
+        episode.Translations.Should().ContainSingle(t =>
+            t.Title == "Updated Title" && t.Overview == "Updated Overview");
+
+        episode.RemoveTranslation((LanguageCode)null!);
+        episode.Translations.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData(-0.1)]
+    [InlineData(10.1)]
+    public void AddEpisode_Should_ThrowArgumentOutOfRangeException_When_ImdbRatingIsInvalid(double invalidRating)
+    {
+        var series = Series.Create(42009, "tt2085059", 2011, SeriesType.EpisodicAnthology, "https://example.com/bm.jpg");
+
+        var action = () => series.AddEpisode(1, 1, imdbRating: invalidRating);
+
+        action.Should().Throw<ArgumentOutOfRangeException>()
+            .WithMessage("*IMDb rating must be between 0.0 and 10.0.*");
+    }
 }

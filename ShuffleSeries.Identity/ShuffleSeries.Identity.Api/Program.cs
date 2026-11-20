@@ -26,7 +26,10 @@ builder.Configuration.AddVault("identity");
 builder.Host.UseWolverine(opts =>
 {
     opts.AddIdentityApplicationMessaging();
-    opts.AddIdentityMessagingTransport(builder.Configuration);
+});
+builder.Host.ConfigureServices((context, services) =>
+{
+    services.ConfigureWolverine(opts => opts.AddIdentityMessagingTransport(context.Configuration));
 });
 
 // Add Distributed Correlation ID Tracking

@@ -25,21 +25,13 @@ public class GetAdminMediaListQueryHandlerTests
         movie.AddOrUpdateTranslation("tr", "Test Film", "Özet");
 
         _mediaRepositoryMock.Setup(x => x.GetAdminMediaPagedListAsync(
-                It.IsAny<MediaType?>(),
-                It.IsAny<string?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<bool>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>(),
+                It.IsAny<AdminMediaFilter>(),
                 1,
                 10,
-                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(([movie], 1));
 
-        var query = new GetAdminMediaListQuery(pageNumber: 1, pageSize: 10);
+        var query = new GetAdminMediaListQuery { PageNumber = 1, PageSize = 10 };
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
@@ -58,21 +50,13 @@ public class GetAdminMediaListQueryHandlerTests
         movie.AddOrUpdateTranslation("en", "English Title", "English Overview");
 
         _mediaRepositoryMock.Setup(x => x.GetAdminMediaPagedListAsync(
-                It.IsAny<MediaType?>(),
-                It.IsAny<string?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<bool>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>(),
+                It.IsAny<AdminMediaFilter>(),
                 1,
                 10,
-                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(([movie], 1));
 
-        var query = new GetAdminMediaListQuery(language: "en");
+        var query = new GetAdminMediaListQuery { Language = "en" };
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
@@ -90,21 +74,13 @@ public class GetAdminMediaListQueryHandlerTests
         movie.AddOrUpdateTranslation("en", "English Title", "English Overview");
 
         _mediaRepositoryMock.Setup(x => x.GetAdminMediaPagedListAsync(
-                It.IsAny<MediaType?>(),
-                It.IsAny<string?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<bool>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>(),
+                It.IsAny<AdminMediaFilter>(),
                 1,
                 10,
-                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(([movie], 1));
 
-        var query = new GetAdminMediaListQuery(language: null);
+        var query = new GetAdminMediaListQuery { Language = null };
 
         var result = await _handler.Handle(query, CancellationToken.None);
 
@@ -131,17 +107,9 @@ public class GetAdminMediaListQueryHandlerTests
         typeof(MediaGenre).GetProperty(nameof(MediaGenre.Genre))?.SetValue(movie.MediaGenres.First(), genre);
 
         _mediaRepositoryMock.Setup(x => x.GetAdminMediaPagedListAsync(
-                It.IsAny<MediaType?>(),
-                It.IsAny<string?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<bool>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>(),
+                It.IsAny<AdminMediaFilter>(),
                 1,
                 10,
-                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(([movie], 1));
 
@@ -162,17 +130,9 @@ public class GetAdminMediaListQueryHandlerTests
         // Translation eklenmedi
 
         _mediaRepositoryMock.Setup(x => x.GetAdminMediaPagedListAsync(
-                It.IsAny<MediaType?>(),
-                It.IsAny<string?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<bool>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>(),
+                It.IsAny<AdminMediaFilter>(),
                 1,
                 10,
-                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(([movie], 1));
 
@@ -188,17 +148,9 @@ public class GetAdminMediaListQueryHandlerTests
     public async Task Handle_WhenRepositoryReturnsEmpty_Should_ReturnEmptyPaginatedList()
     {
         _mediaRepositoryMock.Setup(x => x.GetAdminMediaPagedListAsync(
-                It.IsAny<MediaType?>(),
-                It.IsAny<string?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<Guid?>(),
-                It.IsAny<bool>(),
-                It.IsAny<string?>(),
-                It.IsAny<bool>(),
+                It.IsAny<AdminMediaFilter>(),
                 1,
                 10,
-                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(([], 0));
 
@@ -217,48 +169,46 @@ public class GetAdminMediaListQueryHandlerTests
         var platformId = Guid.NewGuid();
         var moodId = Guid.NewGuid();
         var genreId = Guid.NewGuid();
+        var expectedFilter = new AdminMediaFilter
+        {
+            MediaType = MediaType.Movie,
+            Search = "Inception",
+            PlatformId = platformId,
+            MoodId = moodId,
+            GenreId = genreId,
+            IsDeleted = true,
+            SortBy = "imdbRating",
+            SortDescending = false,
+            TargetLanguage = "tr"
+        };
 
         _mediaRepositoryMock.Setup(x => x.GetAdminMediaPagedListAsync(
-                MediaType.Movie,
-                "Inception",
-                platformId,
-                moodId,
-                genreId,
-                true,
-                "imdbRating",
-                false,
+                expectedFilter,
                 2,
                 25,
-                "tr",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(([], 0));
 
-        var query = new GetAdminMediaListQuery(
-            mediaType: MediaType.Movie,
-            search: "Inception",
-            platformId: platformId,
-            moodId: moodId,
-            genreId: genreId,
-            pageNumber: 2,
-            pageSize: 25,
-            isDeleted: true,
-            sortBy: "imdbRating",
-            sortDescending: false);
+        var query = new GetAdminMediaListQuery
+        {
+            MediaType = MediaType.Movie,
+            Search = "Inception",
+            PlatformId = platformId,
+            MoodId = moodId,
+            GenreId = genreId,
+            PageNumber = 2,
+            PageSize = 25,
+            IsDeleted = true,
+            SortBy = "imdbRating",
+            SortDescending = false
+        };
 
         await _handler.Handle(query, CancellationToken.None);
 
         _mediaRepositoryMock.Verify(x => x.GetAdminMediaPagedListAsync(
-            MediaType.Movie,
-            "Inception",
-            platformId,
-            moodId,
-            genreId,
-            true,
-            "imdbRating",
-            false,
+            expectedFilter,
             2,
             25,
-            "tr",
             It.IsAny<CancellationToken>()), Times.Once);
     }
 }

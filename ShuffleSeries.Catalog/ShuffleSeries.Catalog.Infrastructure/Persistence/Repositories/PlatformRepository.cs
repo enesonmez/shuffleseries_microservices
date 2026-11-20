@@ -38,8 +38,9 @@ internal sealed class PlatformRepository : IPlatformRepository
         if (string.IsNullOrWhiteSpace(slug))
             return false;
 
+        var normalizedSlug = slug.Trim().ToLowerInvariant();
         return await _context.Platforms
-            .AnyAsync(x => x.Slug == slug.Trim().ToLowerInvariant(), cancellationToken);
+            .AnyAsync(x => x.Slug == normalizedSlug, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Platform>> GetActivePlatformsAsync(CancellationToken cancellationToken = default) =>

@@ -86,11 +86,10 @@ public class LocalizationExtensionsTests
             "https://example.com/icon.png",
             1,
             true,
-            new List<CachedMoodTranslationItem>
-            {
+            [
                 new("tr", "Sakin", "Sakin mod", "rahat,huzurlu"),
                 new("en", "Chill", "Chill mode", "relaxed,peaceful")
-            });
+            ]);
 
         // Act
         var result = cachedMood.GetLocalizedTranslation("en");
@@ -113,10 +112,9 @@ public class LocalizationExtensionsTests
             "https://example.com/icon.png",
             1,
             true,
-            new List<CachedMoodTranslationItem>
-            {
+            [
                 new("tr", "Sakin", "Sakin mod", "rahat,huzurlu")
-            });
+            ]);
 
         // Act
         var result = cachedMood.GetLocalizedTranslation("de");
@@ -136,11 +134,10 @@ public class LocalizationExtensionsTests
             "action",
             1,
             true,
-            new List<CachedGenreTranslationItem>
-            {
+            [
                 new("tr", "Aksiyon", "Aksiyon açıklaması"),
                 new("en", "Action", "Action description")
-            });
+            ]);
 
         // Act
         var result = cachedGenre.GetLocalizedTranslation("en");
@@ -160,10 +157,9 @@ public class LocalizationExtensionsTests
             "action",
             1,
             true,
-            new List<CachedGenreTranslationItem>
-            {
+            [
                 new("fr", "Action FR", "Description FR")
-            });
+            ]);
 
         // Act
         var result = cachedGenre.GetLocalizedTranslation("de");

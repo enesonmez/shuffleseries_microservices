@@ -83,7 +83,10 @@ internal sealed class RedisCatalogCacheService : ICatalogCacheService
             }
             catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
             {
-                _logger.LogWarning(ex, "Redis cache write failed for key {CacheKey}. Continuing with DB value.", formattedKey);
+                if (_logger.IsEnabled(LogLevel.Warning))
+                {
+                    _logger.LogWarning(ex, "Redis cache write failed for key {CacheKey}. Continuing with DB value.", formattedKey);
+                }
             }
 
             return value;
@@ -104,7 +107,10 @@ internal sealed class RedisCatalogCacheService : ICatalogCacheService
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
         {
-            _logger.LogWarning(ex, "Redis cache key removal failed for key {CacheKey}.", formattedKey);
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(ex, "Redis cache key removal failed for key {CacheKey}.", formattedKey);
+            }
         }
     }
 
@@ -127,7 +133,10 @@ internal sealed class RedisCatalogCacheService : ICatalogCacheService
         }
         catch (Exception ex) when (ex is RedisException or TimeoutException or System.Net.Sockets.SocketException)
         {
-            _logger.LogWarning(ex, "Redis cache {Stage} read failed for key {CacheKey}.", stage, formattedKey);
+            if (_logger.IsEnabled(LogLevel.Warning))
+            {
+                _logger.LogWarning(ex, "Redis cache {Stage} read failed for key {CacheKey}.", stage, formattedKey);
+            }
         }
 
         return (false, default);

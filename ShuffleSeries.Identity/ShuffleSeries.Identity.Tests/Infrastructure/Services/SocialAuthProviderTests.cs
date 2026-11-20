@@ -310,4 +310,49 @@ public class SocialAuthProviderTests
         var ex = await act.Should().ThrowAsync<InvalidOperationException>();
         ex.Which.Message.Should().Contain("bypass is forbidden outside development or testing environments");
     }
+
+    [Fact]
+    public void Dispose_ShouldReleaseResourcesWithoutThrowing()
+    {
+        var provider = CreateGoogleProvider();
+
+        var act = () =>
+        {
+            provider.Dispose();
+            provider.Dispose();
+        };
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task ValidateTokenAsync_WhenValidateSignaturesIsTrueAndClientIdMissing_ShouldReturnNull()
+    {
+        var strictOptions = Options.Create(new ExternalAuthOptions
+        {
+            ValidateSignatures = true
+        });
+        using var provider = new GoogleAuthProvider(_httpClientFactory, strictOptions, environment: CreateEnvironment("Production"));
+
+        var result = await provider.ValidateTokenAsync("some.jwt.token");
+
+        result.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("mock_sub123:user@example.com", "sub123", "user@example.com")]
+    [InlineData("mock:custom@example.com", "mock", "custom@example.com")]
+    public async Task ValidateTokenAsync_WhenMockTokenHasTwoParts_ShouldParseSubjectAndEmail(
+        string mockToken,
+        string expectedSubject,
+        string expectedEmail)
+    {
+        using var provider = CreateGoogleProvider();
+
+        var result = await provider.ValidateTokenAsync(mockToken);
+
+        result.Should().NotBeNull();
+        result!.SubjectId.Should().Be(expectedSubject);
+        result.Email.Should().Be(expectedEmail);
+    }
 }

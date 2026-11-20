@@ -135,27 +135,27 @@ class ScaffoldEngine:
 namespace {prefix}.Domain.Entities;
 
 public class {s}Item : AggregateRoot
-{s_open(1)}
-    private {s}Item() {s_open(2)}{s_close(2)}
+{s_open()}
+    private {s}Item() {s_open()}{s_close()}
 
     public {s}Item(Guid id, string name) : base(id)
-    {s_open(2)}
+    {s_open()}
         Name = name;
-    {s_close(2)}
+    {s_close()}
 
-    public string Name {s_open(2)} get; private set; {s_close(2)} = string.Empty;
-{s_close(1)}
+    public string Name {s_open()} get; private set; {s_close()} = string.Empty;
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Domain/Exceptions/{s}ItemNotFoundException.cs"] = f"""using ShuffleSeries.Shared.Core.Exceptions;
 
 namespace {prefix}.Domain.Exceptions;
 
 public sealed class {s}ItemNotFoundException : NotFoundException
-{s_open(1)}
+{s_open()}
     public {s}ItemNotFoundException(Guid id) 
         : base("{s}Item", id)
-    {s_open(2)}{s_close(2)}
-{s_close(1)}
+    {s_open()}{s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Domain/Events/{s}ItemCreatedDomainEvent.cs"] = f"""using ShuffleSeries.Shared.Core.Domain.Primitives;
 
@@ -170,10 +170,10 @@ using {prefix}.Domain.Entities;
 namespace {prefix}.Domain.Repositories;
 
 public interface I{s}Repository : IRepository
-{s_open(1)}
+{s_open()}
     Task<{s}Item?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task AddAsync({s}Item item, CancellationToken cancellationToken = default);
-{s_close(1)}
+{s_close()}
 """
 
         # -------------------------------------------------------------
@@ -225,19 +225,19 @@ using Wolverine.FluentValidation;
 namespace {prefix}.Application;
 
 public static class DependencyInjection
-{s_open(1)}
+{s_open()}
     public static IServiceCollection AddApplication(this IServiceCollection services)
-    {s_open(2)}
+    {s_open()}
         var assembly = typeof(DependencyInjection).Assembly;
 
         services.AddSharedApplication();
         services.AddValidatorsFromAssembly(assembly);
 
         return services;
-    {s_close(2)}
+    {s_close()}
 
     public static WolverineOptions Add{s}ApplicationMessaging(this WolverineOptions opts)
-    {s_open(2)}
+    {s_open()}
         opts.UseFluentValidation();
         opts.Discovery.IncludeAssembly(typeof(DependencyInjection).Assembly);
         opts.RestoreV5Defaults();
@@ -245,16 +245,16 @@ public static class DependencyInjection
         opts.Policies.AddMiddleware(typeof(LoggingMiddleware));
 
         return opts;
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Application/Common/Interfaces/I{s}CacheService.cs"] = f"""namespace {prefix}.Application.Common.Interfaces;
 
 public interface I{s}CacheService
-{s_open(1)}
+{s_open()}
     Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default);
     Task SetAsync<T>(string key, T value, TimeSpan? ttl = null, CancellationToken cancellationToken = default);
-{s_close(1)}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Application/Features/{s}Items/Commands/Create{s}Item/Create{s}ItemCommand.cs"] = f"""namespace {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
 
@@ -265,14 +265,14 @@ public sealed record Create{s}ItemCommand(string Name);
 namespace {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
 
 public sealed class Create{s}ItemCommandValidator : AbstractValidator<Create{s}ItemCommand>
-{s_open(1)}
+{s_open()}
     public Create{s}ItemCommandValidator()
-    {s_open(2)}
+    {s_open()}
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Name is required.")
             .MaximumLength(100).WithMessage("Name cannot exceed 100 characters.");
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Application/Features/{s}Items/Commands/Create{s}Item/Create{s}ItemCommandHandler.cs"] = f"""using {prefix}.Domain.Entities;
 using {prefix}.Domain.Repositories;
@@ -282,15 +282,15 @@ using ShuffleSeries.Shared.Core.Domain.Repositories;
 namespace {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
 
 public sealed class Create{s}ItemCommandHandler(I{s}Repository repository, IUnitOfWork unitOfWork)
-{s_open(1)}
+{s_open()}
     public async Task<Guid> Handle(Create{s}ItemCommand request, CancellationToken cancellationToken)
-    {s_open(2)}
+    {s_open()}
         var item = new {s}Item(Guid.NewGuid(), request.Name);
         await repository.AddAsync(item, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return item.Id;
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
 
         # -------------------------------------------------------------
@@ -351,22 +351,22 @@ using {prefix}.Infrastructure.Persistence.Repositories;
 namespace {prefix}.Infrastructure;
 
 public static class DependencyInjection
-{s_open(1)}
+{s_open()}
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
-    {s_open(2)}
+    {s_open()}
         var connectionString = configuration.GetConnectionString("Database")
             ?? throw new InvalidOperationException("Connection string 'Database' was not found.");
 
         services.AddSharedInfrastructure();
 
         services.AddDbContext<{s}DbContext>((sp, options) =>
-        {s_open(3)}
+        {s_open()}
             options.UseNpgsql(connectionString)
                    .AddInterceptors(
                        sp.GetRequiredService<AuditableEntityInterceptor>(),
                        sp.GetRequiredService<SoftDeleteInterceptor>(),
                        sp.GetRequiredService<InsertOutboxMessagesInterceptor>());
-        {s_close(3)});
+        {s_close()});
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<{s}DbContext>());
         services.AddScoped<I{s}Repository, {s}Repository>();
@@ -377,10 +377,10 @@ public static class DependencyInjection
             .AddWolverine(tags: ["messaging", "wolverine", "ready"]);
 
         return services;
-    {s_close(2)}
+    {s_close()}
 
     public static void Add{s}MessagingTransport(this WolverineOptions opts, IConfiguration configuration)
-    {s_open(2)}
+    {s_open()}
         var rabbitMqConnectionString = configuration.GetConnectionString("RabbitMQ")
             ?? configuration["RabbitMQ:ConnectionString"]
             ?? "amqp://guest:guest@localhost:5672";
@@ -393,8 +393,8 @@ public static class DependencyInjection
             rule.MessagesImplementing<IIntegrationEvent>()
                 .ToRabbitExchange("shuffleseries.{s_lower}");
         }});
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Infrastructure/Persistence/{s}DbContext.cs"] = f"""using Microsoft.EntityFrameworkCore;
 using {prefix}.Domain.Entities;
@@ -406,27 +406,27 @@ using ShuffleSeries.Shared.Core.Infrastructure.Persistence.Extensions;
 namespace {prefix}.Infrastructure.Persistence;
 
 public class {s}DbContext(DbContextOptions<{s}DbContext> options) : DbContext(options), IUnitOfWork
-{s_open(1)}
+{s_open()}
     public DbSet<{s}Item> {s}Items => Set<{s}Item>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {s_open(2)}
+    {s_open()}
         modelBuilder.ApplyConfigurationsFromAssembly(typeof({s}DbContext).Assembly);
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
         modelBuilder.ApplySoftDeleteQueryFilters();
         base.OnModelCreating(modelBuilder);
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Infrastructure/Persistence/{s}DbSeeder.cs"] = f"""namespace {prefix}.Infrastructure.Persistence;
 
 public static class {s}DbSeeder
-{s_open(1)}
+{s_open()}
     public static async Task SeedAsync({s}DbContext context, CancellationToken cancellationToken = default)
-    {s_open(2)}
+    {s_open()}
         await context.SaveChangesAsync(cancellationToken);
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Infrastructure/Persistence/Configurations/{s}ItemConfiguration.cs"] = f"""using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -435,14 +435,14 @@ using {prefix}.Domain.Entities;
 namespace {prefix}.Infrastructure.Persistence.Configurations;
 
 internal sealed class {s}ItemConfiguration : IEntityTypeConfiguration<{s}Item>
-{s_open(1)}
+{s_open()}
     public void Configure(EntityTypeBuilder<{s}Item> builder)
-    {s_open(2)}
+    {s_open()}
         builder.ToTable("{s}Items");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Infrastructure/Persistence/Repositories/{s}Repository.cs"] = f"""using Microsoft.EntityFrameworkCore;
 using {prefix}.Domain.Entities;
@@ -451,17 +451,17 @@ using {prefix}.Domain.Repositories;
 namespace {prefix}.Infrastructure.Persistence.Repositories;
 
 internal sealed class {s}Repository({s}DbContext context) : I{s}Repository
-{s_open(1)}
+{s_open()}
     public async Task<{s}Item?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-    {s_open(2)}
+    {s_open()}
         return await context.{s}Items.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-    {s_close(2)}
+    {s_close()}
 
     public async Task AddAsync({s}Item item, CancellationToken cancellationToken = default)
-    {s_open(2)}
+    {s_open()}
         await context.{s}Items.AddAsync(item, cancellationToken);
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
 
         # -------------------------------------------------------------
@@ -515,9 +515,9 @@ using {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
 namespace {prefix}.Api.Endpoints;
 
 public static class {s}Endpoints
-{s_open(1)}
+{s_open()}
     public static void Map{s}Endpoints(this IEndpointRouteBuilder app)
-    {s_open(2)}
+    {s_open()}
         var group = app.MapGroup("api/{s.lower()}-items")
             .WithTags("{s} Items");
 
@@ -525,17 +525,17 @@ public static class {s}Endpoints
             [FromBody] Create{s}ItemRequest request,
             IMessageBus bus,
             CancellationToken ct) =>
-        {s_open(3)}
+        {s_open()}
             var command = new Create{s}ItemCommand(request.Name);
             var id = await bus.InvokeAsync<Guid>(command, ct);
-            return Results.Created($"/api/{s.lower()}-items/{{id}}", new {s_open(4)} Id = id {s_close(4)});
-        {s_close(3)})
+            return Results.Created($"/api/{s.lower()}-items/{{id}}", new {s_open()} Id = id {s_close()});
+        {s_close()})
         .WithName("Create{s}Item")
         .WithSummary("Creates a new {s} item.")
         .Produces(StatusCodes.Status201Created)
         .ProducesProblem(StatusCodes.Status400BadRequest);
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Api/Program.cs"] = f"""using Wolverine;
 using {prefix}.Api.Endpoints;
@@ -562,7 +562,10 @@ builder.Configuration.AddVault("{s.lower()}");
 builder.Host.UseWolverine(opts =>
 {{
     opts.Add{s}ApplicationMessaging();
-    opts.Add{s}MessagingTransport(builder.Configuration);
+}});
+builder.Host.ConfigureServices((context, services) =>
+{{
+    services.ConfigureWolverine(opts => opts.Add{s}MessagingTransport(context.Configuration));
 }});
 
 builder.Services.AddSharedCorrelation();
@@ -636,29 +639,29 @@ public partial class Program
   }}
 }}
 """
-        manifest[f"{prefix}/{prefix}.Api/appsettings.json"] = f"""{{
-  "Logging": {{
-    "LogLevel": {{
+        manifest[f"{prefix}/{prefix}.Api/appsettings.json"] = """{
+  "Logging": {
+    "LogLevel": {
       "Default": "Information",
       "Microsoft.AspNetCore": "Warning"
-    }}
-  }},
+    }
+  },
   "AllowedHosts": "*",
-  "Vault": {{
+  "Vault": {
     "Enabled": true,
     "MountPoint": "secret",
     "Optional": true
-  }}
-}}
+  }
+}
 """
-        manifest[f"{prefix}/{prefix}.Api/appsettings.Development.json"] = f"""{{
-  "Logging": {{
-    "LogLevel": {{
+        manifest[f"{prefix}/{prefix}.Api/appsettings.Development.json"] = """{
+  "Logging": {
+    "LogLevel": {
       "Default": "Debug",
       "Microsoft.AspNetCore": "Information"
-    }}
-  }}
-}}
+    }
+  }
+}
 """
         manifest[f"{prefix}/{prefix}.Api/Dockerfile"] = f"""FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 USER app
@@ -756,18 +759,18 @@ using {prefix}.Application;
 namespace {prefix}.Tests.Application;
 
 public class DependencyInjectionTests
-{s_open(1)}
+{s_open()}
     [Fact]
     public void AddApplication_ShouldRegisterValidatorsAndApplicationServices()
-    {s_open(2)}
+    {s_open()}
         var services = new ServiceCollection();
         services.AddLogging();
 
         services.AddApplication();
 
         services.Any(s => typeof(IValidator).IsAssignableFrom(s.ServiceType)).Should().BeTrue();
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Tests/Infrastructure/DependencyInjectionTests.cs"] = f"""using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -778,10 +781,10 @@ using {prefix}.Infrastructure.Persistence;
 namespace {prefix}.Tests.Infrastructure;
 
 public class DependencyInjectionTests
-{s_open(1)}
+{s_open()}
     [Fact]
     public void AddInfrastructure_ShouldRegister_DbContextAndRepositories()
-    {s_open(2)}
+    {s_open()}
         var services = new ServiceCollection();
         var configuration = new ConfigurationBuilder().Build();
 
@@ -789,8 +792,8 @@ public class DependencyInjectionTests
 
         services.Any(s => s.ServiceType == typeof({s}DbContext)).Should().BeTrue();
         services.Any(s => s.ServiceType == typeof(I{s}Repository)).Should().BeTrue();
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.Tests/Application/Features/{s}Items/Commands/Create{s}Item/Create{s}ItemCommandValidatorTests.cs"] = f"""using FluentValidation.TestHelper;
 using {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
@@ -798,25 +801,25 @@ using {prefix}.Application.Features.{s}Items.Commands.Create{s}Item;
 namespace {prefix}.Tests.Application.Features.{s}Items.Commands.Create{s}Item;
 
 public class Create{s}ItemCommandValidatorTests
-{s_open(1)}
+{s_open()}
     private readonly Create{s}ItemCommandValidator _validator = new();
 
     [Fact]
     public void Should_HaveError_When_NameIsEmpty()
-    {s_open(2)}
+    {s_open()}
         var command = new Create{s}ItemCommand(string.Empty);
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.Name);
-    {s_close(2)}
+    {s_close()}
 
     [Fact]
     public void Should_NotHaveError_When_CommandIsValid()
-    {s_open(2)}
+    {s_open()}
         var command = new Create{s}ItemCommand("Valid Name");
         var result = _validator.TestValidate(command);
         result.ShouldNotHaveValidationErrorFor(x => x.Name);
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
 
         # -------------------------------------------------------------
@@ -878,7 +881,7 @@ using {prefix}.Infrastructure.Persistence;
 namespace {prefix}.IntegrationTests.Infrastructure;
 
 public class {s}ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
-{s_open(1)}
+{s_open()}
     private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder()
         .WithImage("postgres:16-alpine")
         .WithDatabase("{s.lower()}_test_db")
@@ -889,19 +892,19 @@ public class {s}ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public string ConnectionString => _dbContainer.GetConnectionString();
 
     public async Task InitializeAsync()
-    {s_open(2)}
+    {s_open()}
         await _dbContainer.StartAsync();
-    {s_close(2)}
+    {s_close()}
 
     public new async Task DisposeAsync()
-    {s_open(2)}
+    {s_open()}
         await _dbContainer.DisposeAsync();
-    {s_close(2)}
+    {s_close()}
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {s_open(2)}
+    {s_open()}
         builder.ConfigureTestServices(services =>
-        {s_open(3)}
+        {s_open()}
             services.RemoveAll<DbContextOptions<{s}DbContext>>();
             services.AddDbContext<{s}DbContext>((sp, options) =>
                 options.UseNpgsql(ConnectionString)
@@ -909,15 +912,15 @@ public class {s}ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                            sp.GetRequiredService<AuditableEntityInterceptor>(),
                            sp.GetRequiredService<SoftDeleteInterceptor>(),
                            sp.GetRequiredService<InsertOutboxMessagesInterceptor>()));
-        {s_close(3)});
-    {s_close(2)}
-{s_close(1)}
+        {s_close()});
+    {s_close()}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.IntegrationTests/Infrastructure/{s}CollectionFixture.cs"] = f"""namespace {prefix}.IntegrationTests.Infrastructure;
 
 [CollectionDefinition("{s}IntegrationCollection")]
 public class {s}CollectionFixture : ICollectionFixture<{s}ApiFactory>
-{s_open(1)}{s_close(1)}
+{s_open()}{s_close()}
 """
         manifest[f"{prefix}/{prefix}.IntegrationTests/Infrastructure/{s}IntegrationTestBase.cs"] = f"""using System.Net.Http.Json;
 using Npgsql;
@@ -927,26 +930,26 @@ namespace {prefix}.IntegrationTests.Infrastructure;
 
 [Collection("{s}IntegrationCollection")]
 public abstract class {s}IntegrationTestBase({s}ApiFactory factory) : IAsyncLifetime
-{s_open(1)}
+{s_open()}
     protected readonly HttpClient Client = factory.CreateClient();
     private Respawner _respawner = default!;
 
     public async Task InitializeAsync()
-    {s_open(2)}
+    {s_open()}
         await using var connection = new NpgsqlConnection(factory.ConnectionString);
         await connection.OpenAsync();
 
         _respawner = await Respawner.CreateAsync(connection, new RespawnerOptions
-        {s_open(3)}
+        {s_open()}
             DbAdapter = DbAdapter.Postgres,
             SchemasToInclude = ["public"]
-        {s_close(3)});
+        {s_close()});
 
         await _respawner.ResetAsync(connection);
-    {s_close(2)}
+    {s_close()}
 
     public Task DisposeAsync() => Task.CompletedTask;
-{s_close(1)}
+{s_close()}
 """
         manifest[f"{prefix}/{prefix}.IntegrationTests/Endpoints/HealthCheckEndpointsTests.cs"] = f"""using System.Net;
 using {prefix}.IntegrationTests.Infrastructure;
@@ -954,14 +957,14 @@ using {prefix}.IntegrationTests.Infrastructure;
 namespace {prefix}.IntegrationTests.Endpoints;
 
 public class HealthCheckEndpointsTests({s}ApiFactory factory) : {s}IntegrationTestBase(factory)
-{s_open(1)}
+{s_open()}
     [Fact]
     public async Task Get_HealthLive_ShouldReturnOk()
-    {s_open(2)}
+    {s_open()}
         var response = await Client.GetAsync("/health/live");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-    {s_close(2)}
-{s_close(1)}
+    {s_close()}
+{s_close()}
 """
 
         # -------------------------------------------------------------
@@ -978,7 +981,7 @@ namespace ShuffleSeries.ArchitectureTests;
 /// Ortak Onion, CQRS, DDD ve altyapı kurallarını <see cref="MicroserviceArchitectureTestBase"/> üzerinden miras alır.
 /// </summary>
 public class {s}ArchitectureTests : MicroserviceArchitectureTestBase
-{s_open(1)}
+{s_open()}
     protected override Assembly DomainAssembly => typeof({s}Item).Assembly;
     protected override Assembly ApplicationAssembly => typeof({prefix}.Application.DependencyInjection).Assembly;
     protected override Assembly InfrastructureAssembly => typeof({prefix}.Infrastructure.DependencyInjection).Assembly;
@@ -989,7 +992,7 @@ public class {s}ArchitectureTests : MicroserviceArchitectureTestBase
     [
         typeof({s}Item)
     ];
-{s_close(1)}
+{s_close()}
 """
         return manifest
 
@@ -1027,10 +1030,10 @@ public class {s}ArchitectureTests : MicroserviceArchitectureTestBase
             updated_content = content.replace("    </ItemGroup>\n\n</Project>", f"{new_refs}\n\n</Project>")
             self.arch_tests_proj.write_text(updated_content, encoding="utf-8")
 
-def s_open(indent=1):
+def s_open():
     return "{"
 
-def s_close(indent=1):
+def s_close():
     return "}"
 
 def main():

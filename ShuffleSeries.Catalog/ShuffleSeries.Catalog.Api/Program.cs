@@ -26,7 +26,10 @@ builder.Configuration.AddVault("catalog");
 builder.Host.UseWolverine(opts =>
 {
     opts.AddCatalogApplicationMessaging();
-    opts.AddCatalogMessagingTransport(builder.Configuration);
+});
+builder.Host.ConfigureServices((context, services) =>
+{
+    services.ConfigureWolverine(opts => opts.AddCatalogMessagingTransport(context.Configuration));
 });
 
 // Add Distributed Correlation ID Tracking

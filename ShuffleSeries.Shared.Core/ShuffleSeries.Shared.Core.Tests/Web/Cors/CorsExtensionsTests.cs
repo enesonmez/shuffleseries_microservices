@@ -9,7 +9,7 @@ namespace ShuffleSeries.Shared.Core.Tests.Web.Cors;
 public class CorsExtensionsTests
 {
     [Fact]
-    public void AddSharedCors_WithoutAllowedOrigins_ShouldAllowAnyOrigin()
+    public void AddSharedCors_WithoutAllowedOrigins_ShouldFailClosedWithoutAnyOrigins()
     {
         var services = new ServiceCollection();
         var configuration = new ConfigurationBuilder().Build(); // empty
@@ -21,9 +21,9 @@ public class CorsExtensionsTests
 
         var defaultPolicy = corsOptions.GetPolicy(CorsExtensions.DefaultCorsPolicyName);
         defaultPolicy.Should().NotBeNull();
-        defaultPolicy!.AllowAnyOrigin.Should().BeTrue();
-        defaultPolicy.AllowAnyMethod.Should().BeTrue();
-        defaultPolicy.AllowAnyHeader.Should().BeTrue();
+        defaultPolicy!.AllowAnyOrigin.Should().BeFalse();
+        defaultPolicy.Origins.Should().BeEmpty();
+        defaultPolicy.SupportsCredentials.Should().BeFalse();
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class CorsExtensionsTests
     }
 
     [Fact]
-    public void AddSharedCors_WithWildcardAllowedOrigins_ShouldFallbackToAllowAnyOriginWithoutCredentials()
+    public void AddSharedCors_WithWildcardAllowedOrigins_ShouldFailClosedWithoutAnyOrigins()
     {
         var services = new ServiceCollection();
         var inMemorySettings = new Dictionary<string, string?>
@@ -70,9 +70,8 @@ public class CorsExtensionsTests
 
         var defaultPolicy = corsOptions.GetPolicy(CorsExtensions.DefaultCorsPolicyName);
         defaultPolicy.Should().NotBeNull();
-        defaultPolicy!.AllowAnyOrigin.Should().BeTrue();
-        defaultPolicy.AllowAnyMethod.Should().BeTrue();
-        defaultPolicy.AllowAnyHeader.Should().BeTrue();
+        defaultPolicy!.AllowAnyOrigin.Should().BeFalse();
+        defaultPolicy.Origins.Should().BeEmpty();
         defaultPolicy.SupportsCredentials.Should().BeFalse();
     }
 

@@ -1,6 +1,7 @@
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Events;
+using ShuffleSeries.Shared.Core.Domain.ValueObjects;
 
 namespace ShuffleSeries.Catalog.Tests.Domain.Entities;
 
@@ -95,5 +96,70 @@ public class MovieTests
 
         // Assert
         action.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void Create_Should_Throw_When_MediaInvariantsAreViolated()
+    {
+        var emptyPoster = () => Movie.Create(27205, "tt1375666", 2020, 120, " ");
+        emptyPoster.Should().Throw<ArgumentException>();
+
+        var tooOldYear = () => Movie.Create(27205, "tt1375666", 1800, 120, "https://example.com/poster.jpg");
+        tooOldYear.Should().Throw<ArgumentOutOfRangeException>();
+
+        var farFutureYear = () => Movie.Create(27205, "tt1375666", 2101, 120, "https://example.com/poster.jpg");
+        farFutureYear.Should().Throw<ArgumentOutOfRangeException>();
+
+        var negativeRating = () => Movie.Create(27205, "tt1375666", 2020, 120, "https://example.com/poster.jpg", imdbRating: -0.5);
+        negativeRating.Should().Throw<ArgumentOutOfRangeException>();
+
+        var highRating = () => Movie.Create(27205, "tt1375666", 2020, 120, "https://example.com/poster.jpg", imdbRating: 10.5);
+        highRating.Should().Throw<ArgumentOutOfRangeException>();
+
+        var negativeVotes = () => Movie.Create(27205, "tt1375666", 2020, 120, "https://example.com/poster.jpg", imdbVotes: -1);
+        negativeVotes.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void TranslationOperations_Should_ValidateEmptyInputs_UpdateExisting_AndHandleNullRemove()
+    {
+        var movie = Movie.Create(27205, "tt1375666", 2010, 148, "https://example.com/poster.jpg");
+
+        var emptyTitle = () => movie.AddOrUpdateTranslation("tr", " ", "Özet");
+        emptyTitle.Should().Throw<ArgumentException>();
+
+        var emptyOverview = () => movie.AddOrUpdateTranslation("tr", "Başlık", " ");
+        emptyOverview.Should().Throw<ArgumentException>();
+
+        movie.AddOrUpdateTranslation("tr", "Başlangıç", "İlk özet", "Tag 1");
+        movie.AddOrUpdateTranslation("tr", "Başlangıç (Güncel)", "Yeni özet", "Tag 2");
+
+        movie.Translations.Should().ContainSingle(t =>
+            t.Title == "Başlangıç (Güncel)" && t.Overview == "Yeni özet" && t.Tagline == "Tag 2");
+
+        movie.RemoveTranslation((LanguageCode)null!);
+        movie.Translations.Should().ContainSingle();
+
+        movie.RemoveTranslation("tr");
+        movie.Translations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Delete_Should_SoftDeleteAssociatedPlatformsMoodsAndGenres()
+    {
+        var movie = Movie.Create(27205, "tt1375666", 2010, 148, "https://example.com/poster.jpg");
+        movie.AddOrUpdateTranslation("tr", "Inception", "Overview");
+        movie.AddPlatform(Guid.NewGuid(), "https://netflix.com/watch/1");
+        movie.AddMood(Guid.NewGuid());
+        movie.AddGenre(Guid.NewGuid());
+        movie.ClearDomainEvents();
+
+        movie.Delete("admin");
+
+        movie.IsDeleted.Should().BeTrue();
+        movie.MediaPlatforms.Should().AllSatisfy(p => p.IsDeleted.Should().BeTrue());
+        movie.MediaMoods.Should().AllSatisfy(m => m.IsDeleted.Should().BeTrue());
+        movie.MediaGenres.Should().AllSatisfy(g => g.IsDeleted.Should().BeTrue());
+        movie.GetDomainEvents().Should().ContainSingle(e => e is MediaDeletedDomainEvent);
     }
 }

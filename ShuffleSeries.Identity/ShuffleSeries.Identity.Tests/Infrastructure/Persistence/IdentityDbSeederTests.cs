@@ -73,10 +73,15 @@ public class IdentityDbSeederTests
             .Include(r => r.RolePermissions)
             .ToListAsync();
 
-        var guestRole = roles.First(r => r.NormalizedName == SystemRoles.Guest.ToUpperInvariant());
-        var standardRole = roles.First(r => r.NormalizedName == SystemRoles.Standard.ToUpperInvariant());
-        var premiumRole = roles.First(r => r.NormalizedName == SystemRoles.Premium.ToUpperInvariant());
-        var adminRole = roles.First(r => r.NormalizedName == SystemRoles.Admin.ToUpperInvariant());
+        var guestNormalized = SystemRoles.Guest.ToUpperInvariant();
+        var standardNormalized = SystemRoles.Standard.ToUpperInvariant();
+        var premiumNormalized = SystemRoles.Premium.ToUpperInvariant();
+        var adminNormalized = SystemRoles.Admin.ToUpperInvariant();
+
+        var guestRole = roles.First(r => r.NormalizedName == guestNormalized);
+        var standardRole = roles.First(r => r.NormalizedName == standardNormalized);
+        var premiumRole = roles.First(r => r.NormalizedName == premiumNormalized);
+        var adminRole = roles.First(r => r.NormalizedName == adminNormalized);
 
         var permIdToCode = permissions.ToDictionary(p => p.Id, p => p.Code);
 

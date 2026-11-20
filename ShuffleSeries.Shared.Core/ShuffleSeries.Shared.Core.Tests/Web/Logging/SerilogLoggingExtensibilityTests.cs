@@ -109,4 +109,58 @@ public class SerilogLoggingExtensibilityTests
         // Assert
         act.Should().NotThrow();
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void FileSinkConfigurator_WhenEnabled_ShouldConfigureWithoutThrowing(bool useJsonFormat)
+    {
+        // Arrange
+        var configurator = new FileSinkConfigurator();
+        var tempLogPath = Path.Combine(Path.GetTempPath(), $"shuffleseries-test-{Guid.NewGuid():N}-.log");
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            { "Logging:Sinks:File:Enabled", "true" },
+            { "Logging:Sinks:File:Path", tempLogPath },
+            { "Logging:Sinks:File:UseJsonFormat", useJsonFormat.ToString() }
+        };
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        var loggerConfig = new LoggerConfiguration();
+
+        // Act
+        Action act = () => configurator.Configure(loggerConfig, configuration, _mockEnvironment.Object);
+
+        // Assert
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void PostgreSqlSinkConfigurator_WhenEnabledWithConnectionStringKey_ShouldConfigureWithoutThrowing()
+    {
+        // Arrange
+        var configurator = new PostgreSqlSinkConfigurator();
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            { "Logging:Sinks:PostgreSql:Enabled", "true" },
+            { "Logging:Sinks:PostgreSql:ConnectionString", "" },
+            { "Logging:Sinks:PostgreSql:ConnectionStringKey", "Database:ConnectionString" },
+            { "Database:ConnectionString", "Host=localhost;Port=5432;Database=test_logs;Username=postgres;Password=postgres" }
+        };
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(inMemorySettings)
+            .Build();
+
+        var loggerConfig = new LoggerConfiguration();
+
+        // Act
+        Action act = () => configurator.Configure(loggerConfig, configuration, _mockEnvironment.Object);
+
+        // Assert
+        act.Should().NotThrow();
+    }
 }

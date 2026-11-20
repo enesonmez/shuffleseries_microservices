@@ -129,18 +129,18 @@ internal sealed class JwtTokenService : ITokenService
             .TrimEnd('=');
     }
 
-    public string HashToken(string rawToken)
+    public string HashToken(string token)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(rawToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
 
-        var bytes = Encoding.UTF8.GetBytes(rawToken);
+        var bytes = Encoding.UTF8.GetBytes(token);
         var hash = SHA256.HashData(bytes);
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    public (string? JwtId, DateTime? ExpiresAtUtc) ExtractTokenInfo(string accessToken, Guid? expectedUserId = null)
+    public (string? JwtId, DateTime? ExpiresAtUtc) ExtractTokenInfo(string token, Guid? expectedUserId = null)
     {
-        if (string.IsNullOrWhiteSpace(accessToken))
+        if (string.IsNullOrWhiteSpace(token))
         {
             return (null, null);
         }
@@ -159,7 +159,7 @@ internal sealed class JwtTokenService : ITokenService
                 ClockSkew = TimeSpan.Zero
             };
 
-            var principal = _tokenHandler.ValidateToken(accessToken, validationParameters, out var validatedToken);
+            var principal = _tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
             if (validatedToken is not JwtSecurityToken jwt)
             {
                 return (null, null);

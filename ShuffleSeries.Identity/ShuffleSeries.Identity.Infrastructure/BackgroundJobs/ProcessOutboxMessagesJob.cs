@@ -45,9 +45,7 @@ public sealed class ProcessOutboxMessagesJob : IJob
             _timeProvider,
             _logger,
             PublishIntegrationEventAsync,
-            batchSize: OutboxBatchProcessor.DefaultBatchSize,
-            maxRetries: MaxRetries,
-            retentionDays: OutboxBatchProcessor.DefaultRetentionDays,
+            new OutboxBatchOptions(MaxRetries: MaxRetries),
             cancellationToken: cancellationToken);
     }
 

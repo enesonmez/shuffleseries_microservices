@@ -24,7 +24,7 @@ namespace ShuffleSeries.Identity.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static void AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddMemoryCache();
         services.AddSharedInfrastructure();
@@ -110,6 +110,8 @@ public static class DependencyInjection
         services.AddSingleton<ISocialAuthProvider, GoogleAuthProvider>();
         services.AddSingleton<ISocialAuthProvider, AppleAuthProvider>();
         services.AddSingleton<IExternalAuthService, ExternalAuthService>();
+
+        return services;
     }
 
     public static void AddIdentityMessagingTransport(this WolverineOptions opts, IConfiguration configuration)

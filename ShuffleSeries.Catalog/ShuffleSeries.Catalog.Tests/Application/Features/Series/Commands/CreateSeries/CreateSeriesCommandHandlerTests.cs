@@ -26,11 +26,11 @@ public class CreateSeriesCommandHandlerTests
         _unitOfWorkMock = new Mock<IUnitOfWork>();
 
         _platformRepositoryMock.Setup(x => x.GetActivePlatformsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Platform>());
+            .ReturnsAsync([]);
         _moodRepositoryMock.Setup(x => x.GetExistingActiveIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Guid>());
+            .ReturnsAsync([]);
         _genreRepositoryMock.Setup(x => x.GetExistingActiveIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Guid>());
+            .ReturnsAsync([]);
 
         _handler = new CreateSeriesCommandHandler(
             _seriesRepositoryMock.Object,
@@ -152,11 +152,11 @@ public class CreateSeriesCommandHandlerTests
         genre.AddOrUpdateTranslation("tr", "Aksiyon");
 
         _platformRepositoryMock.Setup(x => x.GetActivePlatformsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Platform> { platform });
+            .ReturnsAsync([platform]);
         _moodRepositoryMock.Setup(x => x.GetExistingActiveIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Guid> { mood.Id });
+            .ReturnsAsync([mood.Id]);
         _genreRepositoryMock.Setup(x => x.GetExistingActiveIdsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<Guid> { genre.Id });
+            .ReturnsAsync([genre.Id]);
 
         var command = new CreateSeriesCommand(
             1405,

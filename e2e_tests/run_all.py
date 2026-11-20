@@ -44,8 +44,8 @@ def run_all_suites():
     current_dir = os.path.dirname(os.path.abspath(__file__))
 
     print(f"\n{BOLD}{BLUE}========================================================================")
-    print(f"      ShuffleSeries - Master End-to-End (E2E) Test Orchestrator         ")
-    print(f"      Target: YARP API Gateway (http://localhost:5001)                 ")
+    print("      ShuffleSeries - Master End-to-End (E2E) Test Orchestrator         ")
+    print("      Target: YARP API Gateway (http://localhost:5001)                 ")
     print(f"========================================================================{RESET}\n")
 
     results = []
@@ -78,7 +78,7 @@ def run_all_suites():
 
     # Unified Master Summary Table
     print(f"{BOLD}{BLUE}========================================================================")
-    print(f"                   MASTER E2E SUITE EXECUTION SUMMARY                  ")
+    print("                   MASTER E2E SUITE EXECUTION SUMMARY                  ")
     print(f"========================================================================{RESET}")
     print(f"{'Suite Name':<38} {'Script':<25} {'Result':<10} {'Time':<8}")
     print(f"{'-'*38} {'-'*25} {'-'*10} {'-'*8}")

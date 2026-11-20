@@ -22,18 +22,23 @@ public sealed class GetAdminMediaListQueryHandler
     {
         var targetLanguage = request.Language ?? _languageContext.CurrentLanguage;
 
+        var filter = new AdminMediaFilter
+        {
+            MediaType = request.MediaType,
+            Search = request.Search,
+            PlatformId = request.PlatformId,
+            MoodId = request.MoodId,
+            GenreId = request.GenreId,
+            IsDeleted = request.IsDeleted,
+            SortBy = request.SortBy,
+            SortDescending = request.SortDescending,
+            TargetLanguage = targetLanguage
+        };
+
         var (mediaItems, totalCount) = await _mediaRepository.GetAdminMediaPagedListAsync(
-            request.MediaType,
-            request.Search,
-            request.PlatformId,
-            request.MoodId,
-            request.GenreId,
-            request.IsDeleted,
-            request.SortBy,
-            request.SortDescending,
+            filter,
             request.PageNumber,
             request.PageSize,
-            targetLanguage,
             cancellationToken);
 
         var responseItems = mediaItems.Select(m =>

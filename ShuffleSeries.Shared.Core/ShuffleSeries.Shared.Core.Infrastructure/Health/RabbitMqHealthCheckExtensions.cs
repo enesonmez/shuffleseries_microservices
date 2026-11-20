@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace ShuffleSeries.Shared.Core.Infrastructure.Health;
@@ -11,6 +12,7 @@ public static class RabbitMqHealthCheckExtensions
 {
     /// <summary>
     /// DI konteynerindeki RabbitMQ bağlantı yapılandırmasını kullanarak RabbitMQ sağlık kontrolünü boru hattına ekler.
+    /// Soket tükenmesini (Socket Exhaustion) önlemek için Singleton yaşam döngüsüyle kaydedilir.
     /// </summary>
     /// <param name="services">Servis koleksiyonu.</param>
     /// <param name="configuration">İsteğe bağlı konfigürasyon nesnesi (belirtilmezse DI'dan çözülür).</param>
@@ -26,21 +28,18 @@ public static class RabbitMqHealthCheckExtensions
     {
         if (configuration != null)
         {
-            services.AddHealthChecks()
-                .AddTypeActivatedCheck<RabbitMqHealthCheck>(
-                    name: name,
-                    failureStatus: failureStatus,
-                    tags: customTags ?? ["messaging", "rabbitmq", "ready"],
-                    args: [configuration]);
+            services.TryAddSingleton(_ => new RabbitMqHealthCheck(configuration));
         }
         else
         {
-            services.AddHealthChecks()
-                .AddCheck<RabbitMqHealthCheck>(
-                    name: name,
-                    failureStatus: failureStatus,
-                    tags: customTags ?? ["messaging", "rabbitmq", "ready"]);
+            services.TryAddSingleton<RabbitMqHealthCheck>();
         }
+
+        services.AddHealthChecks()
+            .AddCheck<RabbitMqHealthCheck>(
+                name: name,
+                failureStatus: failureStatus,
+                tags: customTags ?? ["messaging", "rabbitmq", "ready"]);
 
         return services;
     }

@@ -14,7 +14,7 @@ public static class CorsExtensions
     /// <summary>
     /// Merkezi CORS politikasını DI konteynerine ekler.
     /// Yapılandırmada (appsettings/env) "Cors:AllowedOrigins" tanımlı ise yalnızca belirtilen domain'lere izin verir ve kimlik bilgilerini (credentials) destekler.
-    /// Tanımlı origin bulunmuyorsa (yerel geliştirme/Swagger modu) tüm origin'lere esnek izin verir.
+    /// Tanımlı geçerli origin bulunmuyorsa veya '*' girildiyse Fail-Closed prensibi gereği çapraz kaynak isteklerine izin vermez (OWASP A05).
     /// </summary>
     /// <param name="services">Servis koleksiyonu.</param>
     /// <param name="configuration">Uygulama konfigürasyonu.</param>
@@ -39,12 +39,6 @@ public static class CorsExtensions
                       .AllowAnyMethod()
                       .AllowAnyHeader()
                       .AllowCredentials();
-            }
-            else
-            {
-                policy.AllowAnyOrigin()
-                      .AllowAnyMethod()
-                      .AllowAnyHeader();
             }
         }
 

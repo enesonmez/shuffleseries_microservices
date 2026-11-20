@@ -31,21 +31,30 @@ public static class LoggingMiddleware
 
     public static void OnException(Exception ex, Envelope envelope, ILogger logger)
     {
-        if (logger.IsEnabled(LogLevel.Warning))
-        {
-            var message = envelope.Message;
-            var requestName = message?.GetType().Name ?? "Unknown";
+        var errorMessage = ex is FluentValidation.ValidationException
+            ? "One or more validation errors occurred."
+            : ex.Message;
 
-#pragma warning disable S6667 // Intentionally logging request payload at Warning level without re-logging exception stack trace to avoid duplicate error logging with GlobalExceptionHandler (S2139)
-            logger.LogWarning(
-                "Request {RequestName} failed with error: {ErrorMessage}. Request: {@RequestPayload}",
-                requestName,
-                ex.Message,
-                message);
-#pragma warning restore S6667
-        }
+        LogRequestFailure(logger, envelope, errorMessage);
 
         // Rethrow preserving original stack trace so ASP.NET Core GlobalExceptionHandler or retry policies handle it
         ExceptionDispatchInfo.Capture(ex).Throw();
+    }
+
+    private static void LogRequestFailure(ILogger logger, Envelope envelope, string errorMessage)
+    {
+        if (!logger.IsEnabled(LogLevel.Warning))
+        {
+            return;
+        }
+
+        var message = envelope.Message;
+        var requestName = message?.GetType().Name ?? "Unknown";
+
+        logger.LogWarning(
+            "Request {RequestName} failed with error: {ErrorMessage}. Request: {@RequestPayload}",
+            requestName,
+            errorMessage,
+            message);
     }
 }

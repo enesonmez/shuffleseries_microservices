@@ -71,6 +71,32 @@ public class RabbitMqHealthCheckTests
     }
 
     [Fact]
+    public async Task CheckHealthAsync_WhenCalledMultipleTimesWhileConnectionIsOpen_ShouldReuseConnectionWithoutSocketChurn()
+    {
+        // Arrange
+        _connectionMock.Setup(c => c.IsOpen).Returns(true);
+        _channelMock.Setup(c => c.IsOpen).Returns(true);
+
+        await using var sut = new RabbitMqHealthCheck(_factoryMock.Object);
+        var context = new HealthCheckContext
+        {
+            Registration = new HealthCheckRegistration("RabbitMQ", sut, HealthStatus.Degraded, null)
+        };
+
+        // Act
+        var firstResult = await sut.CheckHealthAsync(context);
+        var secondResult = await sut.CheckHealthAsync(context);
+
+        // Assert
+        firstResult.Status.Should().Be(HealthStatus.Healthy);
+        secondResult.Status.Should().Be(HealthStatus.Healthy);
+        _factoryMock.Verify(f => f.CreateConnectionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        _connectionMock.Verify(
+            c => c.CreateChannelAsync(It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+    }
+
+    [Fact]
     public async Task CheckHealthAsync_WhenConnectionIsNotOpen_ShouldReturnFailureStatus()
     {
         // Arrange
@@ -133,5 +159,61 @@ public class RabbitMqHealthCheckTests
         result.Status.Should().Be(HealthStatus.Degraded);
         result.Description.Should().Contain("sağlık kontrolü sırasında hata oluştu");
         result.Exception.Should().BeSameAs(expectedException);
+    }
+
+    [Fact]
+    public void Constructor_WithEmptyConfiguration_ShouldFallbackToDefaultsAndDisposeCleanly()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+
+        using var sut = new RabbitMqHealthCheck(configuration);
+
+        sut.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Dispose_WhenConnectionWasOpened_ShouldDisposeUnderlyingConnection()
+    {
+        _connectionMock.Setup(c => c.IsOpen).Returns(true);
+        _channelMock.Setup(c => c.IsOpen).Returns(true);
+
+        var sut = new RabbitMqHealthCheck(_factoryMock.Object);
+        var context = new HealthCheckContext
+        {
+            Registration = new HealthCheckRegistration("RabbitMQ", sut, HealthStatus.Degraded, null)
+        };
+
+        await sut.CheckHealthAsync(context);
+
+        sut.Dispose();
+
+        _connectionMock.Verify(c => c.Dispose(), Times.Once);
+    }
+
+    [Fact]
+    public async Task CheckHealthAsync_WhenCachedConnectionCloses_ShouldDisposeStaleAndReconnect()
+    {
+        var connectionIsOpen = true;
+        _connectionMock.Setup(c => c.IsOpen).Returns(() => connectionIsOpen);
+        _channelMock.Setup(c => c.IsOpen).Returns(true);
+        _factoryMock
+            .Setup(f => f.CreateConnectionAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => connectionIsOpen = true)
+            .ReturnsAsync(_connectionMock.Object);
+
+        await using var sut = new RabbitMqHealthCheck(_factoryMock.Object);
+        var context = new HealthCheckContext
+        {
+            Registration = new HealthCheckRegistration("RabbitMQ", sut, HealthStatus.Degraded, null)
+        };
+
+        var firstResult = await sut.CheckHealthAsync(context);
+        connectionIsOpen = false;
+        var secondResult = await sut.CheckHealthAsync(context);
+
+        firstResult.Status.Should().Be(HealthStatus.Healthy);
+        secondResult.Status.Should().Be(HealthStatus.Healthy);
+        _factoryMock.Verify(f => f.CreateConnectionAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _connectionMock.Verify(c => c.DisposeAsync(), Times.AtLeastOnce);
     }
 }

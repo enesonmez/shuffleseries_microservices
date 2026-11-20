@@ -34,18 +34,18 @@ ShuffleSeries.{ServiceName}/
   * Modern `<InternalsVisibleTo Include="..." />`: `{ServiceName}.Tests`, `{ServiceName}.Infrastructure`, `DynamicProxyGenAssembly2`.
 
 ### 1.2. Application Layer (`ShuffleSeries.{ServiceName}.Application`)
-* **Purpose:** Use-case orchestration via CQRS (MediatR) and input validation (FluentValidation).
+* **Purpose:** Use-case orchestration via CQRS (WolverineFx) and input validation (FluentValidation).
 * **Folder Structure:**
   * `Common/Interfaces/` - Abstractions consumed by use cases (e.g., cache, external auth).
   * `Common/Models/` - Cross-feature / service-interface internal models ONLY (never feature endpoint responses).
   * `Features/{Feature}/Commands/{Operation}/` - `*Command.cs`, `*CommandHandler.cs`, `*CommandValidator.cs`.
   * `Features/{Feature}/Queries/{Operation}/` - `*Query.cs`, `*QueryHandler.cs`, `*QueryValidator.cs`.
   * `Features/{Feature}/Responses/` - Feature/endpoint response DTOs (`public sealed record`, 1-class-1-file).
-  * `DependencyInjection.cs` - Extension method `AddApplication(this IServiceCollection services)`.
+  * `DependencyInjection.cs` - Extension methods `AddApplication(this IServiceCollection services)` and `Add{ServiceName}ApplicationMessaging(this WolverineOptions opts)`.
 * **Strict Rules:**
   * Zero dependencies on `Infrastructure` or `Api` (DIP).
   * Commands and Queries MUST be `public sealed record` and end with `Command` / `Query`.
-  * Handlers MUST be `internal sealed class` and end with `Handler` (outer layers communicate strictly via MediatR `ISender`).
+  * Handlers MUST be `public sealed class` and end with `Handler` (required by Wolverine Roslyn discovery; outer layers communicate strictly via Wolverine `IMessageBus`).
   * Validators MUST be `public sealed class` and end with `Validator`; every Command MUST have a corresponding `AbstractValidator<TCommand>`.
   * `InternalsVisibleTo`: `{ServiceName}.Tests`, `{ServiceName}.IntegrationTests`.
 
@@ -58,7 +58,7 @@ ShuffleSeries.{ServiceName}/
   * `Persistence/{ServiceName}DbContext.cs` - EF Core `DbContext`.
   * `Persistence/{ServiceName}DbSeeder.cs` - `public static class` idempotent data seeder (`ClearDomainEvents()` on seeded entities).
   * `Services/` - External service implementations (pure BCL / `IHttpClientFactory`).
-  * `DependencyInjection.cs` - Extension method `AddInfrastructure(this IServiceCollection services, IConfiguration configuration)` with MassTransit `PrefetchCount = 16`.
+  * `DependencyInjection.cs` - Extension methods `AddInfrastructure(this IServiceCollection services, IConfiguration configuration)` and `Add{ServiceName}MessagingTransport(this WolverineOptions opts, IConfiguration configuration)`.
 * **Strict Rules:**
   * Zero dependencies on `Api` AND zero dependencies on `Microsoft.AspNetCore.*` (pure class library without `<FrameworkReference Include="Microsoft.AspNetCore.App" />` or `Microsoft.EntityFrameworkCore.Design`).
   * Repository and `IEntityTypeConfiguration<T>` implementations MUST be `internal sealed`.
@@ -75,7 +75,7 @@ ShuffleSeries.{ServiceName}/
   * `Dockerfile` - Multi-stage container definition copying all 4 service `.csproj`s and all 5 `Shared.Core` `.csproj`s before `dotnet restore`.
   * `{ServiceName}.Api.http` - End-to-end HTTP request collections.
 * **Strict Rules:**
-  * Endpoints MUST NOT inject `DbContext` or Repositories directly; MUST use `ISender` (MediatR).
+  * Endpoints MUST NOT inject `DbContext`, Repositories, or Handlers directly; MUST use `IMessageBus` (Wolverine).
 
 ---
 

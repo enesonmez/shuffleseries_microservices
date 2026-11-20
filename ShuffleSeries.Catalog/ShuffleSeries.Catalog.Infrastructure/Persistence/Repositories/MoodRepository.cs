@@ -44,8 +44,9 @@ internal sealed class MoodRepository : IMoodRepository
         if (string.IsNullOrWhiteSpace(code))
             return false;
 
+        var normalizedCode = code.Trim().ToLowerInvariant();
         return await _context.Moods
-            .AnyAsync(x => x.Code == code.Trim().ToLowerInvariant(), cancellationToken);
+            .AnyAsync(x => x.Code == normalizedCode, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Mood>> GetActiveMoodsWithTranslationsAsync(CancellationToken cancellationToken = default) =>

@@ -35,6 +35,11 @@ public abstract class MicroserviceArchitectureTestBase
     /// </summary>
     protected virtual IEnumerable<Type> ChildEntityTypes => [];
 
+    /// <summary>
+    /// Bu Bounded Context'in hiçbir katmanının doğrudan referans veremeyeceği diğer Bounded Context namespace ön ekleri.
+    /// </summary>
+    protected virtual IEnumerable<string> ForbiddenBoundedContextPrefixes => [];
+
     #region Layer Dependency Rules (Onion Architecture)
 
     [Fact]
@@ -100,28 +105,125 @@ public abstract class MicroserviceArchitectureTestBase
             $"{ServiceNamespacePrefix} Infrastructure katmanı ASP.NET Core web çatısına (Microsoft.AspNetCore.*) bağımlı olamaz; saf altyapı kütüphanesi kalmalıdır. İhlal eden tipler: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
     }
 
+    [Fact]
+    public void ServiceLayers_ShouldNotHaveDependencyOn_OtherBoundedContexts()
+    {
+        var forbiddenPrefixes = ForbiddenBoundedContextPrefixes.ToArray();
+        if (forbiddenPrefixes.Length == 0) return;
+
+        var serviceAssemblies = new[]
+        {
+            ("Domain", DomainAssembly),
+            ("Application", ApplicationAssembly),
+            ("Infrastructure", InfrastructureAssembly),
+            ("Api", ApiAssembly)
+        };
+
+        foreach (var (layerName, assembly) in serviceAssemblies)
+        {
+            var testResult = Types.InAssembly(assembly)
+                .ShouldNot()
+                .HaveDependencyOnAny(forbiddenPrefixes)
+                .GetResult();
+
+            testResult.IsSuccessful.Should().BeTrue(
+                $"{ServiceNamespacePrefix}.{layerName} katmanı başka bir Bounded Context'e ({string.Join(", ", forbiddenPrefixes)}) doğrudan bağımlı olamaz. İhlal eden tipler: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
+        }
+    }
+
+    [Fact]
+    public void DomainAndApplication_ShouldNotDependOn_InfrastructureOrWebPackages()
+    {
+        string[] forbiddenPackages =
+        [
+            "Microsoft.EntityFrameworkCore",
+            "Npgsql",
+            "StackExchange.Redis",
+            "RabbitMQ.Client",
+            "Microsoft.AspNetCore",
+            "Quartz"
+        ];
+
+        foreach (var (layerName, assembly) in new[] { ("Domain", DomainAssembly), ("Application", ApplicationAssembly) })
+        {
+            var testResult = Types.InAssembly(assembly)
+                .ShouldNot()
+                .HaveDependencyOnAny(forbiddenPackages)
+                .GetResult();
+
+            testResult.IsSuccessful.Should().BeTrue(
+                $"{ServiceNamespacePrefix}.{layerName} katmanı altyapı veya web kütüphanelerine ({string.Join(", ", forbiddenPackages)}) bağımlı olamaz. İhlal eden tipler: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
+        }
+    }
+
     #endregion
 
     #region CQRS & Wolverine Rules
 
     private List<Type> GetHandlerTypes() =>
         ApplicationAssembly.GetTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false, IsNested: false } && !t.Name.Contains('<')
-                && t.Name.EndsWith("Handler")
-                && t.GetMethods().Any(m => m.Name is "Handle" or "Consume"))
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsNested: false }
+                && !t.Name.Contains('<')
+                && t.Namespace != null
+                && (t.Namespace.Contains(".Features.") || t.Namespace.Contains(".Consumers."))
+                && t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                    .Any(m => m.Name is "Handle" or "Consume"))
             .ToList();
+
+    private List<Type> GetHandledRequestTypes(string namespaceSegment) =>
+        GetHandlerTypes()
+            .SelectMany(h => h.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Where(m => m.Name == "Handle"))
+            .Select(m => m.GetParameters().FirstOrDefault()?.ParameterType)
+            .Where(t => t is { IsClass: true, IsAbstract: false }
+                && t.Assembly == ApplicationAssembly
+                && t.Namespace != null
+                && t.Namespace.Contains(namespaceSegment, StringComparison.Ordinal))
+            .Distinct()
+            .ToList()!;
 
     [Fact]
     public void Handlers_ShouldHaveNameEndingWith_Handler()
     {
         var handlerTypes = GetHandlerTypes();
-        if (handlerTypes.Count == 0) return;
+        handlerTypes.Should().NotBeEmpty($"{ServiceNamespacePrefix} Application katmanında en az bir CQRS handler sınıfı bulunmalıdır.");
 
         foreach (var type in handlerTypes)
         {
             type.Name.Should().EndWith("Handler",
                 $"{ServiceNamespacePrefix} CQRS request handler sınıfı '{type.FullName}' 'Handler' soneki ile bitmelidir.");
         }
+    }
+
+    [Fact]
+    public void AsyncHandlers_ShouldAccept_CancellationTokenAsLastParameter()
+    {
+        var handlerTypes = GetHandlerTypes();
+        if (handlerTypes.Count == 0) return;
+
+        var violatingMethods = new List<string>();
+
+        foreach (var handlerType in handlerTypes)
+        {
+            var asyncHandleMethods = handlerType
+                .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly)
+                .Where(m => m.Name is "Handle" or "Consume" &&
+                            (typeof(Task).IsAssignableFrom(m.ReturnType) ||
+                             m.ReturnType == typeof(ValueTask) ||
+                             (m.ReturnType.IsGenericType && m.ReturnType.GetGenericTypeDefinition() == typeof(ValueTask<>))));
+
+            foreach (var method in asyncHandleMethods)
+            {
+                var parameters = method.GetParameters();
+                if (parameters.Length == 0 || parameters[^1].ParameterType != typeof(CancellationToken))
+                {
+                    violatingMethods.Add($"{handlerType.Name}.{method.Name}");
+                }
+            }
+        }
+
+        violatingMethods.Should().BeEmpty(
+            $"{ServiceNamespacePrefix} Tüm asenkron CQRS handler metotlarının son parametresi CancellationToken olmalıdır. İhlal eden metotlar: {string.Join(", ", violatingMethods)}");
     }
 
     [Fact]
@@ -200,14 +302,8 @@ public abstract class MicroserviceArchitectureTestBase
     [Fact]
     public void Commands_ShouldHaveNameEndingWith_Command()
     {
-        var commandTypes = ApplicationAssembly.GetTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false } && !t.Name.Contains("<>")
-                && t.Namespace != null
-                && t.Namespace.Contains(".Commands.")
-                && t.Name.EndsWith("Command"))
-            .ToList();
-
-        if (commandTypes.Count == 0) return;
+        var commandTypes = GetHandledRequestTypes(".Commands.");
+        commandTypes.Should().NotBeEmpty($"{ServiceNamespacePrefix} Application katmanında en az bir Command tipi bulunmalıdır.");
 
         foreach (var type in commandTypes)
         {
@@ -218,13 +314,7 @@ public abstract class MicroserviceArchitectureTestBase
     [Fact]
     public void Queries_ShouldHaveNameEndingWith_Query()
     {
-        var queryTypes = ApplicationAssembly.GetTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false } && !t.Name.Contains("<>")
-                && t.Namespace != null
-                && t.Namespace.Contains(".Queries.")
-                && t.Name.EndsWith("Query"))
-            .ToList();
-
+        var queryTypes = GetHandledRequestTypes(".Queries.");
         if (queryTypes.Count == 0) return;
 
         foreach (var type in queryTypes)
@@ -236,12 +326,7 @@ public abstract class MicroserviceArchitectureTestBase
     [Fact]
     public void Commands_ShouldHave_CorrespondingValidator()
     {
-        var commandTypes = ApplicationAssembly.GetTypes()
-            .Where(t => t is { IsClass: true, IsAbstract: false } && !t.Name.Contains("<>")
-                && t.Namespace != null
-                && t.Namespace.Contains(".Commands.")
-                && t.Name.EndsWith("Command"))
-            .ToList();
+        var commandTypes = GetHandledRequestTypes(".Commands.");
 
         var validatorTypes = ApplicationAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.BaseType is { IsGenericType: true } && t.BaseType.GetGenericTypeDefinition() == typeof(FluentValidation.AbstractValidator<>))
@@ -352,7 +437,7 @@ public abstract class MicroserviceArchitectureTestBase
         var concreteEntities = DomainAssembly.GetTypes()
             .Where(t => t is { IsClass: true, IsAbstract: false } &&
                         t.Namespace == $"{ServiceNamespacePrefix}.Domain.Entities" &&
-                        !t.Name.Contains("<"))
+                        !t.Name.Contains('<'))
             .ToList();
 
         var unregisteredEntities = concreteEntities
@@ -371,7 +456,7 @@ public abstract class MicroserviceArchitectureTestBase
             .Where(t => t is { IsClass: true, IsAbstract: false } &&
                         t.Namespace != null &&
                         t.Namespace.StartsWith($"{ServiceNamespacePrefix}.Api.Contracts.Requests", StringComparison.Ordinal) &&
-                        !t.Name.Contains("<"))
+                        !t.Name.Contains('<'))
             .ToList();
 
         foreach (var req in requestTypes)
@@ -384,7 +469,7 @@ public abstract class MicroserviceArchitectureTestBase
             .Where(t => t is { IsClass: true, IsAbstract: false } &&
                         t.Namespace != null &&
                         t.Namespace.Contains(".Responses") &&
-                        !t.Name.Contains("<"))
+                        !t.Name.Contains('<'))
             .ToList();
 
         foreach (var resp in responseTypes)
@@ -444,11 +529,15 @@ public abstract class MicroserviceArchitectureTestBase
     [Fact]
     public void Endpoints_ShouldNotDirectlyDependOn_RepositoriesOrDbContext()
     {
+        var handlerTypeNames = GetHandlerTypes()
+            .Select(t => t.FullName!)
+            .ToArray();
+
         var forbiddenDependencies = new[]
         {
             $"{ServiceNamespacePrefix}.Domain.Repositories",
             $"{ServiceNamespacePrefix}.Infrastructure.Persistence"
-        };
+        }.Concat(handlerTypeNames).ToArray();
 
         var testResult = Types.InAssembly(ApiAssembly)
             .That()
@@ -458,7 +547,7 @@ public abstract class MicroserviceArchitectureTestBase
             .GetResult();
 
         testResult.IsSuccessful.Should().BeTrue(
-            $"{ServiceNamespacePrefix} API Endpoint sınıfları doğrudan Repository veya DbContext kullanamaz. CQRS Wolverine IMessageBus kullanılmalıdır. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
+            $"{ServiceNamespacePrefix} API Endpoint sınıfları doğrudan Repository, DbContext veya Handler kullanamaz. CQRS Wolverine IMessageBus kullanılmalıdır. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
     }
 
     [Fact]
@@ -485,6 +574,40 @@ public abstract class MicroserviceArchitectureTestBase
     }
 
     [Fact]
+    public void DomainEntities_CollectionProperties_ShouldBeReadOnly()
+    {
+        var entityTypes = DomainAssembly.GetTypes()
+            .Where(t => t is { IsClass: true, IsAbstract: false } && t.Namespace == $"{ServiceNamespacePrefix}.Domain.Entities");
+
+        var mutableCollections = new List<string>();
+        Type[] forbiddenGenericDefs =
+        [
+            typeof(List<>),
+            typeof(HashSet<>),
+            typeof(ICollection<>),
+            typeof(IList<>),
+            typeof(ISet<>),
+            typeof(Dictionary<,>),
+            typeof(IDictionary<,>)
+        ];
+
+        foreach (var type in entityTypes)
+        {
+            foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                var propType = prop.PropertyType;
+                if (propType.IsGenericType && forbiddenGenericDefs.Contains(propType.GetGenericTypeDefinition()))
+                {
+                    mutableCollections.Add($"{type.Name}.{prop.Name} ({propType.Name})");
+                }
+            }
+        }
+
+        mutableCollections.Should().BeEmpty(
+            $"{ServiceNamespacePrefix} Domain entity koleksiyon özellikleri dışarıya mutable koleksiyon sızdıramaz; IReadOnlyCollection/IReadOnlyList kullanılmalıdır. İhlaller: {string.Join(", ", mutableCollections)}");
+    }
+
+    [Fact]
     public void Repositories_ShouldImplement_IRepositoryMarkerInterface()
     {
         var testResult = Types.InAssembly(DomainAssembly)
@@ -508,7 +631,7 @@ public abstract class MicroserviceArchitectureTestBase
     public void Repositories_InInfrastructure_ShouldHaveNameEndingWith_Repository_And_BeInternalSealed()
     {
         var repoTypes = InfrastructureAssembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && !t.IsNested && !t.Name.Contains("<") && t.Namespace == $"{ServiceNamespacePrefix}.Infrastructure.Persistence.Repositories")
+            .Where(t => t.IsClass && !t.IsAbstract && !t.IsNested && !t.Name.Contains('<') && t.Namespace == $"{ServiceNamespacePrefix}.Infrastructure.Persistence.Repositories")
             .ToList();
 
         if (repoTypes.Count == 0) return;

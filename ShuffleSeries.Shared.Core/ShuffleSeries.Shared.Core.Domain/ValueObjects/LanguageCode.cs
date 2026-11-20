@@ -84,4 +84,16 @@ public sealed record LanguageCode : IComparable<LanguageCode>
 
     public int CompareTo(LanguageCode? other) =>
         string.Compare(Value, other?.Value, StringComparison.Ordinal);
+
+    public static bool operator <(LanguageCode? left, LanguageCode? right) =>
+        Comparer<LanguageCode>.Default.Compare(left, right) < 0;
+
+    public static bool operator <=(LanguageCode? left, LanguageCode? right) =>
+        Comparer<LanguageCode>.Default.Compare(left, right) <= 0;
+
+    public static bool operator >(LanguageCode? left, LanguageCode? right) =>
+        Comparer<LanguageCode>.Default.Compare(left, right) > 0;
+
+    public static bool operator >=(LanguageCode? left, LanguageCode? right) =>
+        Comparer<LanguageCode>.Default.Compare(left, right) >= 0;
 }

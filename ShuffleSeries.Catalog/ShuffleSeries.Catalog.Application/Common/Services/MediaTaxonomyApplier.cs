@@ -1,3 +1,4 @@
+using ShuffleSeries.Catalog.Application.Common.Models;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Exceptions;
 using ShuffleSeries.Catalog.Domain.Repositories;
@@ -8,63 +9,92 @@ public static class MediaTaxonomyApplier
 {
     public static async Task ApplyAsync(
         Media media,
-        IReadOnlyList<Guid>? platformIds,
-        IReadOnlyList<Guid>? moodIds,
-        IReadOnlyList<Guid>? genreIds,
+        MediaTaxonomySelection selection,
         IPlatformRepository platformRepository,
         IMoodRepository moodRepository,
         IGenreRepository genreRepository,
         CancellationToken cancellationToken = default)
     {
-        if (platformIds is { Count: > 0 })
+        await ApplyPlatformsAsync(media, selection.PlatformIds, platformRepository, cancellationToken);
+        await ApplyMoodsAsync(media, selection.MoodIds, moodRepository, cancellationToken);
+        await ApplyGenresAsync(media, selection.GenreIds, genreRepository, cancellationToken);
+    }
+
+    private static async Task ApplyPlatformsAsync(
+        Media media,
+        IReadOnlyList<Guid>? platformIds,
+        IPlatformRepository platformRepository,
+        CancellationToken cancellationToken)
+    {
+        if (platformIds is not { Count: > 0 })
         {
-            var distinctPlatformIds = platformIds.Distinct().ToList();
-            var activePlatforms = (await platformRepository.GetActivePlatformsAsync(cancellationToken))
-                .ToDictionary(p => p.Id);
-
-            foreach (var platformId in distinctPlatformIds)
-            {
-                if (!activePlatforms.TryGetValue(platformId, out var platform))
-                {
-                    throw new PlatformNotFoundException(platformId);
-                }
-
-                media.AddPlatform(platform.Id, platform.BaseWebUrl);
-            }
+            return;
         }
 
-        if (moodIds is { Count: > 0 })
+        var distinctPlatformIds = platformIds.Distinct().ToList();
+        var activePlatforms = (await platformRepository.GetActivePlatformsAsync(cancellationToken))
+            .ToDictionary(p => p.Id);
+
+        foreach (var platformId in distinctPlatformIds)
         {
-            var distinctMoodIds = moodIds.Distinct().ToList();
-            var existingMoodIds = (await moodRepository.GetExistingActiveIdsAsync(distinctMoodIds, cancellationToken))
-                .ToHashSet();
-
-            foreach (var moodId in distinctMoodIds)
+            if (!activePlatforms.TryGetValue(platformId, out var platform))
             {
-                if (!existingMoodIds.Contains(moodId))
-                {
-                    throw new MoodNotFoundException(moodId);
-                }
-
-                media.AddMood(moodId);
+                throw new PlatformNotFoundException(platformId);
             }
+
+            media.AddPlatform(platform.Id, platform.BaseWebUrl);
+        }
+    }
+
+    private static async Task ApplyMoodsAsync(
+        Media media,
+        IReadOnlyList<Guid>? moodIds,
+        IMoodRepository moodRepository,
+        CancellationToken cancellationToken)
+    {
+        if (moodIds is not { Count: > 0 })
+        {
+            return;
         }
 
-        if (genreIds is { Count: > 0 })
+        var distinctMoodIds = moodIds.Distinct().ToList();
+        var existingMoodIds = (await moodRepository.GetExistingActiveIdsAsync(distinctMoodIds, cancellationToken))
+            .ToHashSet();
+
+        foreach (var moodId in distinctMoodIds)
         {
-            var distinctGenreIds = genreIds.Distinct().ToList();
-            var existingGenreIds = (await genreRepository.GetExistingActiveIdsAsync(distinctGenreIds, cancellationToken))
-                .ToHashSet();
-
-            foreach (var genreId in distinctGenreIds)
+            if (!existingMoodIds.Contains(moodId))
             {
-                if (!existingGenreIds.Contains(genreId))
-                {
-                    throw new GenreNotFoundException(genreId);
-                }
-
-                media.AddGenre(genreId);
+                throw new MoodNotFoundException(moodId);
             }
+
+            media.AddMood(moodId);
+        }
+    }
+
+    private static async Task ApplyGenresAsync(
+        Media media,
+        IReadOnlyList<Guid>? genreIds,
+        IGenreRepository genreRepository,
+        CancellationToken cancellationToken)
+    {
+        if (genreIds is not { Count: > 0 })
+        {
+            return;
+        }
+
+        var distinctGenreIds = genreIds.Distinct().ToList();
+        var existingGenreIds = (await genreRepository.GetExistingActiveIdsAsync(distinctGenreIds, cancellationToken))
+            .ToHashSet();
+
+        foreach (var genreId in distinctGenreIds)
+        {
+            if (!existingGenreIds.Contains(genreId))
+            {
+                throw new GenreNotFoundException(genreId);
+            }
+
+            media.AddGenre(genreId);
         }
     }
 }

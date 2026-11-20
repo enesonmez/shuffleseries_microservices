@@ -43,31 +43,7 @@ public sealed class RevokeTokenCommandHandler
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // Redis Token Blacklist integration for Access Token (OWASP API4)
-        var targetJti = request.JwtId;
-        if (request.CallerUserId.HasValue && request.CallerUserId.Value != user.Id)
-        {
-            // Do not trust caller's JwtId if caller does not own the refresh token
-            targetJti = null;
-        }
-
-        var targetTtl = _tokenService.AccessTokenLifetime > TimeSpan.Zero
-            ? _tokenService.AccessTokenLifetime
-            : TimeSpan.FromMinutes(60);
-
-        if (string.IsNullOrEmpty(targetJti) && !string.IsNullOrEmpty(request.AccessToken))
-        {
-            var (parsedJti, parsedExp) = _tokenService.ExtractTokenInfo(request.AccessToken, user.Id);
-            targetJti = parsedJti;
-            if (parsedExp.HasValue)
-            {
-                var remaining = parsedExp.Value - now;
-                var maxTtl = targetTtl;
-                if (remaining > TimeSpan.Zero)
-                {
-                    targetTtl = remaining > maxTtl ? maxTtl : remaining;
-                }
-            }
-        }
+        var (targetJti, targetTtl) = ResolveAccessTokenBlacklistTarget(request, user.Id, now);
 
         if (!string.IsNullOrEmpty(targetJti) && _blacklistService is not null)
         {
@@ -75,5 +51,37 @@ public sealed class RevokeTokenCommandHandler
         }
 
         return true;
+    }
+
+    private (string? TargetJti, TimeSpan TargetTtl) ResolveAccessTokenBlacklistTarget(
+        RevokeTokenCommand request,
+        Guid ownerUserId,
+        DateTime now)
+    {
+        // Do not trust caller's JwtId if caller does not own the refresh token
+        var targetJti = request.CallerUserId.HasValue && request.CallerUserId.Value != ownerUserId
+            ? null
+            : request.JwtId;
+
+        var targetTtl = _tokenService.AccessTokenLifetime > TimeSpan.Zero
+            ? _tokenService.AccessTokenLifetime
+            : TimeSpan.FromMinutes(60);
+
+        if (!string.IsNullOrEmpty(targetJti) || string.IsNullOrEmpty(request.AccessToken))
+        {
+            return (targetJti, targetTtl);
+        }
+
+        var (parsedJti, parsedExp) = _tokenService.ExtractTokenInfo(request.AccessToken, ownerUserId);
+        if (parsedExp.HasValue)
+        {
+            var remaining = parsedExp.Value - now;
+            if (remaining > TimeSpan.Zero && remaining < targetTtl)
+            {
+                targetTtl = remaining;
+            }
+        }
+
+        return (parsedJti, targetTtl);
     }
 }
