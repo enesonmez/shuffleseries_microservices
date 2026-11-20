@@ -243,7 +243,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 - **Security by Design (OWASP API8)**: Masks sensitive internal stack traces in non-development environments while maintaining detailed structured logging.
 
 ### 4. Centralized CORS Management (`ShuffleSeries.Shared.Core.Web`)
-- **`AddSharedCors` & `UseSharedCors`**: Extension methods enabling environment-aware CORS. Enforces strict `Cors:AllowedOrigins` and credentials when configured in production; seamlessly falls back to permissive development mode for local development and Swagger UI exploration.
+- **`AddSharedCors` & `UseSharedCors`**: Extension methods enabling environment-aware CORS. Enforces strict `Cors:AllowedOrigins` and credentials when configured; adheres to **Fail-Closed** security by default (blocking cross-origin requests if no valid origins are configured or if `"*"` is specified, in strict compliance with OWASP A05 and SonarQube S5122).
 
 ### 5. Common DTOs (`ShuffleSeries.Shared.Core.Application`)
 - **`PaginatedList<T>`**: Immutable, paginated result set with seamless `System.Text.Json` deserialization (`[JsonConstructor]`).
@@ -319,7 +319,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 - **TMDb & IMDb External Identifier Deduplication**: Media entities enforce external identifiers (`TmdbId` > 0 and `ImdbId` regex `^tt\d{7,10}$`). `TmdbId` is governed by a composite partial unique index `(MediaType, TmdbId) WHERE "IsDeleted" = false` allowing identical IDs across movies and series (as TMDB maintains independent ID sequences for movies vs TV shows), while eliminating artificial Title uniqueness constraints to seamlessly support independent works and remakes sharing identical names.
 
 ### 14. Catalog CQRS, Minimal APIs & Content Negotiation (`ShuffleSeries.Catalog`)
-- **End-to-End CQRS Architecture (MediatR & FluentValidation)**: Fully segregated Read and Write models for Movies, Series, Episodes, Platforms, Moods, Genres, Media Associations, and CMS Admin Backoffice.
+- **End-to-End CQRS Architecture (Wolverine POCO & FluentValidation)**: Fully segregated Read and Write models for Movies, Series, Episodes, Platforms, Moods, Genres, Media Associations, and CMS Admin Backoffice.
 - **Lightweight Minimal API Endpoints (`/api/catalog/...`)**:
   - `POST / PUT / DELETE /api/catalog/movies`: Rich multi-language movie management with inline taxonomy associations.
   - `POST / PUT / DELETE /api/catalog/series`: Series management with full symmetry supporting optional inline platform, mood, and genre associations.
@@ -343,7 +343,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
   - **Over-Fetching Elimination & Focused Aggregate Loading**: Avoids loading full aggregate deep graphs; `CreateEpisode` uses lightweight `GetByIdWithSeasonsAsync`, and media associations load focused collections (`GetByIdWithPlatforms/Moods/Genres/Translations`).
   - **ChangeTracker Snapshot Isolation (`GetByIdForDetailAsync`)**: Read-only detail queries strictly encapsulate EF Core `.AsNoTracking()` within infrastructure repository implementations without leaking ORM flags into domain contracts, eliminating ChangeTracker overhead.
   - **Optimized Partial Outbox Indexing**: Composite filtered index `(OccurredOnUtc) WHERE "ProcessedOnUtc" IS NULL AND "RetryCount" < 3` (`IX_OutboxMessages_Pending`) guarantees index-only scans for background outbox message dispatchers.
-  - **MassTransit Pod OOM Guard**: RabbitMQ endpoint consumer configured with strict `PrefetchCount = 16` and standard `.NET 10 TimeProvider`.
+  - **Wolverine & RabbitMQ Dual-Track Health & Boundary Isolation**: Outbound message routing strictly enforces `IIntegrationEvent` contracts, preventing internal domain event leakage across service boundaries, while `/health/ready` verifies both the external RabbitMQ AMQP broker and the internal Wolverine runtime engine.
 
 ---
 
@@ -353,12 +353,12 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 flowchart LR
     Rule["📜 Declarative Standard\n(.agents/rules/architecture-standard.md)"] --> Scaffold["⚙️ Deterministic CLI\n(scripts/scaffold_service.py)"]
     Scaffold --> Onion["🧅 5-Layer Symmetric Service\n(Domain, App, Infra, Api, Tests)"]
-    Onion --> Fitness["🛡️ Executable Governance\n(MicroserviceArchitectureTestBase - 59 Tests)"]
+    Onion --> Fitness["🛡️ Executable Governance\n(MicroserviceArchitectureTestBase - 73 Tests)"]
 ```
 
 - **Declarative Guard (`.agents/rules/architecture-standard.md` & `AGENTS.md`)**: Complete architectural specification for all ShuffleSeries microservices, enforcing 5-layer Onion anatomy (`Domain`, `Application`, `Infrastructure`, `Api`, `Tests`, `IntegrationTests`), strict **1-Class-1-File** discipline, **1:1 SUT test folder mirroring**, pure BCL `Infrastructure` isolation (zero `Microsoft.AspNetCore.*` coupling), and standardized `Program.cs` middleware ordering.
-- **Universal Architecture Test Base (`MicroserviceArchitectureTestBase`)**: Reusable `NetArchTest.Rules` fitness function base class enforcing **26+ automated invariants** per service (**59 total architecture tests**): layer dependency boundaries, zero `Microsoft.AspNetCore` references in `Infrastructure`, `internal sealed` CQRS handlers, repositories & EF Core configurations, `public sealed` commands & queries, command-validator pairings, aggregate root encapsulation, async `CancellationToken` parameters, and Quartz concurrency controls.
-- **Deterministic Microservice Scaffolding Engine (`scripts/scaffold_service.py`)**: Production-ready Python CLI generating full 6-project Onion + Test suites in 2 seconds, pre-configured with `<InternalsVisibleTo>`, MediatR, FluentValidation, EF Core `IX_OutboxMessages_Pending` partial index, Redis health checks, OpenAPI, symmetric multi-layer `Dockerfile`, `launchSettings` ports, solution registration, and immediate `MicroserviceArchitectureTestBase` derivation.
+- **Universal Architecture Test Base (`MicroserviceArchitectureTestBase`)**: Reusable `NetArchTest.Rules` fitness function base class enforcing **28+ automated invariants** per service (**73 total architecture tests** across Catalog, Identity, Shared.Core, and ApiGateway): layer dependency boundaries, cross-bounded-context isolation (`ForbiddenBoundedContextPrefixes`), zero `Microsoft.AspNetCore` references in `Infrastructure`, `public sealed` Wolverine CQRS handlers & commands/queries, `internal sealed` repositories & EF Core configurations, command-validator pairings, readonly aggregate root collections, async `CancellationToken` parameters, and Quartz concurrency controls.
+- **Deterministic Microservice Scaffolding Engine (`scripts/scaffold_service.py`)**: Production-ready Python CLI generating full 6-project Onion + Test suites in 2 seconds, pre-configured with `<InternalsVisibleTo>`, WolverineFx, FluentValidation, EF Core `IX_OutboxMessages_Pending` partial index, Redis & RabbitMQ health checks, OpenAPI, symmetric multi-layer `Dockerfile`, `launchSettings` ports, solution registration, and immediate `MicroserviceArchitectureTestBase` derivation.
 
 ---
 
@@ -445,7 +445,7 @@ ShuffleSeries enforces a strict, multi-tiered testing strategy:
 - **Master E2E & Penetration Testing Suite (`e2e_tests/`):** 214 comprehensive integration and adversarial penetration tests through YARP API Gateway covering SSRF, SQLi/Trigram blind fuzzing, BOLA/IDOR, ReDoS/DoS, HTTP Parameter Pollution, and JWT Algorithm Confusion.
 
 ```bash
-# Run all 1,022+ tests across the entire solution
+# Run all 1,103+ tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)
@@ -471,7 +471,7 @@ dotnet run --project ShuffleSeries.Catalog/ShuffleSeries.Catalog.Api
 # API Gateway
 dotnet run --project ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.Api
 ```
-*(Automatically applies EF Core migrations to PostgreSQL, seeds initial roles & permissions, injects secrets from Vault, and starts MassTransit against RabbitMQ)*
+*(Automatically applies EF Core migrations to PostgreSQL, seeds initial roles & permissions, injects secrets from Vault, and starts Wolverine against RabbitMQ)*
 
 #### 📖 Interactive API Documentation Endpoints
 - **API Gateway Aggregated Swagger UI (All Services):** [http://localhost:5001/swagger](http://localhost:5001/swagger)
@@ -491,13 +491,13 @@ The platform is fortified with an automated, multi-stage GitHub Actions pipeline
 ```mermaid
 flowchart LR
     A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
-    B --> C["🧪 Automated Tests\n(1,022+ Tests + Real Testcontainers)"]
+    B --> C["🧪 Automated Tests\n(1,103+ Tests + Real Testcontainers)"]
     D --> E["🐳 Docker Integrity Gate\n(Non-Root 'app' Containers)"]
-    C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 100% Safe)"]
+    C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 93.1% Coverage)"]
 ```
 
 - **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
-- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **1,022 automated tests** (Unit, 63 Architecture Fitness Functions, and real PostgreSQL/Redis/RabbitMQ Testcontainers integration suites), exceeding the 80% Quality Gate threshold.
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **1,103 automated tests** (Unit, 73 Architecture Fitness Functions, and real PostgreSQL/Redis/RabbitMQ Testcontainers integration suites), achieving **93.1% code coverage** (exceeding the 80% Quality Gate threshold).
 - **SonarQube Quality Gate:** Validates **0 Bugs**, **0 Vulnerabilities**, **0 Code Smells**, and **100% Security Hotspots Reviewed**.
 - **Container Verification:** Validates Docker builds for microservices and API Gateway on every push and pull request, enforcing the non-root `USER app` security standard.
 - **Fine-Grained Permission-Based Access Control (PBAC):** Every Catalog endpoint is secured via resource-level granular permissions (`catalog:movies:*`, `catalog:series:*`, `catalog:episodes:*`, `catalog:platforms:*`, `catalog:moods:*`, `catalog:genres:*`, `catalog:associations:manage`, `catalog:admin:read`) backed by idempotent database seeding (`IdentityDbSeeder`).

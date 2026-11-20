@@ -112,7 +112,7 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
 * [ ] Task 3.3: gRPC İletişim Uç Noktası (Shuffle Engine Entegrasyonu)
   * Shuffle Engine Redis Cold Start / Cache Warming ve Bölüm Ruleti beslemesi için `CatalogGrpcService` geliştirilmesi (`GetBulkMediaForShuffle`, `GetStandaloneEpisodesForRoulette`, `GetMediaById`).
   * gRPC sözleşmesinde çok dilli içerik sözlüklerinin (`map<string, LocalizedMediaPayload>`) taşınması.
-* [ ] Task 3.4: Transactional Outbox Pattern ve RabbitMQ Entegrasyonu
+* [x] Task 3.4: Transactional Outbox Pattern ve RabbitMQ Entegrasyonu
   * Dağıtık veri tutarlılığı için Transactional Outbox Pattern uygulanması.
   * Çok dilli `MediaCreated/Updated/DeletedEvent`, `EpisodeCreated/Updated/DeletedEvent` ve `CatalogTaxonomyChangedEvent` mesajlarının RabbitMQ'ya asenkron fırlatılması (Search ve Shuffle servisleri beslemesi).
   * Çoklu pod dağıtımlarında yarış durumlarını ve mükerrer mesaj iletimini önleyen `OutboxBatchProcessor` (PostgreSQL `FOR UPDATE SKIP LOCKED`), zehirli mesaj koruması (`MaxRetries = 3`) ve 7 günlük retention purge entegrasyonu.
