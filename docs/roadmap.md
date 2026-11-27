@@ -109,7 +109,7 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
   * Granüler PBAC ve API Güvenliği: Kaynak bazlı izinler (PBAC) ve OWASP API standartlarına dayalı penetrasyon testi doğrulaması.
   * Performans, Dayanıklılık ve Veritabanı Optimizasyonları: PostgreSQL GIN trigram indeksleme, Cache Stampede koruması, Cartesian split query ve bellek izolasyonu.
   * Kapsamlı Test ve Mimari Doğrulama: xUnit birim testleri, Onion Architecture mimari testleri, Testcontainers (PostgreSQL) entegrasyon testleri ve API Gateway üzerinden uçtan uca (E2E) test otomasyonu.
-* [ ] Task 3.3: gRPC İletişim Uç Noktası (Shuffle Engine Entegrasyonu)
+* [x] Task 3.3: gRPC İletişim Uç Noktası (Shuffle Engine Entegrasyonu)
   * Shuffle Engine Redis Cold Start / Cache Warming ve Bölüm Ruleti beslemesi için `CatalogGrpcService` geliştirilmesi (`GetBulkMediaForShuffle`, `GetStandaloneEpisodesForRoulette`, `GetMediaById`).
   * gRPC sözleşmesinde çok dilli içerik sözlüklerinin (`map<string, LocalizedMediaPayload>`) taşınması.
 * [x] Task 3.4: Transactional Outbox Pattern ve RabbitMQ Entegrasyonu

@@ -63,5 +63,49 @@ public class CatalogArchitectureTests : MicroserviceArchitectureTestBase
         }
     }
 
+    [Fact]
+    public void GrpcServices_ShouldBeSealed_And_NotDirectlyDependOn_RepositoriesOrDbContext()
+    {
+        var grpcServices = ApiAssembly.GetTypes()
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsNested: false }
+                        && !t.Name.Contains('<')
+                        && t.Namespace == "ShuffleSeries.Catalog.Api.Grpc"
+                        && t.Name.EndsWith("GrpcService", StringComparison.Ordinal))
+            .ToList();
+
+        grpcServices.Should().NotBeEmpty("Catalog.Api.Grpc katmanında en az bir gRPC servis sınıfı bulunmalıdır.");
+
+        foreach (var service in grpcServices)
+        {
+            service.IsPublic.Should().BeTrue($"gRPC servisi '{service.Name}' public olmalıdır.");
+            service.IsSealed.Should().BeTrue($"gRPC servisi '{service.Name}' sealed olmalıdır.");
+        }
+
+        var handlerTypeNames = ApplicationAssembly.GetTypes()
+            .Where(t => t is { IsClass: true, IsAbstract: false, IsNested: false }
+                        && !t.Name.Contains('<')
+                        && t.Namespace != null
+                        && t.Namespace.Contains(".Features.")
+                        && t.Name.EndsWith("Handler", StringComparison.Ordinal))
+            .Select(t => t.FullName!)
+            .ToArray();
+
+        var forbiddenDependencies = new[]
+        {
+            "ShuffleSeries.Catalog.Domain.Repositories",
+            "ShuffleSeries.Catalog.Infrastructure.Persistence"
+        }.Concat(handlerTypeNames).ToArray();
+
+        var testResult = NetArchTest.Rules.Types.InAssembly(ApiAssembly)
+            .That()
+            .ResideInNamespace("ShuffleSeries.Catalog.Api.Grpc")
+            .ShouldNot()
+            .HaveDependencyOnAny(forbiddenDependencies)
+            .GetResult();
+
+        testResult.IsSuccessful.Should().BeTrue(
+            $"gRPC servisleri doğrudan Repository, DbContext veya CQRS Handler kullanamaz; Wolverine IMessageBus üzerinden ilerlemelidir. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
+    }
+
     #endregion
 }

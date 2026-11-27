@@ -15,6 +15,7 @@ Covers:
 - Admin Media CMS & Search Validation (SEC-02 100-char limit)
 """
 
+import os
 import sys
 import json
 import time
@@ -26,7 +27,19 @@ import urllib.request
 import urllib.error
 import urllib.parse
 
+from grpc_client import (
+    call_grpc,
+    decode_protobuf_fields,
+    decode_string_map,
+    encode_field_str,
+    encode_field_varint,
+    get_first_int,
+    get_first_str,
+)
+
 GATEWAY_BASE_URL = "http://localhost:5001"
+CATALOG_GRPC_HOST = os.environ.get("CATALOG_GRPC_HOST", "127.0.0.1")
+CATALOG_GRPC_PORT = int(os.environ.get("CATALOG_GRPC_PORT", "5012"))
 JWT_SECRET = "SuperSecretSecretKeyForJwtAuthenticationTokens2026!!"
 JWT_ISSUER = "ShuffleSeries.Identity"
 JWT_AUDIENCE = "ShuffleSeries.Microservices"
@@ -767,6 +780,132 @@ def run_all_tests():
     print(f"  {CYAN}▸ [OWASP API2] JWT Algorithmic Confusion & Token Tampering{RESET}")
     test_case("PENTEST-JWT", "JWT None Algorithm Attack (alg: 'none') -> 401 Unauthorized", "GET", "/api/catalog/admin/media", 401, token=NONE_ALG_TOKEN)
     test_case("PENTEST-JWT", "Malformed JWT Structure -> 401 Unauthorized", "GET", "/api/catalog/admin/media", 401, token=MALFORMED_TOKEN)
+
+    # -------------------------------------------------------------
+    # 12. Catalog gRPC Service E2E Verification (HTTP/2 h2c & Protobuf)
+    # -------------------------------------------------------------
+    print(f"\n{BOLD}12. Catalog gRPC Service E2E Verification ({CATALOG_GRPC_HOST}:{CATALOG_GRPC_PORT}){RESET}")
+
+    def record_grpc_test(name: str, expected_grpc: int, actual_http: int, actual_grpc: int, detail: str = "", valid: bool = True):
+        passed_check = (actual_http == 200 and actual_grpc == expected_grpc and valid)
+        test_results.append({
+            "category": "GRPC",
+            "name": name if passed_check else f"{name} ({detail})",
+            "method": "GRPC",
+            "path": name,
+            "expected": expected_grpc,
+            "actual": actual_grpc,
+            "passed": passed_check,
+            "body": detail,
+            "headers": {}
+        })
+        mark = f"{GREEN}✔ PASS{RESET}" if passed_check else f"{RED}✘ FAIL{RESET}"
+        color = GREEN if passed_check else RED
+        print(f"[GRPC] {mark} GRPC   {name:55} -> Exp: {expected_grpc} | Got: {color}{actual_grpc}{RESET} (HTTP {actual_http})")
+        if not passed_check and detail:
+            print(f"    {YELLOW}Details:{RESET} {detail}")
+
+    # 12.1 Edge Isolation: gRPC endpoint MUST NOT be exposed on external YARP API Gateway
+    test_case(
+        "GRPC-EDGE",
+        "gRPC endpoint not exposed on external YARP Gateway (404 Not Found)",
+        "POST",
+        "/catalog.v1.CatalogGrpc/GetMediaById",
+        404,
+        token=ADMIN_TOKEN,
+        headers={"Content-Type": "application/grpc"},
+        raw_body=b""
+    )
+
+    # 12.2 GetBulkMediaForShuffle (Default Pagination & Multilingual Map)
+    bulk_req = encode_field_varint(1, 1)
+    http_st, grpc_st, bulk_raw, grpc_msg = call_grpc(
+        CATALOG_GRPC_HOST, CATALOG_GRPC_PORT, "/catalog.v1.CatalogGrpc/GetBulkMediaForShuffle", bulk_req
+    )
+    first_media_id = None
+    bulk_valid = False
+    bulk_detail = grpc_msg
+    if http_st == 200 and grpc_st == 0 and bulk_raw:
+        bulk_fields = decode_protobuf_fields(bulk_raw)
+        total_count = get_first_int(bulk_fields, 2)
+        resp_page_size = get_first_int(bulk_fields, 4)
+        items_entries = bulk_fields.get(1, [])
+        if total_count >= 2 and resp_page_size == 10 and len(items_entries) >= 2:
+            first_item = decode_protobuf_fields(items_entries[0][1])
+            first_media_id = get_first_str(first_item, 1)
+            translations = decode_string_map(first_item.get(18, []))
+            if first_media_id and len(translations) >= 1:
+                bulk_valid = True
+            else:
+                bulk_detail = f"Missing id or translations in MediaGrpcModel: id={first_media_id}, langs={list(translations.keys())}"
+        else:
+            bulk_detail = f"Unexpected bulk counts: total_count={total_count}, page_size={resp_page_size}, items={len(items_entries)}"
+    record_grpc_test("GetBulkMediaForShuffle (Default PageSize=10 & Sync)", 0, http_st, grpc_st, bulk_detail, bulk_valid)
+
+    # 12.3 GetStandaloneEpisodesForRoulette (Paginated Multi-Page Loop & Clamping)
+    ep_req_p1 = encode_field_varint(1, 1) + encode_field_varint(2, 2)
+    ep_req_p2 = encode_field_varint(1, 2) + encode_field_varint(2, 2)
+    http_st1, grpc_st1, ep_raw1, grpc_msg1 = call_grpc(
+        CATALOG_GRPC_HOST, CATALOG_GRPC_PORT, "/catalog.v1.CatalogGrpc/GetStandaloneEpisodesForRoulette", ep_req_p1
+    )
+    http_st2, grpc_st2, ep_raw2, grpc_msg2 = call_grpc(
+        CATALOG_GRPC_HOST, CATALOG_GRPC_PORT, "/catalog.v1.CatalogGrpc/GetStandaloneEpisodesForRoulette", ep_req_p2
+    )
+    ep_valid = False
+    ep_detail = grpc_msg1 or grpc_msg2
+    if http_st1 == 200 and grpc_st1 == 0 and http_st2 == 200 and grpc_st2 == 0 and ep_raw1 and ep_raw2:
+        ep_resp1 = decode_protobuf_fields(ep_raw1)
+        ep_resp2 = decode_protobuf_fields(ep_raw2)
+        ep_total = get_first_int(ep_resp1, 2)
+        ep_p1_items = ep_resp1.get(1, [])
+        ep_p2_items = ep_resp2.get(1, [])
+        if ep_total >= 4 and len(ep_p1_items) == 2 and len(ep_p2_items) == 2:
+            ep_model = decode_protobuf_fields(ep_p1_items[0][1])
+            ep_p2_model = decode_protobuf_fields(ep_p2_items[0][1])
+            ep_id1 = get_first_str(ep_model, 1)
+            ep_id2 = get_first_str(ep_p2_model, 1)
+            series_id = get_first_str(ep_model, 2)
+            ep_trans = decode_string_map(ep_model.get(16, []))
+            series_trans = decode_string_map(ep_model.get(17, []))
+            if ep_id1 and ep_id2 and ep_id1 != ep_id2 and series_id and len(ep_trans) >= 1 and len(series_trans) >= 1:
+                ep_valid = True
+            else:
+                ep_detail = f"Incomplete or overlapping paginated episodes: ep_id1={ep_id1}, ep_id2={ep_id2}, series_id={series_id}"
+        else:
+            ep_detail = f"Unexpected paginated episode counts: total={ep_total}, p1={len(ep_p1_items)}, p2={len(ep_p2_items)}"
+    record_grpc_test("GetStandaloneEpisodesForRoulette (Paginated Multi-Page)", 0, http_st1 if grpc_st1 != 0 else http_st2, grpc_st1 if grpc_st1 != 0 else grpc_st2, ep_detail, ep_valid)
+
+    # 12.4 GetMediaById (Happy Path)
+    if first_media_id:
+        by_id_req = encode_field_str(1, first_media_id)
+        http_st, grpc_st, media_raw, grpc_msg = call_grpc(
+            CATALOG_GRPC_HOST, CATALOG_GRPC_PORT, "/catalog.v1.CatalogGrpc/GetMediaById", by_id_req
+        )
+        by_id_valid = False
+        by_id_detail = grpc_msg
+        if http_st == 200 and grpc_st == 0 and media_raw:
+            media_fields = decode_protobuf_fields(media_raw)
+            returned_id = get_first_str(media_fields, 1)
+            returned_trans = decode_string_map(media_fields.get(18, []))
+            if returned_id == first_media_id and len(returned_trans) >= 1:
+                by_id_valid = True
+            else:
+                by_id_detail = f"Mismatched GetMediaById payload: returned_id={returned_id}, expected={first_media_id}"
+        record_grpc_test("GetMediaById (Happy Path)", 0, http_st, grpc_st, by_id_detail, by_id_valid)
+
+    # 12.5 GetMediaById (Not Found -> gRPC Status 5 NOT_FOUND)
+    nf_req = encode_field_str(1, "ffffffff-ffff-ffff-ffff-ffffffffffff")
+    http_st, grpc_st, _, grpc_msg = call_grpc(
+        CATALOG_GRPC_HOST, CATALOG_GRPC_PORT, "/catalog.v1.CatalogGrpc/GetMediaById", nf_req
+    )
+    record_grpc_test("GetMediaById (Not Found -> Status 5)", 5, http_st, grpc_st, grpc_msg)
+
+    # 12.6 GetMediaById (Invalid GUID -> gRPC Status 3 INVALID_ARGUMENT)
+    inv_req = encode_field_str(1, "not-a-valid-guid")
+    http_st, grpc_st, _, grpc_msg = call_grpc(
+        CATALOG_GRPC_HOST, CATALOG_GRPC_PORT, "/catalog.v1.CatalogGrpc/GetMediaById", inv_req
+    )
+    record_grpc_test("GetMediaById (Invalid GUID -> Status 3)", 3, http_st, grpc_st, grpc_msg)
 
     # -------------------------------------------------------------
     # Summary Report
