@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_DB_USER:-admin}
       POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!}
       POSTGRES_DB: ${POSTGRES_DB_NAME:-shuffleseries_db}
-      POSTGRES_MULTIPLE_DATABASES: ${POSTGRES_MULTIPLE_DATABASES:-shuffleseries_identity}
+      POSTGRES_MULTIPLE_DATABASES: ${POSTGRES_MULTIPLE_DATABASES:-shuffleseries_identity,shuffleseries_shuffle}
     ports:
       - "5432:5432"
     volumes:
@@ -150,6 +150,8 @@ services:
       POSTGRES_DB_PASSWORD: ${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!}
       POSTGRES_DB_NAME: ${POSTGRES_DB_NAME:-shuffleseries_db}
       POSTGRES_IDENTITY_DB_NAME: ${POSTGRES_IDENTITY_DB_NAME:-shuffleseries_identity}
+      POSTGRES_SHUFFLE_DB_NAME: ${POSTGRES_SHUFFLE_DB_NAME:-shuffleseries_shuffle}
+      CATALOG_GRPC_ADDRESS: ${CATALOG_GRPC_ADDRESS:-http://catalog.api:8081}
       RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
       RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
       RABBITMQ_USER: ${RABBITMQ_USER:-guest_123}

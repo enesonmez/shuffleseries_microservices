@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+option csharp_namespace = "ShuffleSeries.ShuffleEngine.Infrastructure.Grpc.Catalog";
+
+package catalog.v1;
+
+service CatalogGrpc {
+  rpc GetBulkMediaForShuffle (GetBulkMediaForShuffleRequest) returns (GetBulkMediaForShuffleResponse);
+  rpc GetStandaloneEpisodesForRoulette (GetStandaloneEpisodesForRouletteRequest) returns (GetStandaloneEpisodesForRouletteResponse);
+  rpc GetStandaloneEpisodeById (GetStandaloneEpisodeByIdRequest) returns (StandaloneEpisodeGrpcModel);
+  rpc GetMediaById (GetMediaByIdRequest) returns (MediaGrpcModel);
+}
+
+message GetBulkMediaForShuffleRequest {
+  int32 page_number = 1;
+  int32 page_size = 2;
+  optional int32 media_type = 3;
+}
+
+message GetBulkMediaForShuffleResponse {
+  repeated MediaGrpcModel items = 1;
+  int32 total_count = 2;
+  int32 page_number = 3;
+  int32 page_size = 4;
+}
+
+message GetStandaloneEpisodesForRouletteRequest {
+  int32 page_number = 1;
+  int32 page_size = 2;
+  optional string series_id = 3;
+}
+
+message GetStandaloneEpisodeByIdRequest {
+  string episode_id = 1;
+}
+
+message GetStandaloneEpisodesForRouletteResponse {
+  repeated StandaloneEpisodeGrpcModel items = 1;
+  int32 total_count = 2;
+  int32 page_number = 3;
+  int32 page_size = 4;
+}
+
+message GetMediaByIdRequest {
+  string media_id = 1;
+}
+
+message LocalizedMediaPayload {
+  string title = 1;
+  string overview = 2;
+  optional string tagline = 3;
+}
+
+message LocalizedEpisodePayload {
+  string title = 1;
+  optional string overview = 2;
+}
+
+message PlatformDeepLinkGrpcModel {
+  string platform_id = 1;
+  string platform_name = 2;
+  string platform_slug = 3;
+  string logo_url = 4;
+  string web_url = 5;
+  optional string app_scheme_url = 6;
+}
+
+message MediaGrpcModel {
+  string id = 1;
+  int32 media_type = 2;
+  int32 tmdb_id = 3;
+  string imdb_id = 4;
+  optional double imdb_rating = 5;
+  optional int32 imdb_votes = 6;
+  int32 release_year = 7;
+  string poster_url = 8;
+  optional string backdrop_url = 9;
+  optional int32 runtime_minutes = 10;
+  optional int32 series_type = 12;
+  optional int32 total_seasons = 13;
+  optional string director = 11;
+  repeated string platform_ids = 14;
+  repeated string mood_ids = 15;
+  repeated string genre_ids = 16;
+  repeated PlatformDeepLinkGrpcModel platform_links = 17;
+  map<string, LocalizedMediaPayload> translations = 18;
+}
+
+message StandaloneEpisodeGrpcModel {
+  string episode_id = 1;
+  string series_id = 2;
+  string season_id = 3;
+  int32 season_number = 4;
+  int32 episode_number = 5;
+  bool is_standalone = 6;
+  optional int32 runtime_minutes = 7;
+  optional double imdb_rating = 8;
+  optional string thumbnail_url = 9;
+  string series_poster_url = 10;
+  int32 release_year = 11;
+  repeated string platform_ids = 12;
+  repeated string mood_ids = 13;
+  repeated string genre_ids = 14;
+  repeated PlatformDeepLinkGrpcModel platform_links = 15;
+  map<string, LocalizedEpisodePayload> translations = 16;
+  map<string, LocalizedMediaPayload> series_translations = 17;
+}

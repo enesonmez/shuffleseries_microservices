@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ShuffleSeries.ShuffleEngine.Api" />
+        <InternalsVisibleTo Include="ShuffleSeries.ShuffleEngine.Tests" />
+        <InternalsVisibleTo Include="ShuffleSeries.ShuffleEngine.IntegrationTests" />
+        <InternalsVisibleTo Include="WolverineHandlers" />
+        <InternalsVisibleTo Include="Wolverine" />
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Google.Protobuf" Version="3.36.2" />
+        <PackageReference Include="Grpc.Net.ClientFactory" Version="2.85.0" />
+        <PackageReference Include="Grpc.Tools" Version="2.85.0">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+        <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+        <PackageReference Include="Quartz" Version="3.19.1" />
+        <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.19.1" />
+        <PackageReference Include="Quartz.Extensions.Hosting" Version="3.19.1" />
+        <PackageReference Include="WolverineFx.RabbitMQ" Version="6.62.0" />
+        <PackageReference Include="WolverineFx.HealthChecks" Version="6.62.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Protobuf Include="Protos\catalog.proto" GrpcServices="Client" Access="Internal" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Infrastructure\ShuffleSeries.Shared.Core.Infrastructure.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine.Domain\ShuffleSeries.ShuffleEngine.Domain.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine.Application\ShuffleSeries.ShuffleEngine.Application.csproj" />
+    </ItemGroup>
+
+</Project>

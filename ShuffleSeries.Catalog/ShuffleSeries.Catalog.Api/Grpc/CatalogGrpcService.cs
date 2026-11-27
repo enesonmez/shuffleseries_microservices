@@ -1,6 +1,7 @@
 using Grpc.Core;
 using ShuffleSeries.Catalog.Application.Features.ShuffleSync.Queries.GetBulkMediaForShuffle;
 using ShuffleSeries.Catalog.Application.Features.ShuffleSync.Queries.GetMediaByIdForShuffle;
+using ShuffleSeries.Catalog.Application.Features.ShuffleSync.Queries.GetStandaloneEpisodeByIdForShuffle;
 using ShuffleSeries.Catalog.Application.Features.ShuffleSync.Queries.GetStandaloneEpisodesForRoulette;
 using ShuffleSeries.Catalog.Application.Features.ShuffleSync.Responses;
 using ShuffleSeries.Catalog.Domain.Enums;
@@ -60,7 +61,20 @@ public sealed class CatalogGrpcService : CatalogGrpc.CatalogGrpcBase
         GetStandaloneEpisodesForRouletteRequest request,
         ServerCallContext context)
     {
-        var query = new GetStandaloneEpisodesForRouletteQuery(request.PageNumber, request.PageSize);
+        Guid? seriesIdFilter = null;
+        if (request.HasSeriesId)
+        {
+            if (!Guid.TryParse(request.SeriesId, out var parsedSeriesId) || parsedSeriesId == Guid.Empty)
+            {
+                throw new RpcException(new Status(
+                    StatusCode.InvalidArgument,
+                    "Invalid series_id format. A non-empty GUID is required."));
+            }
+
+            seriesIdFilter = parsedSeriesId;
+        }
+
+        var query = new GetStandaloneEpisodesForRouletteQuery(request.PageNumber, request.PageSize, seriesIdFilter);
         var result = await InvokeSafelyAsync(
             () => _messageBus.InvokeAsync<PaginatedList<ShuffleStandaloneEpisodeResponse>>(query, context.CancellationToken),
             nameof(GetStandaloneEpisodesForRoulette),
@@ -75,6 +89,26 @@ public sealed class CatalogGrpcService : CatalogGrpc.CatalogGrpcBase
 
         response.Items.AddRange(result.Items.Select(MapToGrpcModel));
         return response;
+    }
+
+    public override async Task<StandaloneEpisodeGrpcModel> GetStandaloneEpisodeById(
+        GetStandaloneEpisodeByIdRequest request,
+        ServerCallContext context)
+    {
+        if (!Guid.TryParse(request.EpisodeId, out var episodeId) || episodeId == Guid.Empty)
+        {
+            throw new RpcException(new Status(
+                StatusCode.InvalidArgument,
+                "Invalid episode_id format. A non-empty GUID is required."));
+        }
+
+        var query = new GetStandaloneEpisodeByIdForShuffleQuery(episodeId);
+        var item = await InvokeSafelyAsync(
+            () => _messageBus.InvokeAsync<ShuffleStandaloneEpisodeResponse>(query, context.CancellationToken),
+            nameof(GetStandaloneEpisodeById),
+            context.CancellationToken);
+
+        return MapToGrpcModel(item);
     }
 
     public override async Task<MediaGrpcModel> GetMediaById(
@@ -110,6 +144,10 @@ public sealed class CatalogGrpcService : CatalogGrpc.CatalogGrpcBase
         {
             throw new RpcException(new Status(StatusCode.NotFound, ex.Message));
         }
+        catch (EpisodeNotFoundException ex)
+        {
+            throw new RpcException(new Status(StatusCode.NotFound, ex.Message));
+        }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw new RpcException(new Status(StatusCode.Cancelled, "Request was cancelled by the client."));
@@ -120,7 +158,11 @@ public sealed class CatalogGrpcService : CatalogGrpc.CatalogGrpcBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error in CatalogGrpcService.{MethodName}", methodName);
+            if (_logger.IsEnabled(LogLevel.Error))
+            {
+                _logger.LogError(ex, "Unexpected error in CatalogGrpcService.{MethodName}", methodName);
+            }
+
             throw new RpcException(new Status(
                 StatusCode.Internal,
                 "An unexpected error occurred while processing the catalog gRPC request."));

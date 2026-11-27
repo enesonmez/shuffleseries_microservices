@@ -7,6 +7,7 @@ package catalog.v1;
 service CatalogGrpc {
   rpc GetBulkMediaForShuffle (GetBulkMediaForShuffleRequest) returns (GetBulkMediaForShuffleResponse);
   rpc GetStandaloneEpisodesForRoulette (GetStandaloneEpisodesForRouletteRequest) returns (GetStandaloneEpisodesForRouletteResponse);
+  rpc GetStandaloneEpisodeById (GetStandaloneEpisodeByIdRequest) returns (StandaloneEpisodeGrpcModel);
   rpc GetMediaById (GetMediaByIdRequest) returns (MediaGrpcModel);
 }
 
@@ -26,6 +27,11 @@ message GetBulkMediaForShuffleResponse {
 message GetStandaloneEpisodesForRouletteRequest {
   int32 page_number = 1;
   int32 page_size = 2;
+  optional string series_id = 3;
+}
+
+message GetStandaloneEpisodeByIdRequest {
+  string episode_id = 1;
 }
 
 message GetStandaloneEpisodesForRouletteResponse {

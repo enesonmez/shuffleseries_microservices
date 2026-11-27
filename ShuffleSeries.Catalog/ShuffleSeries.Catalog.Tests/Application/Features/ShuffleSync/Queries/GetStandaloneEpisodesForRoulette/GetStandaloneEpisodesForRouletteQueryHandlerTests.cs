@@ -43,14 +43,14 @@ public class GetStandaloneEpisodesForRouletteQueryHandlerTests
         var s1 = series.Seasons.First(s => s.SeasonNumber == 1);
 
         _episodeRepositoryMock
-            .Setup(x => x.GetStandaloneEpisodesWithSeriesContextAsync(1, PaginationRequest.MaxPageSize, It.IsAny<CancellationToken>()))
+            .Setup(x => x.GetStandaloneEpisodesWithSeriesContextAsync(1, PaginationRequest.MaxPageSize, series.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync((new[]
             {
                 new StandaloneEpisodeContext(episodeWithOwnPlatform, s3, series),
                 new StandaloneEpisodeContext(episodeWithoutOwnPlatform, s1, series)
             }, 250));
 
-        var result = await _handler.Handle(new GetStandaloneEpisodesForRouletteQuery(pageNumber: -5, pageSize: 5000), CancellationToken.None);
+        var result = await _handler.Handle(new GetStandaloneEpisodesForRouletteQuery(pageNumber: -5, pageSize: 5000, seriesId: series.Id), CancellationToken.None);
 
         result.PageNumber.Should().Be(1);
         result.PageSize.Should().Be(PaginationRequest.MaxPageSize);
@@ -84,6 +84,7 @@ public class GetStandaloneEpisodesForRouletteQueryHandlerTests
             .Setup(x => x.GetStandaloneEpisodesWithSeriesContextAsync(
                 PaginationRequest.DefaultPageNumber,
                 PaginationRequest.DefaultPageSize,
+                null,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((Array.Empty<StandaloneEpisodeContext>(), 0));
 
@@ -97,6 +98,7 @@ public class GetStandaloneEpisodesForRouletteQueryHandlerTests
             x => x.GetStandaloneEpisodesWithSeriesContextAsync(
                 PaginationRequest.DefaultPageNumber,
                 PaginationRequest.DefaultPageSize,
+                null,
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

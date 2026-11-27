@@ -36,6 +36,10 @@
         <ProjectReference Include="..\ShuffleSeries.Identity\ShuffleSeries.Identity.Application\ShuffleSeries.Identity.Application.csproj" />
         <ProjectReference Include="..\ShuffleSeries.Identity\ShuffleSeries.Identity.Infrastructure\ShuffleSeries.Identity.Infrastructure.csproj" />
         <ProjectReference Include="..\ShuffleSeries.Identity\ShuffleSeries.Identity.Api\ShuffleSeries.Identity.Api.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine\ShuffleSeries.ShuffleEngine.Domain\ShuffleSeries.ShuffleEngine.Domain.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine\ShuffleSeries.ShuffleEngine.Application\ShuffleSeries.ShuffleEngine.Application.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine\ShuffleSeries.ShuffleEngine.Infrastructure\ShuffleSeries.ShuffleEngine.Infrastructure.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine\ShuffleSeries.ShuffleEngine.Api\ShuffleSeries.ShuffleEngine.Api.csproj" />
     </ItemGroup>
 
 </Project>

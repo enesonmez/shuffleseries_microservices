@@ -159,7 +159,7 @@ public class CatalogGrpcServiceIntegrationTests : CatalogIntegrationTestBase
     [Fact]
     public async Task GetStandaloneEpisodesForRoulette_Should_FallbackToSeriesPlatforms_When_EpisodeHasNoOwnPlatform()
     {
-        Guid createdEpisodeId = Guid.Empty;
+        var createdEpisodeId = Guid.Empty;
         await ExecuteDbContextAsync(async db =>
         {
             var blackMirror = await db.Series
@@ -192,8 +192,8 @@ public class CatalogGrpcServiceIntegrationTests : CatalogIntegrationTestBase
     [Fact]
     public async Task GetStandaloneEpisodesForRoulette_Should_FallbackToSeriesPlatforms_When_EpisodePlatformIsSoftDeleted()
     {
-        Guid createdEpisodeId = Guid.Empty;
-        Guid deletedPlatformId = Guid.Empty;
+        var createdEpisodeId = Guid.Empty;
+        var deletedPlatformId = Guid.Empty;
         await ExecuteDbContextAsync(async db =>
         {
             var blackMirror = await db.Series
@@ -263,8 +263,8 @@ public class CatalogGrpcServiceIntegrationTests : CatalogIntegrationTestBase
     [Fact]
     public async Task GetMediaById_Should_ExcludeSoftDeletedPlatformIdsAndLinks()
     {
-        Guid inceptionId = Guid.Empty;
-        Guid primeId = Guid.Empty;
+        var inceptionId = Guid.Empty;
+        var primeId = Guid.Empty;
         await ExecuteDbContextAsync(async db =>
         {
             inceptionId = await db.Movies
@@ -342,6 +342,62 @@ public class CatalogGrpcServiceIntegrationTests : CatalogIntegrationTestBase
         var action = async () => await client.GetMediaByIdAsync(new GetMediaByIdRequest
         {
             MediaId = invalidMediaId
+        });
+
+        var exception = await action.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.InvalidArgument);
+    }
+
+    [Fact]
+    public async Task GetStandaloneEpisodeById_Should_ReturnEpisodeModel_When_StandaloneEpisodeExists()
+    {
+        var sanJuniperoId = await ExecuteDbContextAsync(async db =>
+            await db.Episodes
+                .Where(e => e.IsStandalone && e.EpisodeNumber == 4)
+                .Select(e => e.Id)
+                .FirstAsync());
+
+        var client = CreateGrpcClient(out var channel);
+        using var _ = channel;
+
+        var result = await client.GetStandaloneEpisodeByIdAsync(new GetStandaloneEpisodeByIdRequest
+        {
+            EpisodeId = sanJuniperoId.ToString()
+        });
+
+        result.EpisodeId.Should().Be(sanJuniperoId.ToString());
+        result.IsStandalone.Should().BeTrue();
+        result.Translations["en"].Title.Should().Be("San Junipero");
+        result.SeriesTranslations["en"].Title.Should().Be("Black Mirror");
+    }
+
+    [Fact]
+    public async Task GetStandaloneEpisodeById_Should_ThrowNotFound_When_EpisodeMissing()
+    {
+        var client = CreateGrpcClient(out var channel);
+        using var _ = channel;
+
+        var action = async () => await client.GetStandaloneEpisodeByIdAsync(new GetStandaloneEpisodeByIdRequest
+        {
+            EpisodeId = Guid.NewGuid().ToString()
+        });
+
+        var exception = await action.Should().ThrowAsync<RpcException>();
+        exception.Which.StatusCode.Should().Be(StatusCode.NotFound);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("invalid-guid")]
+    [InlineData("00000000-0000-0000-0000-000000000000")]
+    public async Task GetStandaloneEpisodeById_Should_ThrowInvalidArgument_When_EpisodeIdIsInvalid(string invalidId)
+    {
+        var client = CreateGrpcClient(out var channel);
+        using var _ = channel;
+
+        var action = async () => await client.GetStandaloneEpisodeByIdAsync(new GetStandaloneEpisodeByIdRequest
+        {
+            EpisodeId = invalidId
         });
 
         var exception = await action.Should().ThrowAsync<RpcException>();

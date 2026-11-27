@@ -81,6 +81,7 @@ if (app.Environment.IsDevelopment())
         // Mikroservislerin OpenAPI v3 spesifikasyonları Gateway dropdown'ına eklenir:
         options.SwaggerEndpoint("/catalog-api/openapi/v1.json", "Catalog Service API (v1)");
         options.SwaggerEndpoint("/identity-api/openapi/v1.json", "Identity Service API (v1)");
+        options.SwaggerEndpoint("/shuffle-api/openapi/v1.json", "Shuffle Engine API (v1)");
     });
 }
 

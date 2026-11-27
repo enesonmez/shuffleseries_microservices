@@ -584,7 +584,41 @@ flowchart LR
 
 ---
 
-## 🛠️ 4. Veritabanı Bakım ve Taşıma (Migration) Komutları
+## 🛠️ 4. ShuffleSeries.ShuffleEngine Veri Katmanı (PostgreSQL Inbox/Outbox & Redis In-Memory Topolojisi)
+
+`ShuffleEngine` Bounded Context, katalog verilerini ilişkisel tabloda kopyalamaz (Ponytail YAGNI); milisaniye altı okuma performansı için sıcak havuzları **Redis** üzerinde, mesajlaşma tutarlılığını ise `shuffleseries_shuffle` **PostgreSQL** veritabanındaki `InboxMessages` ve `OutboxMessages` tablolarında yönetir.
+
+### 4.1. PostgreSQL İdempotency Şeması (`InboxMessages`)
+
+| Kolon Adı | Veri Tipi | Nullable | Açıklama / Kısıtlar |
+| :--- | :--- | :--- | :--- |
+| `Id` | `uuid` | Hayır | **Primary Key** (`IIntegrationEvent.Id` ile birebir eşleşir; `ON CONFLICT DO NOTHING` kilidi) |
+| `EventType` | `varchar(255)` | Hayır | Olay sınıf adı (`MediaCreatedEvent`, `MediaRatedEvent` vb.) |
+| `Content` | `jsonb` | Hayır | Olayın serileştirilmiş JSON yükü |
+| `OccurredOnUtc` | `timestamp with time zone` | Hayır | Olayın kaynak serviste üretildiği UTC zamanı |
+| `ReceivedAtUtc` | `timestamp with time zone` | Hayır | Tüketiciye ulaştığı UTC zamanı |
+| `ProcessedAtUtc` | `timestamp with time zone` | Evet | İşlenme zamanı. **Partial Index (`IX_InboxMessages_Processed`):** `WHERE "ProcessedAtUtc" IS NOT NULL` (7 günlük retention purge için) |
+| `CorrelationId` | `varchar(128)` | Evet | Uçtan uca dağıtık izleme kimliği |
+| `Error` | `text` | Evet | Geçici hata durumunda son hata mesajı |
+
+### 4.2. Redis In-Memory Anahtar Sözlüğü (`shuffleseries:` Ön Ekli)
+
+| Anahtar Şablonu | Veri Tipi | TTL Politikası | Mimari Rolü |
+| :--- | :--- | :--- | :--- |
+| `shuffle:media:{mediaId}` | `HASH` | `24s + jitter(0..300s)` | Film/dizi skorlama alanları (`kind`, `baseScore`, `moodIds`, `genreIds`, `occurredAtTicks`) ve UTF-8 JSON `payload` |
+| `shuffle:episode:{episodeId}` | `HASH` | `24s + jitter(0..300s)` | Bağımsız bölüm skorlama alanları ve üst dizi bağlamlı UTF-8 JSON `payload` |
+| `shuffle:pool:{movies\|series\|episodes}` | `ZSET` | `24s + jitter(0..300s)` | `BaseQualityScore` skoruyla sıralı ana aday havuzları |
+| `shuffle:safety-net:{movies\|series\|episodes}` | `ZSET` | `24s + jitter(0..300s)` | Yeni/misafir kullanıcılar için `IMDb >= 7.5` Güvenli Başyapıtlar Havuzu |
+| `shuffle:idx:{platform\|mood\|genre}:{id}:*` | `SET` | `24s + jitter(0..300s)` | $O(1)$ taksonomi ve platform kesişim indeksleri |
+| `shuffle:idx:series:{seriesId}:episodes` | `SET` | `24s + jitter(0..300s)` | Diziye bağlı bağımsız bölümler (Cascade silme ve dizi içi rulet) |
+| `shuffle:meta:warmed` | `STRING` | `12s + jitter(0..300s)` | Havuz ısınma işaretçisi (havuzlardan 12 saat önce düşerek kesintisiz yenileme tetikler) |
+| `cooldown:user:{userId}` | `ZSET` | `24s + jitter(0..120s)` | `score = expiresAtUnixSeconds` ile öğe bazlı 24 saatlik pas geçme soğuma seti |
+| `shuffle:user:{userId}:affinity` | `HASH` | `30g + jitter(0..300s)` | Lua ile `[-0.80, +1.50]` aralığında sınırlandırılmış kullanıcı ilgi vektörü |
+| `shuffle:user:{userId}:entitlement` | `HASH` | Abonelik süresi + jitter | `occurredAtTicks` korumalı milisaniyelik VIP/Premium yetki önbelleği |
+
+---
+
+## 🛠️ 5. Veritabanı Bakım ve Taşıma (Migration) Komutları
 
 EF Core Code-First yaklaşımı ile hazırlanan veritabanı şemalarını yerel PostgreSQL üzerinde güncellemek için aşağıdaki komutlar kullanılır:
 

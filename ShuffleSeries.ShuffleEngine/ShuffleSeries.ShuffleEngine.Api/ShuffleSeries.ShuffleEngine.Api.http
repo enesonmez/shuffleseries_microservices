@@ -1,0 +1,57 @@
+@gateway = http://localhost:5001
+@direct = http://localhost:5013
+@adminToken = REPLACE_WITH_ADMIN_JWT
+@standardToken = REPLACE_WITH_STANDARD_JWT
+
+### 1. Direct Liveness Probe (200 OK)
+GET {{direct}}/health/live
+
+### 2. Direct Readiness Probe (PostgreSQL + Redis + RabbitMQ + Wolverine) (200 OK)
+GET {{direct}}/health/ready
+
+### 3. Gateway Health Route (200 OK)
+GET {{gateway}}/shuffle-api/health/live
+
+### 4. Gateway OpenAPI v3 Schema (200 OK)
+GET {{gateway}}/shuffle-api/openapi/v1.json
+
+### 5. Security: Unauthenticated Pool Status Request (401 Unauthorized - RFC 7807 ProblemDetails)
+GET {{gateway}}/api/shuffle/admin/pool-status
+
+### 6. Security: Standard User Pool Status Request (403 Forbidden - RFC 7807 ProblemDetails)
+GET {{gateway}}/api/shuffle/admin/pool-status
+Authorization: Bearer {{standardToken}}
+
+### 7. Admin: Get Live Shuffle Redis Pool Status (200 OK)
+GET {{gateway}}/api/shuffle/admin/pool-status
+Authorization: Bearer {{adminToken}}
+
+### 8. Admin: Trigger Cold-Start / Idempotent Cache Warming (200 OK)
+POST {{gateway}}/api/shuffle/admin/warm-cache
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "forceRebuild": false,
+  "triggerReason": "Manual verification check"
+}
+
+### 9. Admin: Force Full Redis Pool Rebuild via Catalog gRPC (200 OK)
+POST {{gateway}}/api/shuffle/admin/warm-cache
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "forceRebuild": true,
+  "triggerReason": "Admin manual force sync"
+}
+
+### 10. Validation: Oversized TriggerReason (400 Bad Request - RFC 7807 Validation ProblemDetails)
+POST {{gateway}}/api/shuffle/admin/warm-cache
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "forceRebuild": false,
+  "triggerReason": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+}

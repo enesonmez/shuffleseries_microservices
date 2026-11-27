@@ -16,7 +16,11 @@ public class IdentityArchitectureTests : MicroserviceArchitectureTestBase
     protected override Assembly ApiAssembly => typeof(ShuffleSeries.Identity.Api.Endpoints.AuthEndpoints).Assembly;
     protected override string ServiceNamespacePrefix => "ShuffleSeries.Identity";
 
-    protected override IEnumerable<string> ForbiddenBoundedContextPrefixes => ["ShuffleSeries.Catalog"];
+    protected override IEnumerable<string> ForbiddenBoundedContextPrefixes =>
+    [
+        "ShuffleSeries.Catalog",
+        "ShuffleSeries.ShuffleEngine"
+    ];
 
     protected override IEnumerable<string> CompositeKeyEntityExclusionNames =>
     [

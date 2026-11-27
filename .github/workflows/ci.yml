@@ -129,5 +129,8 @@ jobs:
       - name: 🔐 Build Identity Service Container Image
         run: docker build -f ShuffleSeries.Identity/ShuffleSeries.Identity.Api/Dockerfile -t shuffleseries-identity:ci .
 
+      - name: 🎲 Build Shuffle Engine Service Container Image
+        run: docker build -f ShuffleSeries.ShuffleEngine/ShuffleSeries.ShuffleEngine.Api/Dockerfile -t shuffleseries-shuffleengine:ci .
+
       - name: 🚪 Build API Gateway Container Image
         run: docker build -f ShuffleSeries.ApiGateway/ShuffleSeries.ApiGateway.Api/Dockerfile -t shuffleseries-apigateway:ci .

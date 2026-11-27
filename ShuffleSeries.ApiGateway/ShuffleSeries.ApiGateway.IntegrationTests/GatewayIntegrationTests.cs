@@ -128,13 +128,30 @@ public class GatewayIntegrationTests : IClassFixture<WebApplicationFactory<Progr
         problem.Extensions["code"]?.ToString().Should().Be("AUTH_UNAUTHORIZED");
     }
 
+    [Fact]
+    public async Task ShuffleRoute_WithoutAuthToken_ShouldReturn401Unauthorized_AtGatewayEdge()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", "198.51.100.45");
+
+        var response = await client.GetAsync("/api/shuffle/admin/pool-status");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        response.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problem.Should().NotBeNull();
+        problem!.Extensions.Should().ContainKey("code");
+        problem.Extensions["code"]?.ToString().Should().Be("AUTH_UNAUTHORIZED");
+    }
+
     [Theory]
     [InlineData("/catalog-api/swagger/index.html")]
     [InlineData("/catalog-api/scalar/v1")]
     [InlineData("/identity-api/swagger/index.html")]
     [InlineData("/identity-api/scalar/v1")]
-    [InlineData("/api/shuffle/vip-weekend")]
-    [InlineData("/api/shuffle/anything")]
+    [InlineData("/shuffle-api/swagger/index.html")]
+    [InlineData("/shuffle-api/scalar/v1")]
     [InlineData("/api/search/anything")]
     public async Task RemovedSubServiceUiRoutes_ShouldReturn404NotFound(string removedPath)
     {
