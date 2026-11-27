@@ -51,7 +51,7 @@ public class EpisodeRepositoryTests
 
         var repository = new EpisodeRepository(context);
 
-        var (results, totalCount) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(1, 50, CancellationToken.None);
+        var (results, totalCount) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(1, 50, null, CancellationToken.None);
 
         totalCount.Should().Be(1);
         results.Should().ContainSingle();
@@ -60,10 +60,20 @@ public class EpisodeRepositoryTests
         results[0].Series.Id.Should().Be(activeSeries.Id);
         results[0].Series.MediaMoods.Should().ContainSingle();
         results[0].Series.MediaGenres.Should().ContainSingle();
+
+        var singleContext = await repository.GetStandaloneEpisodeByIdWithSeriesContextAsync(standaloneEp.Id, CancellationToken.None);
+        singleContext.Should().NotBeNull();
+        singleContext!.Episode.Id.Should().Be(standaloneEp.Id);
+
+        var nonStandaloneLookup = await repository.GetStandaloneEpisodeByIdWithSeriesContextAsync(nonStandaloneEp.Id, CancellationToken.None);
+        nonStandaloneLookup.Should().BeNull();
+
+        var ghostLookup = await repository.GetStandaloneEpisodeByIdWithSeriesContextAsync(ghostEpisode.Id, CancellationToken.None);
+        ghostLookup.Should().BeNull();
     }
 
     [Fact]
-    public async Task GetStandaloneEpisodesWithSeriesContextAsync_Should_PaginateCleanly_And_ReturnEmptyOnOutOfRangePage()
+    public async Task GetStandaloneEpisodesWithSeriesContextAsync_Should_PaginateAndFilterBySeriesCleanly()
     {
         await using var context = CreateInMemoryContext();
 
@@ -75,14 +85,18 @@ public class EpisodeRepositoryTests
         ep2.AddOrUpdateTranslation("en", "Ep 2");
         ep3.AddOrUpdateTranslation("en", "Ep 3");
 
-        context.Series.Add(activeSeries);
+        var otherSeries = Series.Create(42011, "tt2085061", 2020, SeriesType.EpisodicAnthology, "https://example.com/ldr.jpg");
+        var otherEp = otherSeries.AddEpisode(1, 1, isStandalone: true, runtimeMinutes: 15, imdbRating: 8.8);
+        otherEp.AddOrUpdateTranslation("en", "Sonnie's Edge");
+
+        context.Series.AddRange(activeSeries, otherSeries);
         await context.SaveChangesAsync();
 
         var repository = new EpisodeRepository(context);
 
-        var (page1, total1) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(1, 2, CancellationToken.None);
-        var (page2, total2) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(2, 2, CancellationToken.None);
-        var (page3, total3) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(3, 2, CancellationToken.None);
+        var (page1, total1) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(1, 2, activeSeries.Id, CancellationToken.None);
+        var (page2, total2) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(2, 2, activeSeries.Id, CancellationToken.None);
+        var (page3, total3) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(3, 2, activeSeries.Id, CancellationToken.None);
 
         total1.Should().Be(3);
         total2.Should().Be(3);
@@ -98,7 +112,7 @@ public class EpisodeRepositoryTests
         await using var context = CreateInMemoryContext();
         var repository = new EpisodeRepository(context);
 
-        var (results, totalCount) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(1, 10, CancellationToken.None);
+        var (results, totalCount) = await repository.GetStandaloneEpisodesWithSeriesContextAsync(1, 10, null, CancellationToken.None);
         var plainStandalone = await repository.GetStandaloneEpisodesAsync(null, CancellationToken.None);
 
         totalCount.Should().Be(0);

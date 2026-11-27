@@ -20,6 +20,7 @@ public sealed class GetStandaloneEpisodesForRouletteQueryHandler
         var (episodes, totalCount) = await _episodeRepository.GetStandaloneEpisodesWithSeriesContextAsync(
             request.PageNumber,
             request.PageSize,
+            request.SeriesId,
             cancellationToken);
 
         var mappedItems = episodes

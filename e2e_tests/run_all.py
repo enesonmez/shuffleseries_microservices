@@ -35,6 +35,11 @@ SUITES = [
         "name": "Catalog Service & Media Suite",
         "file": "test_catalog_api_gateway.py",
         "description": "Taxonomies (Platforms, Moods, Genres), Movies, Series, Episodes, Associations, Translations, CMS Search"
+    },
+    {
+        "name": "Shuffle Engine & Event Sync Suite",
+        "file": "test_shuffle_engine_api_gateway.py",
+        "description": "Cold-Start gRPC Cache Warming, Safety Net Pool, Edge RBAC, Live Outbox->RabbitMQ->Inbox->Redis Sync"
     }
 ]
 

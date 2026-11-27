@@ -13,6 +13,10 @@ public interface IEpisodeRepository : IRepository
     Task<(IReadOnlyList<StandaloneEpisodeContext> Items, int TotalCount)> GetStandaloneEpisodesWithSeriesContextAsync(
         int page,
         int pageSize,
+        Guid? seriesId = null,
+        CancellationToken cancellationToken = default);
+    Task<StandaloneEpisodeContext?> GetStandaloneEpisodeByIdWithSeriesContextAsync(
+        Guid episodeId,
         CancellationToken cancellationToken = default);
     void Update(Episode episode);
     void Delete(Episode episode);

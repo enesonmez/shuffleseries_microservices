@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FluentValidation" Version="12.1.1" />
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+        <PackageReference Include="WolverineFx" Version="6.62.0" />
+        <PackageReference Include="WolverineFx.FluentValidation" Version="6.62.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Application\ShuffleSeries.Shared.Core.Application.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine.Domain\ShuffleSeries.ShuffleEngine.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="ShuffleSeries.Shared.Core.Application.Common.Interfaces" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ShuffleSeries.ShuffleEngine.Api" />
+        <InternalsVisibleTo Include="ShuffleSeries.ShuffleEngine.Tests" />
+        <InternalsVisibleTo Include="ShuffleSeries.ShuffleEngine.IntegrationTests" />
+        <InternalsVisibleTo Include="WolverineHandlers" />
+        <InternalsVisibleTo Include="Wolverine" />
+        <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
+    </ItemGroup>
+
+</Project>

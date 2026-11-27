@@ -1,0 +1,3 @@
+namespace ShuffleSeries.Catalog.Application.Features.ShuffleSync.Queries.GetStandaloneEpisodeByIdForShuffle;
+
+public sealed record GetStandaloneEpisodeByIdForShuffleQuery(Guid EpisodeId);

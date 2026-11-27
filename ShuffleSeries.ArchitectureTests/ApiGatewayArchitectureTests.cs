@@ -18,7 +18,8 @@ public class ApiGatewayArchitectureTests
         string[] forbiddenServices =
         [
             "ShuffleSeries.Catalog",
-            "ShuffleSeries.Identity"
+            "ShuffleSeries.Identity",
+            "ShuffleSeries.ShuffleEngine"
         ];
 
         var result = Types.InAssembly(_gatewayAssembly)

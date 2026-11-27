@@ -368,6 +368,7 @@ public static class DependencyInjection
                        sp.GetRequiredService<InsertOutboxMessagesInterceptor>());
         {s_close()});
 
+        services.AddSharedDatabaseHealthCheck<{s}DbContext>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<{s}DbContext>());
         services.AddScoped<I{s}Repository, {s}Repository>();
         services.AddSharedRedis(configuration);
@@ -381,11 +382,13 @@ public static class DependencyInjection
 
     public static void Add{s}MessagingTransport(this WolverineOptions opts, IConfiguration configuration)
     {s_open()}
-        var rabbitMqConnectionString = configuration.GetConnectionString("RabbitMQ")
-            ?? configuration["RabbitMQ:ConnectionString"]
-            ?? "amqp://guest:guest@localhost:5672";
+        var rabbitHost = configuration["MessageBroker:Host"] ?? "localhost";
+        var rabbitPort = configuration["MessageBroker:Port"] ?? "5672";
+        var rabbitUser = configuration["MessageBroker:Username"] ?? "guest";
+        var rabbitPass = configuration["MessageBroker:Password"] ?? "guest";
 
-        opts.UseRabbitMq(new Uri(rabbitMqConnectionString)).AutoProvision();
+        opts.UseRabbitMq(new Uri($"amqp://{{rabbitUser}}:{{rabbitPass}}@{{rabbitHost}}:{{rabbitPort}}"))
+            .AutoProvision();
 
         // RabbitMQ Outbound Event Routing (Strictly IIntegrationEvent to prevent internal domain event leakage)
         opts.Publish(rule =>

@@ -107,6 +107,7 @@ flowchart TD
     subgraph FLOW_LIBRARY ["4️⃣ User Library, Watch & Rating Stream"]
         direction LR
         P_LIB["📚 User Library\n(Outbox Publisher)"]:::pub -->|"Publishes"| E_LIB["MediaAddedToWatchlistEvent\nMediaWatchedEvent\nMediaRatedEvent (3-State)"]:::evt
+        E_LIB -->|"InBox"| C_LIB0["🎲 Shuffle Engine (Update Affinity Vector)"]:::sub
         E_LIB -->|"InBox"| C_LIB1["🎟️ Tickets (+3 Tickets per 3 Ratings)"]:::sub
         E_LIB -->|"InBox"| C_LIB2["🔍 Search (Trending Roulettes Count)"]:::sub
         E_LIB -->|"InBox"| C_LIB3["📊 Analytics (Watch History & Recs)"]:::sub
@@ -156,6 +157,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 | :--- | :--- | :--- | :--- |
 | **`Identity Service`** | PostgreSQL | • Hybrid RBAC + PBAC<br>• Refresh Token Rotation (RTR)<br>• External Social SSO (`UserLogins`)<br>• Transactional Outbox | `Users`, `Roles`, `Permissions`, `UserRoles`, `RolePermissions`, `UserPermissions`, `RefreshTokens`, `UserLogins`, `OutboxMessages` |
 | **`Catalog Service`** | PostgreSQL | • Table-per-Hierarchy (TPH) for Media<br>• Entity Translation Pattern (i18n)<br>• Standalone Episode Partial Index<br>• Deep Linking (Web & App Schemes)<br>• Multi-Genre & 9-Mood Taxonomy | `Media` (`Movie`, `Series`), `MediaTranslations`, `Seasons`, `Episodes`, `EpisodeTranslations`, `Platforms`, `MediaPlatforms`, `EpisodePlatforms`, `Genres`, `GenreTranslations`, `MediaGenres`, `Moods`, `MoodTranslations`, `MediaMoods`, `OutboxMessages` |
+| **`Shuffle Engine Service`** | Redis + PostgreSQL | • Hybrid Redis Pools (`ZSET`, `HASH`, `SET`)<br>• `IMDb >= 7.5` Safety Net Masterpieces Pool<br>• Per-Item 24h Cooldown `ZSET` & Lua Feature Vector<br>• Distributed-Locked Cold-Start gRPC Warming<br>• Centralized PostgreSQL Transactional `InboxMessages` | Redis: `shuffle:media:{id}`, `shuffle:episode:{id}`, `shuffle:pool:*`, `shuffle:safety-net:*`, `cooldown:user:{id}`, `shuffle:user:{id}:affinity`, `shuffle:user:{id}:entitlement`<br>PostgreSQL: `InboxMessages`, `OutboxMessages` |
 
 ---
 
@@ -183,6 +185,13 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 │   ├── ShuffleSeries.Identity.Api/                # Minimal API endpoints (/api/auth) & OpenAPI specification
 │   ├── ShuffleSeries.Identity.Tests/              # Unit test suite (Domain, PBKDF2 Hasher, Token Rotation, Resolvers)
 │   └── ShuffleSeries.Identity.IntegrationTests/   # Real DB integration tests (Testcontainers PostgreSQL, Respawn)
+├── ShuffleSeries.ShuffleEngine/        # Shuffle Engine & Real-Time Recommendation Core bounded context
+│   ├── ShuffleSeries.ShuffleEngine.Domain/        # Quality score calculator, UserFeatureVector, Entitlement & Snapshots
+│   ├── ShuffleSeries.ShuffleEngine.Application/   # CQRS CacheSync features & 11 Inbox-guarded Wolverine event consumers
+│   ├── ShuffleSeries.ShuffleEngine.Infrastructure/# Pipelined Redis stores (ZSet/Hash/Set/Lua), Catalog gRPC client & Inbox
+│   ├── ShuffleSeries.ShuffleEngine.Api/           # Minimal API admin sync endpoints (/api/shuffle) & OpenAPI specification
+│   ├── ShuffleSeries.ShuffleEngine.Tests/         # 1:1 SUT-mirrored unit tests (Domain, Consumers, Warming, gRPC client)
+│   └── ShuffleSeries.ShuffleEngine.IntegrationTests/ # Real Testcontainers (PostgreSQL, Redis & RabbitMQ) integration suite
 ├── ShuffleSeries.ArchitectureTests/    # Centralized Architecture Dependency Tests (NetArchTest.Rules)
 ├── ShuffleSeries.ApiGateway/           # YARP-based intelligent API Gateway
 │   ├── ShuffleSeries.ApiGateway.Api/              # Reverse proxy, Rate Limiting, Centralized Swagger aggregation
@@ -349,13 +358,22 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 
 ---
 
-### 15. Architecture Governance, Scaffolding & Universal Fitness Tests (The 3-Pillar Defense)
+### 15. Shuffle Engine Real-Time Synchronization & Redis In-Memory Core (`ShuffleSeries.ShuffleEngine`)
+- **Hybrid Redis Data Topology (`ZSET` + `HASH` + `SET`)**: Eliminates relational `JOIN` bottlenecks by storing localized media and standalone episode cards in UTF-8 `HASH` keys (`shuffle:media:{id}`, `shuffle:episode:{id}`), ranking candidate pools in `BaseQualityScore`-ordered `ZSET`s (`shuffle:pool:{movies|series|episodes}`), and maintaining $O(1)$ intersection `SET`s per platform, mood, genre, and parent series (`shuffle:idx:*`). Two-pass `IBatch` pipelining syncs 100 items in just two TCP roundtrips with zero UTF-16 string allocations.
+- **Safety Net Masterpieces Pool (`IMDb >= 7.5`)**: Dedicated `shuffle:safety-net:{movies|series|episodes}` sorted sets ensure cold-start guest and newly registered users never encounter low-quality recommendations on their initial spins.
+- **Per-Item 24h Cooldown `ZSET` & Lua Feature Vectors**: User skips (`cooldown:user:{userId}`) use Unix expiration timestamps as `ZSET` scores so each skipped card expires at its exact 24th hour without extending older entries. Behavioral 3-state ratings (`MediaRatedEvent`: `+30%`, `+10%`, `-50%`) and onboarding mood boosts (`+15%`) update `shuffle:user:{userId}:affinity` atomically via Redis Lua scripts with `[-0.80, +1.50]` clamping.
+- **Centralized PostgreSQL Transactional Inbox (`InboxProcessor`)**: Shared `ON CONFLICT ("Id") DO NOTHING` + `FOR UPDATE` row-locked idempotency guard in `Shared.Core.Infrastructure` guarantees every RabbitMQ event (`MediaCreated/Updated/Deleted`, `EpisodeCreated/Updated/Deleted`, `CatalogTaxonomyChanged`, `UserSubscribed/Cancelled`, `MediaRated`, `UserAccountDeleted`) executes at most once across multi-pod deployments, paired with `occurredAtTicks` out-of-order protection and 7-day `ExecuteDeleteAsync()` retention cleanup.
+- **Distributed-Locked Cold-Start Cache Warming (`CatalogGrpc` HTTP/2 `h2c`)**: On cold start or periodic Quartz health checks (`EnsureShuffleCacheWarmJob`), `ShuffleCacheWarmingService` acquires a local `SemaphoreSlim` + Redis `SET NX PX` lease (owner-verified Lua release) and streams paginated media and standalone episodes (`PageSize = 100`) over resilient HTTP/2 gRPC (`AddStandardResilienceHandler`) using staggered TTLs (`WarmMarker = 12h` vs `Pools = 24h` + random jitter).
+
+---
+
+### 16. Architecture Governance, Scaffolding & Universal Fitness Tests (The 3-Pillar Defense)
 
 ```mermaid
 flowchart LR
     Rule["📜 Declarative Standard\n(.agents/rules/architecture-standard.md)"] --> Scaffold["⚙️ Deterministic CLI\n(scripts/scaffold_service.py)"]
     Scaffold --> Onion["🧅 5-Layer Symmetric Service\n(Domain, App, Infra, Api, Tests)"]
-    Onion --> Fitness["🛡️ Executable Governance\n(MicroserviceArchitectureTestBase - 74 Tests)"]
+    Onion --> Fitness["🛡️ Executable Governance\n(MicroserviceArchitectureTestBase - 107 Tests)"]
 ```
 
 - **Declarative Guard (`.agents/rules/architecture-standard.md` & `AGENTS.md`)**: Complete architectural specification for all ShuffleSeries microservices, enforcing 5-layer Onion anatomy (`Domain`, `Application`, `Infrastructure`, `Api`, `Tests`, `IntegrationTests`), strict **1-Class-1-File** discipline, **1:1 SUT test folder mirroring**, pure BCL `Infrastructure` isolation (zero `Microsoft.AspNetCore.*` coupling), and standardized `Program.cs` middleware ordering.
@@ -405,6 +423,7 @@ docker compose -f docker-compose.yml -f docker-compose.apps.yml up -d --build
 This boots:
 - `shuffleseries_identity_api` on port `5011` (`http://localhost:5011/swagger`)
 - `shuffleseries_catalog_api` on port `5010` (`http://localhost:5010/swagger`) and gRPC HTTP/2 (`h2c`) on port `5012`
+- `shuffleseries_shuffleengine_api` on port `5013` (`http://localhost:5013/swagger`)
 - `shuffleseries_api_gateway` on port `5001` (`http://localhost:5001/swagger`)
 - All backing services connected via `shuffleseries_network`
 
@@ -441,13 +460,13 @@ dotnet test --filter FullyQualifiedName~ShuffleEngine
 
 ### 🧪 Test Execution (Unit, Architecture, Real Integration & Pentest E2E)
 ShuffleSeries enforces a strict, multi-tiered testing strategy:
-- **Unit Tests (`ShuffleSeries.Shared.Core.Tests`, `ShuffleSeries.Catalog.Tests`, `ShuffleSeries.Identity.Tests`):** Fast, isolated tests for domain entities, validation logic, and CQRS handlers.
-- **Architecture Dependency Tests (`ShuffleSeries.ArchitectureTests`):** Universal Architectural Fitness Functions via `NetArchTest.Rules` and `MicroserviceArchitectureTestBase` verifying layer boundaries (Domain, Application, Infrastructure, Api), command-validator pairings, aggregate root encapsulation, sealed handlers/validators, and CQRS/DDD conventions across all microservices.
-- **Real Infrastructure Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`, `ShuffleSeries.Identity.IntegrationTests`, `ShuffleSeries.ApiGateway.IntegrationTests`):** End-to-end HTTP pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (**PostgreSQL, Redis & RabbitMQ**), `Respawn` and Redis `allowAdmin` database flushes for clean isolation, plus deterministic on-demand outbox message dispatching.
-- **Master E2E & Penetration Testing Suite (`e2e_tests/`):** 214 comprehensive integration and adversarial penetration tests through YARP API Gateway covering SSRF, SQLi/Trigram blind fuzzing, BOLA/IDOR, ReDoS/DoS, HTTP Parameter Pollution, and JWT Algorithm Confusion.
+- **Unit Tests (`ShuffleSeries.Shared.Core.Tests`, `ShuffleSeries.Catalog.Tests`, `ShuffleSeries.Identity.Tests`, `ShuffleSeries.ShuffleEngine.Tests`):** Fast, isolated tests for domain entities, validation logic, and CQRS/event handlers.
+- **Architecture Dependency Tests (`ShuffleSeries.ArchitectureTests`):** Universal Architectural Fitness Functions (**107 tests**) via `NetArchTest.Rules` and `MicroserviceArchitectureTestBase` verifying layer boundaries (Domain, Application, Infrastructure, Api), cross-bounded-context isolation, command-validator pairings, aggregate root encapsulation, sealed handlers/validators, and CQRS/DDD conventions across all microservices.
+- **Real Infrastructure Integration Tests (`ShuffleSeries.Catalog.IntegrationTests`, `ShuffleSeries.Identity.IntegrationTests`, `ShuffleSeries.ShuffleEngine.IntegrationTests`, `ShuffleSeries.ApiGateway.IntegrationTests`):** End-to-end HTTP and event-choreography pipeline tests using `WebApplicationFactory`, real `Testcontainers for .NET` (**PostgreSQL, Redis & RabbitMQ**), `Respawn` and Redis `allowAdmin` database flushes for clean isolation, plus deterministic on-demand outbox/inbox verification.
+- **Master E2E & Penetration Testing Suite (`e2e_tests/`):** 4 comprehensive black-box E2E and adversarial penetration suites (`232+` checks) through YARP API Gateway covering SSRF, SQLi/Trigram blind fuzzing, BOLA/IDOR, ReDoS/DoS, HTTP Parameter Pollution, JWT Algorithm Confusion, gRPC Cold-Start Cache Warming, and live Outbox -> RabbitMQ -> Inbox -> Redis synchronization.
 
 ```bash
-# Run all 1,131+ tests across the entire solution
+# Run all 1,223+ tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)

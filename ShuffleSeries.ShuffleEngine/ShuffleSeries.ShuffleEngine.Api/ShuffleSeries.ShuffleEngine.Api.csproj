@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Scalar.AspNetCore" Version="2.16.6" />
+        <PackageReference Include="WolverineFx" Version="6.62.0" />
+        <PackageReference Include="WolverineFx.FluentValidation" Version="6.62.0" />
+        <PackageReference Include="WolverineFx.RabbitMQ" Version="6.62.0" />
+        <PackageReference Include="WolverineFx.RuntimeCompilation" Version="6.62.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="ShuffleSeries.Shared.Core.Application.Common.Interfaces" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\ShuffleSeries.Shared.Core\ShuffleSeries.Shared.Core.Web\ShuffleSeries.Shared.Core.Web.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine.Application\ShuffleSeries.ShuffleEngine.Application.csproj" />
+        <ProjectReference Include="..\ShuffleSeries.ShuffleEngine.Infrastructure\ShuffleSeries.ShuffleEngine.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>

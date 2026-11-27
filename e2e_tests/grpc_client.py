@@ -101,13 +101,51 @@ def decode_string_map(entries: list[tuple[int, object]]) -> dict[str, dict[int, 
     return result
 
 
+def _parse_header_block(header_block: str) -> tuple[int, int, str]:
+    http_status = 0
+    lines = header_block.splitlines()
+    if lines:
+        parts = lines[0].split(" ")
+        if len(parts) >= 2 and parts[1].isdigit():
+            http_status = int(parts[1])
+
+    grpc_status, grpc_message = _extract_grpc_trailers(lines[1:])
+    return http_status, grpc_status, grpc_message
+
+
+def _extract_grpc_trailers(lines: list[str], current_status: int = -1, current_message: str = "") -> tuple[int, str]:
+    grpc_status = current_status
+    grpc_message = current_message
+    for line in lines:
+        if ":" not in line:
+            continue
+        k, v = line.split(":", 1)
+        kl = k.strip().lower()
+        if kl == "grpc-status" and v.strip().lstrip("-").isdigit():
+            grpc_status = int(v.strip())
+        elif kl == "grpc-message":
+            grpc_message = v.strip()
+    return grpc_status, grpc_message
+
+
+def _extract_grpc_payload(rest: bytes) -> tuple[bool, bytes, str, str]:
+    if len(rest) >= 5 and rest[0] == 0:
+        msg_len = struct.unpack(">I", rest[1:5])[0]
+        frame_end = 5 + msg_len
+        return True, rest[5:frame_end], rest[frame_end:].decode("latin-1", errors="ignore"), ""
+    if len(rest) >= 5 and rest[0] == 1:
+        return False, b"", "", "Compressed gRPC response frames (gzip flag=1) are not supported by E2E helper"
+    return True, b"", rest.decode("latin-1", errors="ignore"), ""
+
+
 def call_grpc(host: str, port: int, full_method: str, request_bytes: bytes) -> tuple[int, int, bytes, str]:
     """
-    Executes a unary gRPC call over HTTP/2 cleartext (h2c prior knowledge).
+    Executes a unary gRPC call over HTTP/2 cleartext (h2c prior knowledge) for local E2E testing.
     Returns: (http_status, grpc_status, response_protobuf_bytes, grpc_message)
     """
     grpc_frame = b"\x00" + struct.pack(">I", len(request_bytes)) + request_bytes
-    url = f"http://{host}:{port}{full_method}"
+    scheme = "http" if host in ("127.0.0.1", "localhost") else "https"
+    url = f"{scheme}://{host}:{port}{full_method}"
 
     proc = subprocess.run(
         [
@@ -136,42 +174,10 @@ def call_grpc(host: str, port: int, full_method: str, request_bytes: bytes) -> t
     header_block = raw[:sep_idx].decode("latin-1")
     rest = raw[sep_idx + 4:]
 
-    http_status = 0
-    first_line = header_block.splitlines()[0] if header_block else ""
-    parts = first_line.split(" ")
-    if len(parts) >= 2 and parts[1].isdigit():
-        http_status = int(parts[1])
+    http_status, grpc_status, grpc_message = _parse_header_block(header_block)
+    ok, payload_bytes, trailing, parse_err = _extract_grpc_payload(rest)
+    if not ok:
+        return http_status, -1, b"", parse_err
 
-    grpc_status = -1
-    grpc_message = ""
-    for line in header_block.splitlines()[1:]:
-        if ":" in line:
-            k, v = line.split(":", 1)
-            kl = k.strip().lower()
-            if kl == "grpc-status" and v.strip().lstrip("-").isdigit():
-                grpc_status = int(v.strip())
-            elif kl == "grpc-message":
-                grpc_message = v.strip()
-
-    # curl -i appends HTTP/2 trailing headers after body OR merges them; parse uncompressed (flag=0) gRPC frames strictly
-    payload_bytes = b""
-    if len(rest) >= 5 and rest[0] == 0:
-        msg_len = struct.unpack(">I", rest[1:5])[0]
-        frame_end = 5 + msg_len
-        payload_bytes = rest[5:frame_end]
-        trailing = rest[frame_end:].decode("latin-1", errors="ignore")
-    elif len(rest) >= 5 and rest[0] == 1:
-        return http_status, -1, b"", "Compressed gRPC response frames (gzip flag=1) are not supported by E2E helper"
-    else:
-        trailing = rest.decode("latin-1", errors="ignore")
-
-    for line in trailing.splitlines():
-        if ":" in line:
-            k, v = line.split(":", 1)
-            kl = k.strip().lower()
-            if kl == "grpc-status" and v.strip().lstrip("-").isdigit():
-                grpc_status = int(v.strip())
-            elif kl == "grpc-message":
-                grpc_message = v.strip()
-
+    grpc_status, grpc_message = _extract_grpc_trailers(trailing.splitlines(), grpc_status, grpc_message)
     return http_status, grpc_status, payload_bytes, grpc_message

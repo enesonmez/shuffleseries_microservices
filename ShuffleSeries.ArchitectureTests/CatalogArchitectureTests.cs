@@ -18,7 +18,11 @@ public class CatalogArchitectureTests : MicroserviceArchitectureTestBase
     protected override Assembly ApiAssembly => typeof(ShuffleSeries.Catalog.Api.Endpoints.SeriesEndpoints).Assembly;
     protected override string ServiceNamespacePrefix => "ShuffleSeries.Catalog";
 
-    protected override IEnumerable<string> ForbiddenBoundedContextPrefixes => ["ShuffleSeries.Identity"];
+    protected override IEnumerable<string> ForbiddenBoundedContextPrefixes =>
+    [
+        "ShuffleSeries.Identity",
+        "ShuffleSeries.ShuffleEngine"
+    ];
 
     protected override IEnumerable<Type> AggregateRootTypes =>
     [
@@ -90,11 +94,9 @@ public class CatalogArchitectureTests : MicroserviceArchitectureTestBase
             .Select(t => t.FullName!)
             .ToArray();
 
-        var forbiddenDependencies = new[]
-        {
-            "ShuffleSeries.Catalog.Domain.Repositories",
-            "ShuffleSeries.Catalog.Infrastructure.Persistence"
-        }.Concat(handlerTypeNames).ToArray();
+        var forbiddenDependencies = _forbiddenCatalogGrpcBaseDependencies
+            .Concat(handlerTypeNames)
+            .ToArray();
 
         var testResult = NetArchTest.Rules.Types.InAssembly(ApiAssembly)
             .That()
@@ -106,6 +108,12 @@ public class CatalogArchitectureTests : MicroserviceArchitectureTestBase
         testResult.IsSuccessful.Should().BeTrue(
             $"gRPC servisleri doğrudan Repository, DbContext veya CQRS Handler kullanamaz; Wolverine IMessageBus üzerinden ilerlemelidir. İhlaller: {string.Join(", ", testResult.FailingTypeNames ?? [])}");
     }
+
+    private static readonly string[] _forbiddenCatalogGrpcBaseDependencies =
+    [
+        "ShuffleSeries.Catalog.Domain.Repositories",
+        "ShuffleSeries.Catalog.Infrastructure.Persistence"
+    ];
 
     #endregion
 }

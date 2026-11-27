@@ -87,12 +87,14 @@ internal sealed class EpisodeRepository : IEpisodeRepository
     public async Task<(IReadOnlyList<StandaloneEpisodeContext> Items, int TotalCount)> GetStandaloneEpisodesWithSeriesContextAsync(
         int page,
         int pageSize,
+        Guid? seriesId = null,
         CancellationToken cancellationToken = default)
     {
         var baseQuery = _context.Episodes
             .AsNoTracking()
             .Where(x => x.IsStandalone &&
                         _context.Seasons.Any(s => s.Id == x.SeasonId &&
+                                                  (!seriesId.HasValue || s.SeriesId == seriesId.Value) &&
                                                   _context.Series.Any(sr => sr.Id == s.SeriesId)));
 
         var totalCount = await baseQuery.CountAsync(cancellationToken);
@@ -115,6 +117,38 @@ internal sealed class EpisodeRepository : IEpisodeRepository
             return (Array.Empty<StandaloneEpisodeContext>(), totalCount);
         }
 
+        var results = await HydrateSeriesContextsAsync(episodes, cancellationToken);
+        return (results, totalCount);
+    }
+
+    public async Task<StandaloneEpisodeContext?> GetStandaloneEpisodeByIdWithSeriesContextAsync(
+        Guid episodeId,
+        CancellationToken cancellationToken = default)
+    {
+        var episode = await _context.Episodes
+            .AsNoTracking()
+            .Where(x => x.Id == episodeId &&
+                        x.IsStandalone &&
+                        _context.Seasons.Any(s => s.Id == x.SeasonId &&
+                                                  _context.Series.Any(sr => sr.Id == s.SeriesId)))
+            .Include(x => x.Translations)
+            .Include(x => x.EpisodePlatforms.Where(ep => ep.Platform != null)).ThenInclude(p => p.Platform)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (episode is null)
+        {
+            return null;
+        }
+
+        var contexts = await HydrateSeriesContextsAsync([episode], cancellationToken);
+        return contexts.Count > 0 ? contexts[0] : null;
+    }
+
+    private async Task<List<StandaloneEpisodeContext>> HydrateSeriesContextsAsync(
+        List<Episode> episodes,
+        CancellationToken cancellationToken)
+    {
         var seasonIds = episodes.Select(e => e.SeasonId).Distinct().ToList();
         var seasonsById = await _context.Seasons
             .AsNoTracking()
@@ -144,7 +178,7 @@ internal sealed class EpisodeRepository : IEpisodeRepository
             results.Add(new StandaloneEpisodeContext(episode, season, series));
         }
 
-        return (results, totalCount);
+        return results;
     }
 
     private static int NormalizeStandaloneLimit(int? limit) =>

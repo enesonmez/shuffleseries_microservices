@@ -69,7 +69,42 @@ services:
           - identity.api
           - identity-api
 
-  # 3. YARP API Gateway (Reverse Proxy, Route Management, Swagger Aggregation)
+  # 3. Shuffle Engine Mikroservisi (Redis In-Memory Roulette Pool, Event Sync & Recommendation Engine)
+  shuffleengine-api:
+    build:
+      context: .
+      dockerfile: ShuffleSeries.ShuffleEngine/ShuffleSeries.ShuffleEngine.Api/Dockerfile
+    container_name: shuffleseries_shuffleengine_api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5013:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Vault__Address=http://vault:8200
+      - Vault__Token=${VAULT_ROOT_TOKEN:-root}
+      - Vault__MountPoint=secret
+      - Vault__Optional=false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault_init:
+        condition: service_completed_successfully
+      catalog-api:
+        condition: service_started
+    networks:
+      shuffle_network:
+        aliases:
+          - shuffleengine.api
+          - shuffleengine-api
+
+  # 4. YARP API Gateway (Reverse Proxy, Route Management, Swagger Aggregation)
   api-gateway:
     build:
       context: .
@@ -89,6 +124,8 @@ services:
       catalog-api:
         condition: service_started
       identity-api:
+        condition: service_started
+      shuffleengine-api:
         condition: service_started
       vault:
         condition: service_healthy

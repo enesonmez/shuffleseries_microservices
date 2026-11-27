@@ -119,7 +119,7 @@ Kullanıcı girişlerinin, sosyal kimlik doğrulamanın ve sistem trafiğinin y�
 
 # Milestone 4: Shuffle Engine Service (The Core Engine)
 Sistemin en çok trafik alacak ana damarının performans, esneklik ve oyunlaştırma odaklı geliştirilmesi.
-* [ ] Task 4.1: Event-Driven Veri Senkronizasyonu ve Redis In-Memory Altyapısı
+* [x] Task 4.1: Event-Driven Veri Senkronizasyonu ve Redis In-Memory Altyapısı
   * RabbitMQ üzerinden fırlatılan medya, platform ve mood event'lerinin dinlenerek Redis Sorted Sets, Hash ve Set yapılarının anlık güncellenmesi.
   * InBox Pattern kullanılarak aynı event'in iki kez işlenmesinin (Idempotency) önüne geçilmesi.
   * UserSubscribedEvent ve UserSubscriptionCancelledEvent mesajlarının dinlenerek kullanıcının Redis üzerindeki Premium statüsünün ve yetkilerinin milisaniyede güncellenmesi.

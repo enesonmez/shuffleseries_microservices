@@ -54,4 +54,10 @@ vault kv put -mount=secret shuffleseries/identity \
   "ExternalAuth:Google:ClientId=${GOOGLE_CLIENT_ID:-}" \
   "ExternalAuth:Apple:ClientId=${APPLE_CLIENT_ID:-}"
 
+# 5. Shuffle Engine Service Specific Secrets & Config
+vault kv put -mount=secret shuffleseries/shuffleengine \
+  "ConnectionStrings:Database=Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_SHUFFLE_DB_NAME:-shuffleseries_shuffle};Username=${POSTGRES_DB_USER:-admin};Password=${POSTGRES_DB_PASSWORD:-SuperSecretSecurePassword2026!!};Maximum Pool Size=50;" \
+  "CatalogGrpc:Address=${CATALOG_GRPC_ADDRESS:-http://catalog.api:8081}" \
+  "Logging:Sinks:File:Path=logs/shuffleengine-.json"
+
 echo "Vault initial secrets and configuration seeded successfully."
