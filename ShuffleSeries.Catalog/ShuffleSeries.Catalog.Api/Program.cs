@@ -1,4 +1,5 @@
 using ShuffleSeries.Catalog.Api.Endpoints;
+using ShuffleSeries.Catalog.Api.Grpc;
 using ShuffleSeries.Catalog.Application;
 using ShuffleSeries.Catalog.Infrastructure;
 using ShuffleSeries.Catalog.Infrastructure.Persistence;
@@ -64,6 +65,11 @@ builder.Services.AddSharedExceptionHandling();
 
 builder.Services.AddSharedLocalization();
 
+builder.Services.AddGrpc(options =>
+{
+    options.MaxReceiveMessageSize = 1 * 1024 * 1024;
+});
+
 var app = builder.Build();
 
 app.UseSharedCorrelation();
@@ -93,6 +99,7 @@ app.MapMoodEndpoints();
 app.MapGenreEndpoints();
 app.MapMediaAssociationEndpoints();
 app.MapAdminMediaEndpoints();
+app.MapGrpcService<CatalogGrpcService>();
 
 await app.RunAsync();
 

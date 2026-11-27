@@ -882,3 +882,68 @@ Accept: application/json
 GET {{Gateway_HostAddress}}/api/catalog/admin/media?search=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 Authorization: Bearer {{AdminToken}}
 Accept: application/json
+
+
+###############################################################################
+# 11. gRPC İÇ SERVİS İLETİŞİMİ (SHUFFLE ENGINE CACHE WARMING & EDGE ISOLATION)
+###############################################################################
+
+@Catalog_GrpcAddress = http://localhost:5012
+
+### 🟢 11.1 gRPC Toplu Medya Çekimi (Cold Start / Cache Warming)
+# Beklenen: Status 0 (OK) -> Çok dilli translations sözlüğü (map<string, LocalizedMediaPayload>) ile sayfalı liste
+GRPC {{Catalog_GrpcAddress}}/catalog.v1.CatalogGrpc/GetBulkMediaForShuffle
+Content-Type: application/grpc
+
+{
+  "page_number": 1,
+  "page_size": 50
+}
+
+### 🟢 11.2 gRPC Bölüm Ruleti (Standalone Episodes + Üst Dizi Bağlamı - Sayfalı)
+# Beklenen: Status 0 (OK) -> Yalnızca aktif dizi/sezondaki IsStandalone=true bölümler ve total_count
+GRPC {{Catalog_GrpcAddress}}/catalog.v1.CatalogGrpc/GetStandaloneEpisodesForRoulette
+Content-Type: application/grpc
+
+{
+  "page_number": 1,
+  "page_size": 20
+}
+
+### 🟢 11.3 gRPC Tekil Medya Çekimi (Happy Path)
+# Beklenen: Status 0 (OK) -> MediaGrpcModel
+GRPC {{Catalog_GrpcAddress}}/catalog.v1.CatalogGrpc/GetMediaById
+Content-Type: application/grpc
+
+{
+  "media_id": "{{MovieId}}"
+}
+
+### 🔴 11.4 gRPC Tekil Medya Çekimi (Bulunamayan ID -> Status 5 NOT_FOUND)
+# Beklenen: Status 5 (NOT_FOUND)
+GRPC {{Catalog_GrpcAddress}}/catalog.v1.CatalogGrpc/GetMediaById
+Content-Type: application/grpc
+
+{
+  "media_id": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+}
+
+### 🔴 11.5 gRPC Geçersiz GUID Formatı (Validation -> Status 3 INVALID_ARGUMENT)
+# Beklenen: Status 3 (INVALID_ARGUMENT)
+GRPC {{Catalog_GrpcAddress}}/catalog.v1.CatalogGrpc/GetMediaById
+Content-Type: application/grpc
+
+{
+  "media_id": "not-a-valid-guid"
+}
+
+### 🔴 11.6 Edge İzolasyon Kontrolü: Gateway Üzerinden gRPC Erişim Denemesi
+# Beklenen: 404 Not Found (İç gRPC servisi YARP API Gateway üzerinden dış dünyaya kapalıdır)
+POST {{Gateway_HostAddress}}/catalog.v1.CatalogGrpc/GetMediaById
+Authorization: Bearer {{AdminToken}}
+Content-Type: application/grpc
+
+{
+  "media_id": "ffffffff-ffff-ffff-ffff-ffffffffffff"
+}
+

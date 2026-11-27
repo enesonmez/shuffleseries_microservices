@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Grpc.AspNetCore" Version="2.85.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
           <PrivateAssets>all</PrivateAssets>
@@ -22,6 +23,10 @@
 
     <ItemGroup>
         <Using Include="ShuffleSeries.Shared.Core.Application.Common.Interfaces" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Protobuf Include="Protos\catalog.proto" GrpcServices="Both" />
     </ItemGroup>
 
     <ItemGroup>

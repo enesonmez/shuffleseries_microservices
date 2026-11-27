@@ -10,6 +10,10 @@ public interface IEpisodeRepository : IRepository
     Task<Episode?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<int?> GetConflictingSeasonNumberAsync(Guid seasonId, int episodeNumber, Guid excludeEpisodeId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Episode>> GetStandaloneEpisodesAsync(int? limit = null, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<StandaloneEpisodeContext> Items, int TotalCount)> GetStandaloneEpisodesWithSeriesContextAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
     void Update(Episode episode);
     void Delete(Episode episode);
 }

@@ -17,6 +17,7 @@ flowchart TD
     Gateway -->|"Reverse Proxy"| Identity["🔑 Identity Service\n(Auth, Guest Sessions, SSO)"]
     Gateway -->|"Reverse Proxy"| Catalog["📦 Catalog Service\n(Movies, Series, Platforms, Moods)"]
     Gateway -->|"Reverse Proxy"| Shuffle["🎲 Shuffle Engine Service\n(In-Memory Roulette & Swipe)"]
+    Shuffle -->|"gRPC (HTTP/2 h2c)\nCold Start & Roulette Sync"| Catalog
     Gateway -->|"Reverse Proxy"| Library["📚 User Library Service\n(Watchlist, Watched, Ratings)"]
     Gateway -->|"Reverse Proxy"| Gamification["🎟️ Tickets, Gamification & IAP\n(Streak, XP, Boiling Frog, Premium)"]
     Gateway -->|"Reverse Proxy"| Profile["👤 Profile & Preferences\n(PostgreSQL JSONB)"]
@@ -172,7 +173,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 │   ├── ShuffleSeries.Catalog.Domain/              # Rich Domain entities, Aggregates, Domain Services
 │   ├── ShuffleSeries.Catalog.Application/         # CQRS Commands, Queries, Wolverine Handlers, Validators
 │   ├── ShuffleSeries.Catalog.Infrastructure/      # EF Core PostgreSQL persistence, Outbox jobs, Repositories
-│   ├── ShuffleSeries.Catalog.Api/                 # Minimal API endpoints & OpenAPI specification
+│   ├── ShuffleSeries.Catalog.Api/                 # Minimal API endpoints, gRPC Services (catalog.proto) & OpenAPI specification
 │   ├── ShuffleSeries.Catalog.Tests/               # Unit test suite (Moq, Domain, Validators)
 │   └── ShuffleSeries.Catalog.IntegrationTests/    # Real DB integration tests (Testcontainers, Respawn, WebApplicationFactory)
 ├── ShuffleSeries.Identity/             # Identity & Access Management bounded context
@@ -334,6 +335,7 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
   - `GET /api/catalog/admin/media`: Paginated, filtered, culture-safe searchable CMS backoffice list.
 - **Distributed Redis Caching Architecture (`ICatalogCacheService` & `RedisCatalogCacheService`)**: Eliminates multi-replica cache inconsistencies (stale reads) across horizontal scaling by serving platforms, moods, and genres via centralized `StackExchange.Redis` with sub-millisecond ping latency (~0.3ms). Features zero-copy direct UTF-8 byte deserialization (`SerializeToUtf8Bytes` and `(byte[])` reads) eliminating intermediate string allocations, per-key `SemaphoreSlim` double-checked locking against Cache Stampede (thundering herd), random TTL Jitter (+0..180s) against Cache Avalanche, and fail-open resilience to preserve 99.99% database fallback availability. Synchronous blocking operations and in-memory caching layers were removed to eliminate memory pressure and thread pool starvation. Automated asynchronous cache invalidation (`RemoveAsync`) is triggered on every taxonomy create, update, or delete mutation.
 - **Language Content Negotiation (`ILanguageContext`)**: Resolves client language requests with zero 404s via a 5-step fallback hierarchy: `?lang=` -> `Accept-Language` header -> `tr` -> `en` -> first available translation.
+- **High-Performance Internal gRPC Sync (`CatalogGrpcService` & `catalog.proto`)**: Dedicated HTTP/2 cleartext (`h2c`, port `8081` / host `5012`) gRPC endpoint for Shuffle Engine Cold Start / Cache Warming (`GetBulkMediaForShuffle`), Episode Roulette (`GetStandaloneEpisodesForRoulette`), and single-item sync (`GetMediaById`). Carries complete multi-language dictionaries (`map<string, LocalizedMediaPayload>`), platform deep links, and taxonomy IDs through Wolverine `IMessageBus` with zero N+1 queries, ghost-episode soft-delete filtering, bounded pagination, and Edge Isolation (blocked on YARP Gateway).
 - **Culture-Safe PostgreSQL Search (`EF.Functions.ILike`)**: Employs native database-level case-insensitive matching to permanently eliminate Turkish culture casing anomalies (`İ/ı/i/I`).
 - **Episode Domain Events & Outbox Integration (Symmetric Coarse-Grained Model)**: Integrated `Episode` with the Transactional Outbox pattern via the `IHaveDomainEvents` interface without forcing it into an unnatural aggregate root. Maintained architectural symmetry with `Media`, `Platform`, `Mood`, and `Genre` using coarse-grained lifecycle events (`EpisodeCreatedDomainEvent`, `EpisodeUpdatedDomainEvent`, `EpisodeDeletedDomainEvent`). Implemented the `RaiseUpdatedEvent` deduplication guard to eliminate outbox message stampedes across multi-field mutations within a single unit of work.
 - **Security by Design, Granular PBAC & Vault SSOT**: Every endpoint—including client reads—is strictly enforced via JWT Bearer authentication and fine-grained resource policies (`CanReadCatalogMovies`, `CanCreateCatalogMovies`, `CanReadCatalogSeries`, `CanReadCatalogEpisodes`, `CanManageCatalogAssociations`, etc., and `CanReadAdminMedia` for CMS). In strict compliance with OWASP API8, zero hardcoded secrets exist in `appsettings.json`; all JWT signing keys (`Jwt:Secret`, `Jwt:Issuer`, `Jwt:Audience`) are dynamically pulled at bootstrap from HashiCorp Vault (`shuffleseries/shared`) matching the Identity Service pattern.
@@ -353,11 +355,11 @@ Comprehensive entity-relationship diagrams, table structures, constraints, parti
 flowchart LR
     Rule["📜 Declarative Standard\n(.agents/rules/architecture-standard.md)"] --> Scaffold["⚙️ Deterministic CLI\n(scripts/scaffold_service.py)"]
     Scaffold --> Onion["🧅 5-Layer Symmetric Service\n(Domain, App, Infra, Api, Tests)"]
-    Onion --> Fitness["🛡️ Executable Governance\n(MicroserviceArchitectureTestBase - 73 Tests)"]
+    Onion --> Fitness["🛡️ Executable Governance\n(MicroserviceArchitectureTestBase - 74 Tests)"]
 ```
 
 - **Declarative Guard (`.agents/rules/architecture-standard.md` & `AGENTS.md`)**: Complete architectural specification for all ShuffleSeries microservices, enforcing 5-layer Onion anatomy (`Domain`, `Application`, `Infrastructure`, `Api`, `Tests`, `IntegrationTests`), strict **1-Class-1-File** discipline, **1:1 SUT test folder mirroring**, pure BCL `Infrastructure` isolation (zero `Microsoft.AspNetCore.*` coupling), and standardized `Program.cs` middleware ordering.
-- **Universal Architecture Test Base (`MicroserviceArchitectureTestBase`)**: Reusable `NetArchTest.Rules` fitness function base class enforcing **28+ automated invariants** per service (**73 total architecture tests** across Catalog, Identity, Shared.Core, and ApiGateway): layer dependency boundaries, cross-bounded-context isolation (`ForbiddenBoundedContextPrefixes`), zero `Microsoft.AspNetCore` references in `Infrastructure`, `public sealed` Wolverine CQRS handlers & commands/queries, `internal sealed` repositories & EF Core configurations, command-validator pairings, readonly aggregate root collections, async `CancellationToken` parameters, and Quartz concurrency controls.
+- **Universal Architecture Test Base (`MicroserviceArchitectureTestBase`)**: Reusable `NetArchTest.Rules` fitness function base class enforcing **28+ automated invariants** per service (**74 total architecture tests** across Catalog, Identity, Shared.Core, and ApiGateway): layer dependency boundaries, cross-bounded-context isolation (`ForbiddenBoundedContextPrefixes`), zero `Microsoft.AspNetCore` references in `Infrastructure`, `public sealed` Wolverine CQRS handlers & commands/queries, `internal sealed` repositories & EF Core configurations, command-validator pairings, readonly aggregate root collections, async `CancellationToken` parameters, and Quartz concurrency controls.
 - **Deterministic Microservice Scaffolding Engine (`scripts/scaffold_service.py`)**: Production-ready Python CLI generating full 6-project Onion + Test suites in 2 seconds, pre-configured with `<InternalsVisibleTo>`, WolverineFx, FluentValidation, EF Core `IX_OutboxMessages_Pending` partial index, Redis & RabbitMQ health checks, OpenAPI, symmetric multi-layer `Dockerfile`, `launchSettings` ports, solution registration, and immediate `MicroserviceArchitectureTestBase` derivation.
 
 ---
@@ -401,8 +403,8 @@ To run both the backing infrastructure and application microservices (`Catalog.A
 docker compose -f docker-compose.yml -f docker-compose.apps.yml up -d --build
 ```
 This boots:
-- `shuffleseries_identity_api` on port `5002` (`http://localhost:5002/swagger`)
-- `shuffleseries_catalog_api` on port `5000` (`http://localhost:5000/swagger`)
+- `shuffleseries_identity_api` on port `5011` (`http://localhost:5011/swagger`)
+- `shuffleseries_catalog_api` on port `5010` (`http://localhost:5010/swagger`) and gRPC HTTP/2 (`h2c`) on port `5012`
 - `shuffleseries_api_gateway` on port `5001` (`http://localhost:5001/swagger`)
 - All backing services connected via `shuffleseries_network`
 
@@ -445,7 +447,7 @@ ShuffleSeries enforces a strict, multi-tiered testing strategy:
 - **Master E2E & Penetration Testing Suite (`e2e_tests/`):** 214 comprehensive integration and adversarial penetration tests through YARP API Gateway covering SSRF, SQLi/Trigram blind fuzzing, BOLA/IDOR, ReDoS/DoS, HTTP Parameter Pollution, and JWT Algorithm Confusion.
 
 ```bash
-# Run all 1,103+ tests across the entire solution
+# Run all 1,131+ tests across the entire solution
 dotnet test
 
 # Run Architecture Dependency Tests (Fitness Functions)
@@ -491,13 +493,13 @@ The platform is fortified with an automated, multi-stage GitHub Actions pipeline
 ```mermaid
 flowchart LR
     A["🧹 Style Gate\n(dotnet format)"] --> B["🔨 Build & Restore\n(.NET 10 Release)"]
-    B --> C["🧪 Automated Tests\n(1,103+ Tests + Real Testcontainers)"]
+    B --> C["🧪 Automated Tests\n(1,131+ Tests + Real Testcontainers)"]
     D --> E["🐳 Docker Integrity Gate\n(Non-Root 'app' Containers)"]
     C --> D["🛡️ SonarQube Quality Gate\n(0 Smells, 0 Bugs, 93.1% Coverage)"]
 ```
 
 - **Clean Code Gate:** Automatically verifies code formatting (`dotnet format --verify-no-changes`).
-- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **1,103 automated tests** (Unit, 73 Architecture Fitness Functions, and real PostgreSQL/Redis/RabbitMQ Testcontainers integration suites), achieving **93.1% code coverage** (exceeding the 80% Quality Gate threshold).
+- **Code Coverage & Quality:** Collects XPlat Code Coverage (Cobertura & OpenCover) across **1,131 automated tests** (Unit, 74 Architecture Fitness Functions, and real PostgreSQL/Redis/RabbitMQ Testcontainers integration suites), achieving **93.1% code coverage** (exceeding the 80% Quality Gate threshold).
 - **SonarQube Quality Gate:** Validates **0 Bugs**, **0 Vulnerabilities**, **0 Code Smells**, and **100% Security Hotspots Reviewed**.
 - **Container Verification:** Validates Docker builds for microservices and API Gateway on every push and pull request, enforcing the non-root `USER app` security standard.
 - **Fine-Grained Permission-Based Access Control (PBAC):** Every Catalog endpoint is secured via resource-level granular permissions (`catalog:movies:*`, `catalog:series:*`, `catalog:episodes:*`, `catalog:platforms:*`, `catalog:moods:*`, `catalog:genres:*`, `catalog:associations:manage`, `catalog:admin:read`) backed by idempotent database seeding (`IdentityDbSeeder`).

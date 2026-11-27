@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Domain.Entities;
+using ShuffleSeries.Catalog.Domain.Enums;
 using ShuffleSeries.Catalog.Domain.Repositories;
 using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 
@@ -30,6 +31,46 @@ internal sealed class MediaRepository : MediaRepositoryBase<Media>, IMediaReposi
         await Context.Media
             .Include(x => x.Translations)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task<Media?> GetByIdForShuffleAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await BuildShuffleMediaQuery(Context.Media)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task<(IReadOnlyList<Media> Items, int TotalCount)> GetBulkForShuffleAsync(
+        MediaType? mediaType,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = Context.Media.AsNoTracking();
+
+        if (mediaType.HasValue)
+        {
+            query = query.Where(x => x.MediaType == mediaType.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        if (totalCount == 0)
+        {
+            return (Array.Empty<Media>(), 0);
+        }
+
+        var items = await BuildShuffleMediaQuery(query)
+            .OrderBy(x => x.Id)
+            .ApplyPagination(page, pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
+    private static IQueryable<Media> BuildShuffleMediaQuery(IQueryable<Media> query) =>
+        query
+            .AsNoTracking()
+            .Include(x => x.Translations)
+            .Include(x => x.MediaPlatforms.Where(mp => mp.Platform != null)).ThenInclude(p => p.Platform)
+            .Include(x => x.MediaMoods.Where(mm => mm.Mood != null))
+            .Include(x => x.MediaGenres.Where(mg => mg.Genre != null))
+            .AsSplitQuery();
 
     public async Task<(IReadOnlyList<Media> Items, int TotalCount)> GetAdminMediaPagedListAsync(
         AdminMediaFilter filter,

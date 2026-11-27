@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ShuffleSeries.Catalog.Domain.Entities;
 using ShuffleSeries.Catalog.Domain.Repositories;
+using ShuffleSeries.Shared.Core.Infrastructure.Extensions;
 
 namespace ShuffleSeries.Catalog.Infrastructure.Persistence.Repositories;
 
@@ -70,9 +71,7 @@ internal sealed class EpisodeRepository : IEpisodeRepository
 
     public async Task<IReadOnlyList<Episode>> GetStandaloneEpisodesAsync(int? limit = null, CancellationToken cancellationToken = default)
     {
-        var effectiveLimit = limit is > 0
-            ? Math.Min(limit.Value, MaxStandaloneLimit)
-            : DefaultStandaloneLimit;
+        var effectiveLimit = NormalizeStandaloneLimit(limit);
 
         return await _context.Episodes
             .AsNoTracking()
@@ -84,4 +83,72 @@ internal sealed class EpisodeRepository : IEpisodeRepository
             .Take(effectiveLimit)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<(IReadOnlyList<StandaloneEpisodeContext> Items, int TotalCount)> GetStandaloneEpisodesWithSeriesContextAsync(
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var baseQuery = _context.Episodes
+            .AsNoTracking()
+            .Where(x => x.IsStandalone &&
+                        _context.Seasons.Any(s => s.Id == x.SeasonId &&
+                                                  _context.Series.Any(sr => sr.Id == s.SeriesId)));
+
+        var totalCount = await baseQuery.CountAsync(cancellationToken);
+        if (totalCount == 0)
+        {
+            return (Array.Empty<StandaloneEpisodeContext>(), 0);
+        }
+
+        var episodes = await baseQuery
+            .Include(x => x.Translations)
+            .Include(x => x.EpisodePlatforms.Where(ep => ep.Platform != null)).ThenInclude(p => p.Platform)
+            .AsSplitQuery()
+            .OrderByDescending(x => x.ImdbRating)
+            .ThenBy(x => x.Id)
+            .ApplyPagination(page, pageSize)
+            .ToListAsync(cancellationToken);
+
+        if (episodes.Count == 0)
+        {
+            return (Array.Empty<StandaloneEpisodeContext>(), totalCount);
+        }
+
+        var seasonIds = episodes.Select(e => e.SeasonId).Distinct().ToList();
+        var seasonsById = await _context.Seasons
+            .AsNoTracking()
+            .Where(s => seasonIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, cancellationToken);
+
+        var seriesIds = seasonsById.Values.Select(s => s.SeriesId).Distinct().ToList();
+        var seriesById = await _context.Series
+            .AsNoTracking()
+            .Where(sr => seriesIds.Contains(sr.Id))
+            .Include(sr => sr.Translations)
+            .Include(sr => sr.MediaPlatforms.Where(mp => mp.Platform != null)).ThenInclude(mp => mp.Platform)
+            .Include(sr => sr.MediaMoods.Where(mm => mm.Mood != null))
+            .Include(sr => sr.MediaGenres.Where(mg => mg.Genre != null))
+            .AsSplitQuery()
+            .ToDictionaryAsync(sr => sr.Id, cancellationToken);
+
+        var results = new List<StandaloneEpisodeContext>(episodes.Count);
+        foreach (var episode in episodes)
+        {
+            if (!seasonsById.TryGetValue(episode.SeasonId, out var season))
+                continue;
+
+            if (!seriesById.TryGetValue(season.SeriesId, out var series))
+                continue;
+
+            results.Add(new StandaloneEpisodeContext(episode, season, series));
+        }
+
+        return (results, totalCount);
+    }
+
+    private static int NormalizeStandaloneLimit(int? limit) =>
+        limit is > 0
+            ? Math.Min(limit.Value, MaxStandaloneLimit)
+            : DefaultStandaloneLimit;
 }
